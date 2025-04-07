@@ -12,9 +12,7 @@ private:
 
 public:
     LocalMessagesIO(const std::string& path, size_t recordSize);
-
     void setDebug(Stream* debugPort);
-
     std::string read(uint8_t recNr);
     bool write(uint8_t recNr, const char* data);
 };

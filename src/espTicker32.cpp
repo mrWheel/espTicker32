@@ -10,6 +10,7 @@
 #include <FSmanager.h>
 #include <string>
 #include "SPAmanager.h"
+#include "SettingsClass.h"
 #include "LocalMessagesIO.h"
 #include "WeerliveClass.h"
 
@@ -20,6 +21,11 @@
 Networking* network = nullptr;
 Stream* debug = nullptr;
 
+SettingsClass settings;
+DeviceSettings* gDeviceSettings = nullptr;
+const SettingsAttributes* gSettingsAttributes = nullptr;
+
+
 LocalMessagesIO localMessages(LOCAL_MESSAGES_PATH, LOCAL_MESSAGES_RECORD_SIZE);
 
 WiFiClient weerliveClient;
@@ -29,6 +35,7 @@ SPAmanager spa(80);
 //WebServer server(80);
 //-- we need to use the server from the SPAmanager!!
 FSmanager fsManager(spa.server);
+
 
 uint32_t lastCounterUpdate = 0;
 
@@ -530,6 +537,29 @@ void setup()
     debug->print("setup(): IP address: ");
     debug->println(WiFi.localIP());
 
+    if (!LittleFS.begin()) 
+    {
+      debug->println("setup(): LittleFS Mount Failed");
+      return;
+    }
+    listFiles("/", 0);
+
+    settings.setDebug(debug);
+    debug->println("setup(): readSettings()");
+    settings.readSettings();
+    
+    // Store references to settings and attributes globally
+    gDeviceSettings = &settings.getSettings();
+    gSettingsAttributes = &settings.getSettingsAttributes();
+    if (gDeviceSettings->hostname.empty()) 
+    {
+        debug->println("setup(): No hostname found in settings, using default");
+        gDeviceSettings->hostname = std::string(hostName);
+        settings.writeSettings();
+        // Update the global reference after writing
+        gDeviceSettings = &settings.getSettings();
+    }
+
     //-- Define custom NTP servers (optional)
     const char* ntpServers[] = {"time.google.com", "time.cloudflare.com", nullptr};
 
@@ -540,7 +570,7 @@ void setup()
     }
     
     localMessages.setDebug(debug);
-    weerlive.setup("bb83641a38", "Baarn", debug);
+    weerlive.setup("zzzzzzzzz", "Baarn", debug);
     weerlive.setInterval(10); // Set interval to 10 minutes
 
     spa.begin("/SYS", debug);
@@ -571,13 +601,6 @@ void setup()
     setupFSmanagerPage();
 
     spa.activatePage("Main");
-
-    if (!LittleFS.begin()) 
-    {
-      debug->println("setup(): LittleFS Mount Failed");
-      return;
-    }
-    listFiles("/", 0);
 
     debug->println("Done with setup() ..\n");
 
