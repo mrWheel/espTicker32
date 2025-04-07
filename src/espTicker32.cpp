@@ -10,6 +10,8 @@
 #include <FSmanager.h>
 #include <string>
 #include "SPAmanager.h"
+#include "LocalMessagesIO.h"
+#include "WeerliveClass.h"
 
 #define CLOCK_UPDATE_INTERVAL  1000
 #define LOCAL_MESSAGES_PATH      "/localMessages.txt"
@@ -17,6 +19,11 @@
 
 Networking* network = nullptr;
 Stream* debug = nullptr;
+
+LocalMessagesIO localMessages(LOCAL_MESSAGES_PATH, LOCAL_MESSAGES_RECORD_SIZE);
+
+WiFiClient weerliveClient;
+Weerlive weerlive(weerliveClient);
 
 SPAmanager spa(80);
 //WebServer server(80);
@@ -32,125 +39,6 @@ uint32_t  counter = 0;
 std::string currentActivePage = "";
 
 
-std::string readLocalMessages(uint8_t recNr, const char* path, size_t recordSize) 
-{
-//  if (!LittleFS.begin()) 
-//  {
-//    debug->println("readLocalMessages(): Failed to mount LittleFS");
-//    return "";
-//  }
-
-  File file = LittleFS.open(path, "r");
-  if (!file) 
-  {
-    debug->printf("readLocalMessages(): Failed to open file: %s\n", path);
-    return "";
-  }
-
-  size_t offset = recNr * recordSize;
-  if (!file.seek(offset)) 
-  {
-    debug->printf("readLocalMessages(): Failed to seek to record %d (offset %d)\n", recNr, offset);
-    file.close();
-    return "";
-  }
-
-  char buffer[recordSize + 1]; // +1 for null terminator
-  size_t bytesRead = file.readBytes(buffer, recordSize);
-  buffer[bytesRead] = '\0'; // Null-terminate
-
-  file.close();
-
-  if (bytesRead == 0) 
-  {
-    debug->printf("readLocalMessages(): No data read for record %d\n", recNr);
-    return "";
-  }
-
-  // Replace newline with null terminator if present
-  size_t len = strlen(buffer);
-  if (len > 0 && buffer[len - 1] == '\n') {
-    buffer[len - 1] = '\0'; // Remove newline character
-  }
-
-  return std::string(buffer);
-
-} // readLocalMessages()
-
-bool writeLocalMessages(uint8_t recNr, const char* path, size_t recordSize, const char* data) 
-{
-  //if (!LittleFS.begin()) 
-  //{
-  //  debug->println("Failed to mount LittleFS");
-  //  return false;
-  //}
-
-  if (recNr == 0) 
-  {
-    debug->println("writeLocalMessages(): record number is zero, erase file");
-    LittleFS.remove(path); // Erase the file if record number is zero
-  }
-
-  // Trim leading and trailing spaces
-  const char* start = data;
-  while (*start == ' ') start++; // Move past leading spaces
-
-  const char* end = data + strlen(data);
-  while (end > start && *(end - 1) == ' ') end--; // Move before trailing spaces
-
-  size_t trimmedLen = end - start;
-
-  // Check if after trimming we still have something left
-  if (trimmedLen == 0) 
-  {
-    debug->println("Skipped writing empty or space-only localMessage after trimming.");
-    return false;
-  }
-
-  File file = LittleFS.open(path, "a"); // Open for writing
-  if (!file) 
-  {
-    debug->printf("Failed to open file: %s\n", path);
-    return false;
-  }
-
-  size_t offset = recNr * recordSize;
-  if (!file.seek(offset)) 
-  {
-    debug->printf("Failed to seek to record %d (offset %d)\n", recNr, offset);
-    file.close();
-    return false;
-  }
-
-  // Prepare a fixed-size buffer
-  char buffer[recordSize];
-  memset(buffer, 0, recordSize); // Fill with zeros
-
-  // Limit trimmed text to fit inside the record (leave room for '\n')
-  if (trimmedLen > recordSize - 1)
-  {
-    trimmedLen = recordSize - 1;
-  }
-
-  memcpy(buffer, start, trimmedLen);
-  buffer[trimmedLen] = '\n'; // Always end with a newline
-
-  size_t bytesWritten = file.write((uint8_t*)buffer, recordSize);
-  file.flush(); // Ensure data is written to flash
-
-  file.close();
-
-  if (bytesWritten != recordSize) 
-  {
-    debug->printf("Incomplete write: expected %d bytes, wrote %d bytes\n", recordSize, bytesWritten);
-    return false;
-  }
-
-  debug->printf("Successfully wrote record %d: '%.*s'\n", recNr, (int)trimmedLen, start);
-  return true;
-
-} // writeLocalMessages()
-
 // Function to build a JSON string with input field data
 std::string buildInputFieldsJson()
 {
@@ -160,8 +48,9 @@ std::string buildInputFieldsJson()
 
   std::string jsonString = "[";
   while (true) {
-    std::string localMessage = readLocalMessages(recNr++, LOCAL_MESSAGES_PATH, LOCAL_MESSAGES_RECORD_SIZE);
-    if (localMessage.empty()) {
+    std::string localMessage = localMessages.read(recNr++);
+    if (localMessage.empty()) 
+    {
       break;
     }
 
@@ -281,7 +170,7 @@ void processInputFields(const std::string& jsonString)
       // Use String for Arduino compatibility, which handles empty strings properly
       String value = array[i].as<String>();
       debug->printf("processInputFields(): Input value[%d]: %s\n", i, value.c_str());
-      if (writeLocalMessages(recNr, LOCAL_MESSAGES_PATH, LOCAL_MESSAGES_RECORD_SIZE, value.c_str()))
+      if (localMessages.write(recNr, value.c_str()))
       {
         recNr++;
       }
@@ -290,7 +179,7 @@ void processInputFields(const std::string& jsonString)
   
   debug->printf("processInputFields(): [%d] Local Messages written to [%s]\n", recNr, LOCAL_MESSAGES_PATH);
   sendInputFieldsToClient();
-  
+
 } // processInputFields()
 
 
@@ -637,15 +526,28 @@ void setup()
     //-- Parameters: hostname, resetWiFi pin, serial object, baud rate
     debug = network->begin(hostName, 0, Serial, 115200);
     
-    debug->println("\nWiFi connected");
-    debug->print("IP address: ");
+    debug->println("\nsetup(): WiFi connected");
+    debug->print("setup(): IP address: ");
     debug->println(WiFi.localIP());
+
+    //-- Define custom NTP servers (optional)
+    const char* ntpServers[] = {"time.google.com", "time.cloudflare.com", nullptr};
+
+    //-- Start NTP with Amsterdam timezone and custom servers
+    if (network->ntpStart("CET-1CEST,M3.5.0,M10.5.0/3", ntpServers))
+    {
+        debug->println("setup(): NTP started successfully");
+    }
     
+    localMessages.setDebug(debug);
+    weerlive.setup("bb83641a38", "Baarn", debug);
+    weerlive.setInterval(10); // Set interval to 10 minutes
+
     spa.begin("/SYS", debug);
     // Set the local events handler
     spa.setLocalEventHandler(handleLocalWebSocketEvent);
 
-    debug->printf("SPAmanager files are located [%s]\n", spa.getSystemFilePath().c_str());
+    debug->printf("setup(): SPAmanager files are located [%s]\n", spa.getSystemFilePath().c_str());
     fsManager.begin();
     fsManager.addSystemFile("/favicon.ico");
     fsManager.addSystemFile(spa.getSystemFilePath() + "/SPAmanager.html", false);
@@ -656,7 +558,7 @@ void setup()
     spa.pageIsLoaded(pageIsLoadedCallback);
 
     fsManager.setSystemFilePath("/SYS");
-    debug->printf("FSmanager files are located [%s]\n", fsManager.getSystemFilePath().c_str());
+    debug->printf("setup(): FSmanager files are located [%s]\n", fsManager.getSystemFilePath().c_str());
     spa.includeJsFile(fsManager.getSystemFilePath() + "/FSmanager.js");
     fsManager.addSystemFile(fsManager.getSystemFilePath() + "/FSmanager.js", false);
     spa.includeCssFile(fsManager.getSystemFilePath() + "/FSmanager.css");
@@ -675,20 +577,6 @@ void setup()
       debug->println("setup(): LittleFS Mount Failed");
       return;
     }
-    if (!LittleFS.exists(LOCAL_MESSAGES_PATH)) 
-    {
-      debug->println("setup(): LittleFS file does not exist");
-      File file = LittleFS.open(LOCAL_MESSAGES_PATH, "w");
-      if (!file) 
-      {
-        debug->println("setup(): Failed to create file");
-      } 
-      else 
-      {
-        debug->println("setup(): File created successfully");
-        file.close();
-      }
-    }
     listFiles("/", 0);
 
     debug->println("Done with setup() ..\n");
@@ -700,5 +588,22 @@ void loop()
   network->loop();
   spa.server.handleClient();
   spa.ws.loop();
-
+  char weerliveText[2000] = {};
+  std::string weerliveInfo = {};
+  if (weerlive.loop(weerliveInfo))
+  {
+    snprintf(weerliveText, 2000, "%s", weerliveInfo.c_str());
+    debug->printf("loop(): weerliveText: [%s]\n", weerliveText);
+  
+  }
+  //-- Print current time every 60 seconds
+  static unsigned long lastPrint = 0;
+  if (millis() - lastPrint >= 60000)
+  {
+    if (network->ntpIsValid())
+         debug->printf("loop(): NTP time: %s\n", network->ntpGetTime());
+    else debug->println("loop(): NTP is not valid");
+    lastPrint = millis();
+  }
+  
 } // loop()loop()
