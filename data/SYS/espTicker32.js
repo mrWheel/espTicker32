@@ -46,8 +46,8 @@ function renderInputFields()
     input.type = 'text';
     input.value = value;
     input.style.width = '100%';
-    input.style.maxWidth = '80ch';
-    input.maxLength = 80;
+    input.style.maxWidth = '100ch';
+    input.maxLength = 100;
     input.dataset.index = index;
     input.addEventListener('input', (e) => {
       inputFields[e.target.dataset.index] = e.target.value;

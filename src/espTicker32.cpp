@@ -34,11 +34,11 @@ std::string currentActivePage = "";
 
 std::string readLocalMessages(uint8_t recNr, const char* path, size_t recordSize) 
 {
-  if (!LittleFS.begin()) 
-  {
-    debug->println("readLocalMessages(): Failed to mount LittleFS");
-    return "";
-  }
+//  if (!LittleFS.begin()) 
+//  {
+//    debug->println("readLocalMessages(): Failed to mount LittleFS");
+//    return "";
+//  }
 
   File file = LittleFS.open(path, "r");
   if (!file) 
@@ -79,10 +79,16 @@ std::string readLocalMessages(uint8_t recNr, const char* path, size_t recordSize
 
 bool writeLocalMessages(uint8_t recNr, const char* path, size_t recordSize, const char* data) 
 {
-  if (!LittleFS.begin()) 
+  //if (!LittleFS.begin()) 
+  //{
+  //  debug->println("Failed to mount LittleFS");
+  //  return false;
+  //}
+
+  if (recNr == 0) 
   {
-    debug->println("Failed to mount LittleFS");
-    return false;
+    debug->println("writeLocalMessages(): record number is zero, erase file");
+    LittleFS.remove(path); // Erase the file if record number is zero
   }
 
   // Trim leading and trailing spaces
@@ -101,7 +107,7 @@ bool writeLocalMessages(uint8_t recNr, const char* path, size_t recordSize, cons
     return false;
   }
 
-  File file = LittleFS.open(path, "r+"); // Open for reading and writing
+  File file = LittleFS.open(path, "a"); // Open for writing
   if (!file) 
   {
     debug->printf("Failed to open file: %s\n", path);
@@ -142,6 +148,7 @@ bool writeLocalMessages(uint8_t recNr, const char* path, size_t recordSize, cons
 
   debug->printf("Successfully wrote record %d: '%.*s'\n", recNr, (int)trimmedLen, start);
   return true;
+
 } // writeLocalMessages()
 
 // Function to build a JSON string with input field data
@@ -181,7 +188,7 @@ std::string buildInputFieldsJson()
 } // buildInputFieldsJson()
 
 
-// Function to send the JSON string to the client when Main page is activated
+// Function to send the JSON string to the client when localMessages page is activated
 void sendInputFieldsToClient()
 {
   std::string jsonData = buildInputFieldsJson();
@@ -281,8 +288,9 @@ void processInputFields(const std::string& jsonString)
     }
   }
   
-  debug->printf("processInputFields(): [%d] Local Messages processed successfully\n", recNr);
-
+  debug->printf("processInputFields(): [%d] Local Messages written to [%s]\n", recNr, LOCAL_MESSAGES_PATH);
+  sendInputFieldsToClient();
+  
 } // processInputFields()
 
 
@@ -467,23 +475,6 @@ void processInputCallback(const std::map<std::string, std::string>& inputValues)
   
 }
 
-/*****
-void handleMenuItem(std::string itemName)
-{
-    debug->printf("handleMenuItem(): Menu item clicked: %s\n", itemName.c_str());
-    
-    if (itemName == "FSM-1") {
-        spa.setMessage("FS Manager: \"List LittleFS\" clicked!", 5);
-        spa.activatePage("FSmanagerPage");
-        spa.callJsFunction("loadFileList");
-    } else if (itemName == "FSM-4") {
-        spa.setMessage("FS Manager: \"Exit\" clicked!", 5);
-        spa.activatePage("Main");
-        spa.callJsFunction("isEspTicker32Loaded");
-        // Don't call sendInputFieldsToClient() here - it will be called by isEspTicker32Loaded
-    }
-} // handleMenuItem()
-*****/
 
 void handleMenuItem(std::string itemName)
 {
@@ -548,7 +539,6 @@ void setupLocalMessagesPage()
     spa.addMenu("localMessagesPage", "Local Messages");
     spa.addMenuItem("localMessagesPage", "Local Messages", "Exit", handleMenuItem, "LMP-EXIT");
   
-
 } // setupLocalMessagesPage()
 
 void setupFSmanagerPage()
