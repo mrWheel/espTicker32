@@ -23,7 +23,7 @@ Stream* debug = nullptr;
 
 SettingsClass settings;
 DeviceSettings* gDeviceSettings = nullptr;
-const SettingsAttributes* gSettingsAttributes = nullptr;
+const DeviceAttributes* gDeviceAttributes = nullptr;
 
 
 LocalMessagesIO localMessages(LOCAL_MESSAGES_PATH, LOCAL_MESSAGES_RECORD_SIZE);
@@ -84,6 +84,58 @@ std::string buildInputFieldsJson()
 } // buildInputFieldsJson()
 
 
+std::string buildDeviceFieldsJson()
+{
+  // Estimate the size (you can also use the ArduinoJson Assistant online)
+  //-- to big for the stack: StaticJsonDocument<4096> doc;
+  //-- move to the heap
+  DynamicJsonDocument doc(4096);
+
+
+  // Set the root-level keys
+  doc["type"] = "update";
+  doc["target"] = "inputDevSettings";
+
+  // Add the "fields" array - CHANGE FROM "devFields" to "fields"
+  JsonArray fields = doc.createNestedArray("fields");
+
+  // First field
+  JsonObject field1 = fields.createNestedObject();
+  field1["fieldName"] = "hostname";
+  field1["fieldPrompt"] = "hostname";
+  field1["fieldValue"] = gDeviceSettings->hostname.c_str();
+  field1["fieldType"] = "s";
+  field1["fieldLen"] = 25;
+
+  // Second field
+  JsonObject field2 = fields.createNestedObject();
+  field2["fieldName"] = "scrollSnelheid";
+  field2["fieldPrompt"] = "Scroll Snelheid";
+  field2["fieldValue"] = gDeviceSettings->scrollSnelheid;
+  field2["fieldType"] = "n";
+  field2["fieldMin"] = gDeviceAttributes->scrollSnelheidMin;
+  field2["fieldMax"] = gDeviceAttributes->scrollSnelheidMax;
+  field2["fieldStep"] = 1;
+
+  // Third field
+  JsonObject field3 = fields.createNestedObject();
+  field3["fieldName"] = "weerliveRequestInterval";
+  field3["fieldPrompt"] = "Weerlive Request Interval";
+  field3["fieldValue"] = gDeviceSettings->weerliveRequestInterval;
+  field3["fieldType"] = "n";
+  field3["fieldMin"] = gDeviceAttributes->weerliveRequestIntervalMin;
+  field3["fieldMax"] = gDeviceAttributes->weerliveRequestIntervalMax;
+  field3["fieldStep"] = 1;
+
+  // Serialize to a string and return it
+  std::string jsonString;
+  serializeJson(doc, jsonString);
+  debug->printf("buildDeviceFieldsJson(): JSON string: %s\n", jsonString.c_str());
+  // Return the JSON string
+  return jsonString;
+
+} // buildDeviceFieldsJson()
+
 // Function to send the JSON string to the client when localMessages page is activated
 void sendInputFieldsToClient()
 {
@@ -135,11 +187,94 @@ void sendInputFieldsToClient()
   
   std::string jsonMessage;
   serializeJson(jsonDoc, jsonMessage);
-  
+  debug->printf("sendInputFieldsToClient(): Sending JSON message to client: %s\n", jsonMessage.c_str());
   // Send the JSON message via WebSocket
   spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
   
 } // sendInputFieldsToClient()
+
+
+// Function to send the JSON string to the client when devSettingsPage is activated
+void sendDevFieldsToClient()
+{
+  std::string jsonData = buildDeviceFieldsJson();
+  debug->printf("sendDevFieldsToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
+  
+  // First, send the HTML content for the device settings fields
+  DynamicJsonDocument doc(4096);
+  doc["type"] = "update";
+  doc["target"] = "devSettingsTableBody";
+  
+  // Create the HTML content for the device settings fields
+  std::string htmlContent = "";
+  
+  // Parse the JSON
+  DynamicJsonDocument devSettings(4096);
+  DeserializationError error = deserializeJson(devSettings, jsonData);
+  
+  if (!error) {
+    if (devSettings.containsKey("fields") && devSettings["fields"].is<JsonArray>()) {
+      JsonArray fields = devSettings["fields"].as<JsonArray>();
+      
+      for (size_t i = 0; i < fields.size(); i++) {
+        JsonObject field = fields[i];
+        
+        // Create a table row for each field
+        htmlContent += "<tr><td style='padding: 8px;'>";
+        htmlContent += field["fieldPrompt"].as<String>().c_str();
+        htmlContent += "</td><td style='padding: 8px;'>";
+        
+        // Create the appropriate input element based on fieldType
+        if (field["fieldType"] == "s") {
+          // String input
+          htmlContent += "<input type='text' value='";
+          htmlContent += field["fieldValue"].as<String>().c_str();
+          htmlContent += "' style='width: 100%;' maxlength='";
+          htmlContent += field["fieldLen"].as<String>().c_str();
+          htmlContent += "' data-field-name='";
+          htmlContent += field["fieldName"].as<String>().c_str();
+          htmlContent += "' data-field-type='s' oninput='updateDevSetting(this)'>";
+        } else if (field["fieldType"] == "n") {
+          // Numeric input
+          htmlContent += "<input type='number' value='";
+          htmlContent += field["fieldValue"].as<String>().c_str();
+          htmlContent += "' style='width: 100%;' min='";
+          htmlContent += field["fieldMin"].as<String>().c_str();
+          htmlContent += "' max='";
+          htmlContent += field["fieldMax"].as<String>().c_str();
+          htmlContent += "' step='";
+          htmlContent += field["fieldStep"].as<String>().c_str();
+          htmlContent += "' data-field-name='";
+          htmlContent += field["fieldName"].as<String>().c_str();
+          htmlContent += "' data-field-type='n' oninput='updateDevSetting(this)'>";
+        }
+        
+        htmlContent += "</td></tr>";
+      }
+    }
+  }
+  
+  doc["content"] = htmlContent.c_str();
+  
+  // Serialize the message
+  std::string message;
+  serializeJson(doc, message);
+  
+  // Send the structured message via WebSocket
+  spa.ws.broadcastTXT(message.c_str(), message.length());
+  
+  // Now send the raw JSON data in a format that SPAmanager can understand
+  DynamicJsonDocument jsonDoc(4096);
+  jsonDoc["type"] = "custom";
+  jsonDoc["action"] = "devSettingsData";
+  jsonDoc["data"] = jsonData;
+  
+  std::string jsonMessage;
+  serializeJson(jsonDoc, jsonMessage);
+  
+  // Send the JSON message via WebSocket
+  spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
+} // sendDevFieldsToClient()
 
 
 // Function to process the received input fields from the client
@@ -190,6 +325,82 @@ void processInputFields(const std::string& jsonString)
 } // processInputFields()
 
 
+// Function to process the received device settings from the client
+void processDevSettings(const std::string& jsonString)
+{
+  debug->println("processDevSettings(): Processing device settings from JSON:");
+  debug->println(jsonString.c_str());
+  
+  // Use ArduinoJson library to parse the JSON
+  DynamicJsonDocument doc(2048);
+  DeserializationError error = deserializeJson(doc, jsonString);
+  
+  if (error) 
+  {
+    debug->printf("processDevSettings(): JSON parsing error: %s\n", error.c_str());
+    return;
+  }
+  
+  // Check if the JSON has the expected structure
+  if (!doc.containsKey("fields") || !doc["fields"].is<JsonArray>()) 
+  {
+    debug->println("processDevSettings(): JSON does not contain fields array");
+    return;
+  }
+  
+  JsonArray fields = doc["fields"].as<JsonArray>();
+  debug->printf("processDevSettings(): Processing array with %d fields\n", fields.size());
+  
+  // Process each field
+  for (JsonObject field : fields) {
+    if (!field.containsKey("fieldName") || !field.containsKey("value")) {
+      debug->println("processDevSettings(): Field missing required properties");
+      continue;
+    }
+    
+    const char* fieldName = field["fieldName"];
+    
+    // Update the appropriate setting based on the field name
+    if (strcmp(fieldName, "hostname") == 0) {
+      std::string newHostname = field["value"].as<std::string>();
+      debug->printf("processDevSettings(): Setting hostname to [%s]\n", newHostname.c_str());
+      gDeviceSettings->hostname = newHostname;
+    }
+    else if (strcmp(fieldName, "scrollSnelheid") == 0) {
+      uint8_t newValue = field["value"].as<uint8_t>();
+      debug->printf("processDevSettings(): Setting scrollSnelheid to [%d]\n", newValue);
+      gDeviceSettings->scrollSnelheid = newValue;
+    }
+    else if (strcmp(fieldName, "weerliveRequestInterval") == 0) {
+      uint8_t newValue = field["value"].as<uint8_t>();
+      debug->printf("processDevSettings(): Setting weerliveRequestInterval to [%d]\n", newValue);
+      gDeviceSettings->weerliveRequestInterval = newValue;
+    }
+    else {
+      debug->printf("processDevSettings(): Unknown field: %s\n", fieldName);
+    }
+  }
+  
+  // Always write settings
+  debug->println("processDevSettings(): Writing settings to storage");
+  settings.writeSettings();
+  
+  // Send a confirmation message to the client
+  DynamicJsonDocument confirmDoc(512);
+  confirmDoc["type"] = "update";
+  confirmDoc["target"] = "message";
+  confirmDoc["content"] = "Settings saved successfully!";
+  
+  std::string confirmMessage;
+  serializeJson(confirmDoc, confirmMessage);
+  spa.ws.broadcastTXT(confirmMessage.c_str(), confirmMessage.length());
+  
+  // Refresh the device settings display
+  sendDevFieldsToClient();
+
+} // processDevSettings()
+
+
 // WebSocket event handler to receive messages from the client
 void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
   // This function will be called when no other event handlers match
@@ -204,7 +415,7 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
     payload[length] = 0;
     
     // Try to parse the JSON message
-    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument doc(4096);
     DeserializationError error = deserializeJson(doc, payload);
     
     if (error) {
@@ -216,6 +427,13 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
     if (doc["type"] == "requestInputFields") {
       debug->println("handleLocalWebSocketEvent(): Handling requestInputFields message");
       sendInputFieldsToClient();
+      return;
+    }
+    
+    // Check if this is a requestDevSettings message
+    if (doc["type"] == "requestDevSettings") {
+      debug->println("handleLocalWebSocketEvent(): Handling requestDevSettings message");
+      sendDevFieldsToClient();
       return;
     }
     
@@ -240,7 +458,25 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
         } else {
           debug->println("handleLocalWebSocketEvent(): No inputFieldsData found in the message");
         }
-      } else {
+      } 
+      // Check if this is a saveDevSettings message
+      else if (strcmp(processType, "saveDevSettings") == 0) {
+        debug->println("handleLocalWebSocketEvent(): Handling saveDevSettings message");
+        
+        // Check if inputValues exists and contains devSettingsData
+        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("devSettingsData")) {
+          // Get the devSettingsData as a string
+          const char* devSettingsData = doc["inputValues"]["devSettingsData"];
+          debug->println("handleLocalWebSocketEvent(): Received device settings data:");
+          debug->println(devSettingsData);
+          
+          // Process the device settings data
+          processDevSettings(devSettingsData);
+        } else {
+          debug->println("handleLocalWebSocketEvent(): No devSettingsData found in the message");
+        }
+      }
+      else {
         debug->printf("handleLocalWebSocketEvent(): Unknown process type: %s\n", processType);
       }
     } else {
@@ -261,9 +497,8 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
     debug->println("handleLocalWebSocketEvent(): Received message fragment");
   }
   // Add other event types as needed
-
+  
 } // handleLocalWebSocketEvent()
-
 
 
 void pageIsLoadedCallback()
@@ -275,9 +510,13 @@ void pageIsLoadedCallback()
   debug->printf("pageIsLoadedCallback(): Current active page: %s\n", activePage.c_str());
   
   // Check if the Main page was just activated
-  //if (activePage == "Main" && currentActivePage != "Main") {
   if (activePage == "Main") {
     debug->println("Main page activated");
+  }
+  // Check if the device settings page was just activated
+  else if (activePage == "devSettingsPage") {
+    debug->println("Device settings page activated");
+    sendDevFieldsToClient();
   }
   
   // Update the current active page
@@ -300,40 +539,45 @@ void localMessagesCallback()
 } // localMessagesCallback()
 
     
-void mainCallback1()
+void mainCallbackDevSettings()
 {
-    spa.setErrorMessage("Main Menu \"Counter\" clicked!", 5);
-    spa.activatePage("CounterPage");
-}
+    spa.setErrorMessage("Main Menu \"Dev Settings\" clicked!", 5);
+    spa.activatePage("devSettingsPage");
     
-void mainCallback2()
+    // Call the JavaScript function to set up event handlers
+    spa.callJsFunction("isEspTicker32Loaded");
+    
+    // Send the device settings to the client
+    sendDevFieldsToClient();
+
+  } //  mainCallbackDevSettings()
+
+    
+void mainCallbackSettings()
 {
-    spa.setErrorMessage("Main Menu \"Input\" clicked!", 5);
-    spa.activatePage("InputPage");
-}
+    spa.setErrorMessage("Main Menu \"Settings\" clicked!", 5);
+    spa.activatePage("settingsPage");
 
-
-void exitCounterCallback()
-{
-    spa.setMessage("Counter: \"Exit\" clicked!", 10);
-    spa.activatePage("Main");
-}
+} // mainCallbackSettings()
+    
 
 
 
-void mainCallback3()
+void mainCallbackFSmanager()
 {
     spa.setMessage("Main Menu \"FSmanager\" clicked!", 5);
     spa.activatePage("FSmanagerPage");
     spa.callJsFunction("loadFileList");
-}
+
+} // mainCallbackFSmanager()
 
 
 
 void processUploadFileCallback()
 {
   debug->println("Process processUploadFileCallback(): proceed action received");
-}
+
+} // processUploadFileCallback()
 
 
 void doJsFunction(std::string functionName)
@@ -348,7 +592,8 @@ void doJsFunction(std::string functionName)
     }
     
     // You can add more conditions for other functions as needed
-}
+
+} // doJsFunction()
 
 
 
@@ -386,6 +631,9 @@ void handleMenuItem(std::string itemName)
     } else if (itemName == "LMP-EXIT") {
         spa.setMessage("Local Messages: \"Exit\" clicked!", 5);
         spa.activatePage("Main");
+      } else if (itemName == "SET-EXIT") {
+        spa.setMessage("Settings: \"Exit\" clicked!", 5);
+        spa.activatePage("Main");
     }
 } // handleMenuItem()
 
@@ -401,8 +649,8 @@ void setupMainPage()
     //-- Add Main menu
     spa.addMenu("Main", "Main Menu");
     spa.addMenuItem("Main", "Main Menu", "LocalMessages", localMessagesCallback);
-    spa.addMenuItem("Main", "Main Menu", "Settings", mainCallback1);
-    spa.addMenuItem("Main", "Main Menu", "FSmanager", mainCallback3);
+    spa.addMenuItem("Main", "Main Menu", "Settings", mainCallbackSettings);
+    spa.addMenuItem("Main", "Main Menu", "FSmanager", mainCallbackFSmanager);
     spa.addMenuItem("Main", "Main Menu", "isFSmanagerLoaded", doJsFunction, "isFSmanagerLoaded");
     spa.addMenuItem("Main", "Main Menu", "isEspTicker32Loaded", doJsFunction, "isEspTicker32Loaded");
     
@@ -481,6 +729,54 @@ void setupFSmanagerPage()
 }
 
 
+void setupDevSettingsPage()
+{
+  const char *settingsPage = R"HTML(
+    <div style="font-size: 48px; text-align: center; font-weight: bold;">Device Settings</div>
+    <div id="dynamicDevSettingsContainer">
+      <table id="devSettingsTable" style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr>
+            <th style="text-align: left; padding: 8px;">Setting</th>
+            <th style="text-align: left; padding: 8px;">Value</th>
+          </tr>
+        </thead>
+        <tbody id="devSettingsTableBody">
+          <!-- Device settings will be dynamically added here -->
+        </tbody>
+      </table>
+      <div style="margin-top: 20px;">
+        <button id="saveDevSettingsButton" onclick="saveDevSettings()">Save</button>
+      </div>
+    </div>
+    )HTML";
+  
+  spa.addPage("devSettingsPage", settingsPage);
+  spa.setPageTitle("devSettingsPage", "Device Settings");
+  //-- Add Settings menu
+  spa.addMenu("devSettingsPage", "Device Settings");
+  spa.addMenuItem("devSettingsPage", "Device Settings", "Exit", handleMenuItem, "SET-EXIT");
+
+} // setupDevSettingsPage()
+
+
+
+void setupSettingsPage()
+{
+  const char *settingsPage = R"HTML(
+    <div style="font-size: 48px; text-align: center; font-weight: bold;">Settings</div>
+    )HTML";
+  
+  spa.addPage("settingsPage", settingsPage);
+  spa.setPageTitle("settingsPage", "Settings");
+  //-- Add Settings menu
+  spa.addMenu("settingsPage", "Settings");
+  spa.addMenuItem("settingsPage", "Settings", "Device Settings", mainCallbackDevSettings);
+  spa.addMenuItem("settingsPage", "Settings", "Exit", handleMenuItem, "SET-EXIT");
+
+}
+
+
 void listFiles(const char * dirname, int numTabs) 
 {
   // Ensure that dirname starts with '/'
@@ -550,7 +846,7 @@ void setup()
     
     // Store references to settings and attributes globally
     gDeviceSettings = &settings.getSettings();
-    gSettingsAttributes = &settings.getSettingsAttributes();
+    gDeviceAttributes = &settings.getDeviceAttributes();
     if (gDeviceSettings->hostname.empty()) 
     {
         debug->println("setup(): No hostname found in settings, using default");
@@ -570,7 +866,7 @@ void setup()
     }
     
     localMessages.setDebug(debug);
-    weerlive.setup("zzzzzzzzz", "Baarn", debug);
+    weerlive.setup("bb83641a38", "Baarn", debug);
     weerlive.setInterval(10); // Set interval to 10 minutes
 
     spa.begin("/SYS", debug);
@@ -598,6 +894,8 @@ void setup()
 
     setupMainPage();
     setupLocalMessagesPage();
+    setupSettingsPage();
+    setupDevSettingsPage();
     setupFSmanagerPage();
 
     spa.activatePage("Main");

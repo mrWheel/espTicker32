@@ -13,84 +13,10 @@ DeviceSettings& SettingsClass::getSettings()
   return settings;
 }
 
-const SettingsAttributes& SettingsClass::getSettingsAttributes()
+const DeviceAttributes& SettingsClass::getDeviceAttributes()
 {
-  return settingsAttributes;
+  return deviceAttributes;
 }
-
-/**** 
-std::string SettingsClass::getHostname() {
-    return settings.hostname;
-}
-
-uint8_t SettingsClass::getScrollSnelheid() {
-    return settings.scrollSnelheid;
-}
-
-uint8_t SettingsClass::getLDRMinWaarde() {
-    return settings.LDRMinWaarde;
-}
-
-uint8_t SettingsClass::getLDRMaxWaarde() {
-    return settings.LDRMaxWaarde;
-}
-
-uint8_t SettingsClass::getMaxIntensiteitLeds() {
-    return settings.maxIntensiteitLeds;
-}
-
-std::string SettingsClass::getWeerliveAuthToken() {
-    return settings.weerliveAuthToken;
-}
-
-std::string SettingsClass::getWeerlivePlaats() {
-    return settings.weerlivePlaats;
-}
-
-uint8_t SettingsClass::getWeerliveRequestInterval() {
-    return settings.weerliveRequestInterval;
-}
-
-std::string SettingsClass::getSkipItems() {
-    return settings.skipItems;
-}
-
-void SettingsClass::setHostname(const std::string& hostname) {
-    settings.hostname = hostname;
-}
-
-void SettingsClass::setScrollSnelheid(uint8_t scrollSnelheid) {
-    settings.scrollSnelheid = scrollSnelheid;
-}
-
-void SettingsClass::setLDRMinWaarde(uint8_t LDRMinWaarde) {
-    settings.LDRMinWaarde = LDRMinWaarde;
-}
-
-void SettingsClass::setLDRMaxWaarde(uint8_t LDRMaxWaarde) {
-    settings.LDRMaxWaarde = LDRMaxWaarde;
-}
-
-void SettingsClass::setMaxIntensiteitLeds(uint8_t maxIntensiteitLeds) {
-    settings.maxIntensiteitLeds = maxIntensiteitLeds;
-}
-
-void SettingsClass::setWeerliveAuthToken(const std::string& authToken) {
-    settings.weerliveAuthToken = authToken;
-}
-
-void SettingsClass::setWeerlivePlaats(const std::string& plaats) {
-    settings.weerlivePlaats = plaats;
-}
-
-void SettingsClass::setWeerliveRequestInterval(uint8_t interval) {
-    settings.weerliveRequestInterval = interval;
-}
-
-void SettingsClass::setSkipItems(const std::string& skipItems) {
-    settings.skipItems = skipItems;
-}
-****/
 
 void SettingsClass::readSettings() {
     File file = LittleFS.open("/settings.ini", "r");
@@ -150,9 +76,9 @@ void SettingsClass::writeSettings()
     }
 
     // Validate and write hostname
-    if (settings.hostname.length() > settingsAttributes.hostnameMaxLength) {
+    if (settings.hostname.length() > deviceAttributes.hostnameMaxLength) {
         debug->println("Error: Hostname exceeds maximum length, truncating");
-        settings.hostname = settings.hostname.substr(0, settingsAttributes.hostnameMaxLength);
+        settings.hostname = settings.hostname.substr(0, deviceAttributes.hostnameMaxLength);
     }
     file.printf("hostname=%s\n", settings.hostname.c_str());
 
@@ -164,63 +90,63 @@ void SettingsClass::writeSettings()
     file.printf("scrollSnelheid=%d\n", settings.scrollSnelheid);
 
     // Validate and write LDRMinWaarde
-    if (settings.LDRMinWaarde < settingsAttributes.LDRMinWaardeMin) {
+    if (settings.LDRMinWaarde < deviceAttributes.LDRMinWaardeMin) {
         debug->println("Error: LDRMinWaarde below minimum, setting to minimum");
-        settings.LDRMinWaarde = settingsAttributes.LDRMinWaardeMin;
-    } else if (settings.LDRMinWaarde > settingsAttributes.LDRMinWaardeMax) {
+        settings.LDRMinWaarde = deviceAttributes.LDRMinWaardeMin;
+    } else if (settings.LDRMinWaarde > deviceAttributes.LDRMinWaardeMax) {
         debug->println("Error: LDRMinWaarde above maximum, setting to maximum");
-        settings.LDRMinWaarde = settingsAttributes.LDRMinWaardeMax;
+        settings.LDRMinWaarde = deviceAttributes.LDRMinWaardeMax;
     }
     file.printf("LDRMinWaarde=%d\n", settings.LDRMinWaarde);
 
     // Validate and write LDRMaxWaarde
-    if (settings.LDRMaxWaarde < settingsAttributes.LDRMaxWaardeMin) {
+    if (settings.LDRMaxWaarde < deviceAttributes.LDRMaxWaardeMin) {
         debug->println("Error: LDRMaxWaarde below minimum, setting to minimum");
-        settings.LDRMaxWaarde = settingsAttributes.LDRMaxWaardeMin;
-    } else if (settings.LDRMaxWaarde > settingsAttributes.LDRMaxWaardeMax) {
+        settings.LDRMaxWaarde = deviceAttributes.LDRMaxWaardeMin;
+    } else if (settings.LDRMaxWaarde > deviceAttributes.LDRMaxWaardeMax) {
         debug->println("Error: LDRMaxWaarde above maximum, setting to maximum");
-        settings.LDRMaxWaarde = settingsAttributes.LDRMaxWaardeMax;
+        settings.LDRMaxWaarde = deviceAttributes.LDRMaxWaardeMax;
     }
     file.printf("LDRMaxWaarde=%d\n", settings.LDRMaxWaarde);
 
     // Validate and write maxIntensiteitLeds
-    if (settings.maxIntensiteitLeds < settingsAttributes.maxIntensiteitLedsMin) {
+    if (settings.maxIntensiteitLeds < deviceAttributes.maxIntensiteitLedsMin) {
         debug->println("Error: maxIntensiteitLeds below minimum, setting to minimum");
-        settings.maxIntensiteitLeds = settingsAttributes.maxIntensiteitLedsMin;
-    } else if (settings.maxIntensiteitLeds > settingsAttributes.maxIntensiteitLedsMax) {
+        settings.maxIntensiteitLeds = deviceAttributes.maxIntensiteitLedsMin;
+    } else if (settings.maxIntensiteitLeds > deviceAttributes.maxIntensiteitLedsMax) {
         debug->println("Error: maxIntensiteitLeds above maximum, setting to maximum");
-        settings.maxIntensiteitLeds = settingsAttributes.maxIntensiteitLedsMax;
+        settings.maxIntensiteitLeds = deviceAttributes.maxIntensiteitLedsMax;
     }
     file.printf("maxIntensiteitLeds=%d\n", settings.maxIntensiteitLeds);
 
     // Validate and write weerliveAuthToken
-    if (settings.weerliveAuthToken.length() > settingsAttributes.weerliveAuthTokenMaxLength) {
+    if (settings.weerliveAuthToken.length() > deviceAttributes.weerliveAuthTokenMaxLength) {
         debug->println("Error: WeerliveAuthToken exceeds maximum length, truncating");
-        settings.weerliveAuthToken = settings.weerliveAuthToken.substr(0, settingsAttributes.weerliveAuthTokenMaxLength);
+        settings.weerliveAuthToken = settings.weerliveAuthToken.substr(0, deviceAttributes.weerliveAuthTokenMaxLength);
     }
     file.printf("weerliveAuthToken=%s\n", settings.weerliveAuthToken.c_str());
 
     // Validate and write weerlivePlaats
-    if (settings.weerlivePlaats.length() > settingsAttributes.weerlivePlaatsMaxLength) {
+    if (settings.weerlivePlaats.length() > deviceAttributes.weerlivePlaatsMaxLength) {
         debug->println("Error: WeerlivePlaats exceeds maximum length, truncating");
-        settings.weerlivePlaats = settings.weerlivePlaats.substr(0, settingsAttributes.weerlivePlaatsMaxLength);
+        settings.weerlivePlaats = settings.weerlivePlaats.substr(0, deviceAttributes.weerlivePlaatsMaxLength);
     }
     file.printf("weerlivePlaats=%s\n", settings.weerlivePlaats.c_str());
 
     // Validate and write weerliveRequestInterval
-    if (settings.weerliveRequestInterval < settingsAttributes.weerliveRequestIntervalMin) {
+    if (settings.weerliveRequestInterval < deviceAttributes.weerliveRequestIntervalMin) {
         debug->println("Error: WeerliveRequestInterval below minimum, setting to minimum");
-        settings.weerliveRequestInterval = settingsAttributes.weerliveRequestIntervalMin;
-    } else if (settings.weerliveRequestInterval > settingsAttributes.weerliveRequestIntervalMax) {
+        settings.weerliveRequestInterval = deviceAttributes.weerliveRequestIntervalMin;
+    } else if (settings.weerliveRequestInterval > deviceAttributes.weerliveRequestIntervalMax) {
         debug->println("Error: WeerliveRequestInterval above maximum, setting to maximum");
-        settings.weerliveRequestInterval = settingsAttributes.weerliveRequestIntervalMax;
+        settings.weerliveRequestInterval = deviceAttributes.weerliveRequestIntervalMax;
     }
     file.printf("weerliveRequestInterval=%d\n", settings.weerliveRequestInterval);
 
     // Validate and write skipItems
-    if (settings.skipItems.length() > settingsAttributes.skipItemsMaxLength) {
+    if (settings.skipItems.length() > deviceAttributes.skipItemsMaxLength) {
         debug->println("Error: SkipItems exceeds maximum length, truncating");
-        settings.skipItems = settings.skipItems.substr(0, settingsAttributes.skipItemsMaxLength);
+        settings.skipItems = settings.skipItems.substr(0, deviceAttributes.skipItemsMaxLength);
     }
     file.printf("skipItems=%s\n", settings.skipItems.c_str());
 

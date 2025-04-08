@@ -17,7 +17,9 @@ struct DeviceSettings {
     std::string skipItems;
 };
 
-struct SettingsAttributes {
+struct DeviceAttributes {
+    uint8_t scrollSnelheidMin = 0;
+    uint8_t scrollSnelheidMax = 255;
     uint8_t LDRMinWaardeMin = 0;
     uint8_t LDRMinWaardeMax = 255;
     uint8_t LDRMaxWaardeMin = 0;
@@ -36,7 +38,7 @@ class SettingsClass {
 private:
     DeviceSettings settings;
     Stream* debug = nullptr; // Optional, default to nullptr
-    SettingsAttributes settingsAttributes;
+    DeviceAttributes deviceAttributes;
 
 public:
     SettingsClass();
@@ -44,7 +46,7 @@ public:
 
     // Getters
     DeviceSettings& getSettings();
-    const SettingsAttributes& getSettingsAttributes();
+    const DeviceAttributes& getDeviceAttributes();
     std::string getHostname();
     uint8_t getScrollSnelheid();
     uint8_t getLDRMinWaarde();
@@ -54,19 +56,6 @@ public:
     std::string getWeerlivePlaats();
     uint8_t getWeerliveRequestInterval();
     std::string getSkipItems();
-
-    // Setters
-    /***** 
-    void setHostname(const std::string& hostname);
-    void setScrollSnelheid(uint8_t scrollSnelheid);
-    void setLDRMinWaarde(uint8_t LDRMinWaarde);
-    void setLDRMaxWaarde(uint8_t LDRMaxWaarde);
-    void setMaxIntensiteitLeds(uint8_t maxIntensiteitLeds);
-    void setWeerliveAuthToken(const std::string& authToken);
-    void setWeerlivePlaats(const std::string& plaats);
-    void setWeerliveRequestInterval(uint8_t interval);
-    void setSkipItems(const std::string& skipItems);
-    *****/
 
     // Methods for reading and writing settings
     void readSettings();
