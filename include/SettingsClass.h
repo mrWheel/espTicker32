@@ -4,6 +4,7 @@
 #include <string>
 #include "LittleFS.h"
 #include "Arduino.h"
+#include <ArduinoJson.h>
 
 struct DeviceSettings {
     std::string hostname;
@@ -18,6 +19,7 @@ struct DeviceSettings {
 };
 
 struct DeviceAttributes {
+    size_t hostnameLen = 32;
     uint8_t scrollSnelheidMin = 0;
     uint8_t scrollSnelheidMax = 255;
     uint8_t LDRMinWaardeMin = 0;
@@ -28,10 +30,9 @@ struct DeviceAttributes {
     uint8_t maxIntensiteitLedsMax = 255;
     uint8_t weerliveRequestIntervalMin = 10;
     uint8_t weerliveRequestIntervalMax = 120;
-    size_t hostnameMaxLength = 64;
-    size_t weerliveAuthTokenMaxLength = 128;
-    size_t weerlivePlaatsMaxLength = 64;
-    size_t skipItemsMaxLength = 256;
+    size_t weerliveAuthTokenLen = 128;
+    size_t weerlivePlaatsLen = 64;
+    size_t skipItemsLen = 256;
 };
 
 class SettingsClass {
@@ -47,16 +48,7 @@ public:
     // Getters
     DeviceSettings& getSettings();
     const DeviceAttributes& getDeviceAttributes();
-    std::string getHostname();
-    uint8_t getScrollSnelheid();
-    uint8_t getLDRMinWaarde();
-    uint8_t getLDRMaxWaarde();
-    uint8_t getMaxIntensiteitLeds();
-    std::string getWeerliveAuthToken();
-    std::string getWeerlivePlaats();
-    uint8_t getWeerliveRequestInterval();
-    std::string getSkipItems();
-
+    std::string buildDeviceFieldsJson();
     // Methods for reading and writing settings
     void readSettings();
     void writeSettings();

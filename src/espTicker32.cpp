@@ -84,57 +84,6 @@ std::string buildInputFieldsJson()
 } // buildInputFieldsJson()
 
 
-std::string buildDeviceFieldsJson()
-{
-  // Estimate the size (you can also use the ArduinoJson Assistant online)
-  //-- to big for the stack: StaticJsonDocument<4096> doc;
-  //-- move to the heap
-  DynamicJsonDocument doc(4096);
-
-
-  // Set the root-level keys
-  doc["type"] = "update";
-  doc["target"] = "inputDevSettings";
-
-  // Add the "fields" array - CHANGE FROM "devFields" to "fields"
-  JsonArray fields = doc.createNestedArray("fields");
-
-  // First field
-  JsonObject field1 = fields.createNestedObject();
-  field1["fieldName"] = "hostname";
-  field1["fieldPrompt"] = "hostname";
-  field1["fieldValue"] = gDeviceSettings->hostname.c_str();
-  field1["fieldType"] = "s";
-  field1["fieldLen"] = 25;
-
-  // Second field
-  JsonObject field2 = fields.createNestedObject();
-  field2["fieldName"] = "scrollSnelheid";
-  field2["fieldPrompt"] = "Scroll Snelheid";
-  field2["fieldValue"] = gDeviceSettings->scrollSnelheid;
-  field2["fieldType"] = "n";
-  field2["fieldMin"] = gDeviceAttributes->scrollSnelheidMin;
-  field2["fieldMax"] = gDeviceAttributes->scrollSnelheidMax;
-  field2["fieldStep"] = 1;
-
-  // Third field
-  JsonObject field3 = fields.createNestedObject();
-  field3["fieldName"] = "weerliveRequestInterval";
-  field3["fieldPrompt"] = "Weerlive Request Interval";
-  field3["fieldValue"] = gDeviceSettings->weerliveRequestInterval;
-  field3["fieldType"] = "n";
-  field3["fieldMin"] = gDeviceAttributes->weerliveRequestIntervalMin;
-  field3["fieldMax"] = gDeviceAttributes->weerliveRequestIntervalMax;
-  field3["fieldStep"] = 1;
-
-  // Serialize to a string and return it
-  std::string jsonString;
-  serializeJson(doc, jsonString);
-  debug->printf("buildDeviceFieldsJson(): JSON string: %s\n", jsonString.c_str());
-  // Return the JSON string
-  return jsonString;
-
-} // buildDeviceFieldsJson()
 
 // Function to send the JSON string to the client when localMessages page is activated
 void sendInputFieldsToClient()
@@ -197,7 +146,7 @@ void sendInputFieldsToClient()
 // Function to send the JSON string to the client when devSettingsPage is activated
 void sendDevFieldsToClient()
 {
-  std::string jsonData = buildDeviceFieldsJson();
+  std::string jsonData = settings.buildDeviceFieldsJson();
   debug->printf("sendDevFieldsToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
   
   // First, send the HTML content for the device settings fields
@@ -371,10 +320,20 @@ void processDevSettings(const std::string& jsonString)
       debug->printf("processDevSettings(): Setting scrollSnelheid to [%d]\n", newValue);
       gDeviceSettings->scrollSnelheid = newValue;
     }
+    else if (strcmp(fieldName, "weerliveAuthToken") == 0) {
+      std::string newAuthToken = field["value"].as<std::string>();
+      debug->printf("processDevSettings(): Setting weerliveAuthToken to [%s]\n", newAuthToken.c_str());
+      gDeviceSettings->weerliveAuthToken = newAuthToken;
+    }
     else if (strcmp(fieldName, "weerliveRequestInterval") == 0) {
       uint8_t newValue = field["value"].as<uint8_t>();
       debug->printf("processDevSettings(): Setting weerliveRequestInterval to [%d]\n", newValue);
       gDeviceSettings->weerliveRequestInterval = newValue;
+    }
+    else if (strcmp(fieldName, "skipItems") == 0) {
+      std::string newValue = field["value"].as<std::string>();
+      debug->printf("processDevSettings(): Setting skipItems to [%s]\n", newValue);
+      gDeviceSettings->skipItems = newValue;
     }
     else {
       debug->printf("processDevSettings(): Unknown field: %s\n", fieldName);
@@ -632,8 +591,9 @@ void handleMenuItem(std::string itemName)
         spa.setMessage("Local Messages: \"Exit\" clicked!", 5);
         spa.activatePage("Main");
       } else if (itemName == "SET-EXIT") {
-        spa.setMessage("Settings: \"Exit\" clicked!", 5);
-        spa.activatePage("Main");
+        spa.setMessage("Device Settings: \"Exit\" clicked!", 5);
+        //spa.disableID("settings", "devSettingsTable");
+        spa.activatePage("settingsPage");
     }
 } // handleMenuItem()
 
@@ -866,8 +826,6 @@ void setup()
     }
     
     localMessages.setDebug(debug);
-    weerlive.setup("bb83641a38", "Baarn", debug);
-    weerlive.setInterval(10); // Set interval to 10 minutes
 
     spa.begin("/SYS", debug);
     // Set the local events handler
@@ -897,6 +855,13 @@ void setup()
     setupSettingsPage();
     setupDevSettingsPage();
     setupFSmanagerPage();
+
+    debug->printf("setup(): weerliveAuthToken: [%s], weerlivePlaats: [%s]\n"
+                                                                , gDeviceSettings->weerliveAuthToken.c_str()
+                                                                , gDeviceSettings->weerlivePlaats.c_str());
+    weerlive.setup(gDeviceSettings->weerliveAuthToken.c_str(), gDeviceSettings->weerlivePlaats.c_str(), debug);
+    
+    weerlive.setInterval(gDeviceSettings->weerliveRequestInterval); // Set interval to 10 minutes
 
     spa.activatePage("Main");
 
