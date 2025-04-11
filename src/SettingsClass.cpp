@@ -8,222 +8,360 @@ void SettingsClass::setDebug(Stream* debugPort) {
   debug = debugPort;
 }
 
-DeviceSettings& SettingsClass::getSettings()
+DeviceSettings& SettingsClass::getDeviceSettings()
 {
-  return settings;
+  return deviceSettings;
 }
 
-const SettingsAttributes& SettingsClass::getSettingsAttributes()
+const DeviceAttributes& SettingsClass::getDeviceAttributes()
 {
-  return settingsAttributes;
+  return deviceAttributes;
 }
 
-/**** 
-std::string SettingsClass::getHostname() {
-    return settings.hostname;
+WeerliveSettings& SettingsClass::getWeerliveSettings()
+{
+  return weerliveSettings;
 }
 
-uint8_t SettingsClass::getScrollSnelheid() {
-    return settings.scrollSnelheid;
+const WeerliveAttributes& SettingsClass::getWeerliveAttributes()
+{
+  return weerliveAttributes;
 }
 
-uint8_t SettingsClass::getLDRMinWaarde() {
-    return settings.LDRMinWaarde;
-}
+std::string SettingsClass::buildDeviceFieldsJson()
+{
+  // Estimate the size (you can also use the ArduinoJson Assistant online)
+  //-- to big for the stack: StaticJsonDocument<4096> doc;
+  //-- move to the heap
+  DynamicJsonDocument doc(4096);
 
-uint8_t SettingsClass::getLDRMaxWaarde() {
-    return settings.LDRMaxWaarde;
-}
+  // Set the root-level keys
+  doc["type"] = "update";
+  doc["target"] = "deviceSettings";
+  doc["settingsName"] = "Device Settings";
 
-uint8_t SettingsClass::getMaxIntensiteitLeds() {
-    return settings.maxIntensiteitLeds;
-}
+  // Add the "fields" array - CHANGE FROM "devFields" to "fields"
+  JsonArray fields = doc.createNestedArray("fields");
 
-std::string SettingsClass::getWeerliveAuthToken() {
-    return settings.weerliveAuthToken;
-}
+  //-- std::string hostname;
+  JsonObject field1 = fields.createNestedObject();
+  field1["fieldName"] = "hostname";
+  field1["fieldPrompt"] = "hostname";
+  field1["fieldValue"] = deviceSettings.hostname.c_str();
+  field1["fieldType"] = "s";
+  field1["fieldLen"] = deviceAttributes.hostnameLen;
 
-std::string SettingsClass::getWeerlivePlaats() {
-    return settings.weerlivePlaats;
-}
+  //-- uint8_t scrollSnelheid;
+  JsonObject field2 = fields.createNestedObject();
+  field2["fieldName"] = "scrollSnelheid";
+  field2["fieldPrompt"] = "Scroll Snelheid";
+  field2["fieldValue"] = deviceSettings.scrollSnelheid;
+  field2["fieldType"] = "n";
+  field2["fieldMin"] = deviceAttributes.scrollSnelheidMin;
+  field2["fieldMax"] = deviceAttributes.scrollSnelheidMax;
+  field2["fieldStep"] = 1;
 
-uint8_t SettingsClass::getWeerliveRequestInterval() {
-    return settings.weerliveRequestInterval;
-}
+  //-- uint8_t LDRMinWaarde;
+  JsonObject field3 = fields.createNestedObject();
+  field3["fieldName"] = "LDRMinWaarde";
+  field3["fieldPrompt"] = "LDR Min. Waarde";
+  field3["fieldValue"] = deviceSettings.LDRMinWaarde;
+  field3["fieldType"] = "n";
+  field3["fieldMin"] = deviceAttributes.LDRMinWaardeMin;
+  field3["fieldMax"] = deviceAttributes.LDRMinWaardeMax;
+  field3["fieldStep"] = 1;
 
-std::string SettingsClass::getSkipItems() {
-    return settings.skipItems;
-}
+  //-- uint8_t LDRMaxWaarde;
+  JsonObject field4 = fields.createNestedObject();
+  field4["fieldName"] = "LDRMaxWaarde";
+  field4["fieldPrompt"] = "LDR Max. Waarde";
+  field4["fieldValue"] = deviceSettings.LDRMaxWaarde;
+  field4["fieldType"] = "n";
+  field4["fieldMin"] = deviceAttributes.LDRMaxWaardeMin;
+  field4["fieldMax"] = deviceAttributes.LDRMaxWaardeMax;
+  field4["fieldStep"] = 1;
 
-void SettingsClass::setHostname(const std::string& hostname) {
-    settings.hostname = hostname;
-}
+  //-- uint8_t maxIntensiteitLeds;
+  JsonObject field5 = fields.createNestedObject();
+  field5["fieldName"] = "maxIntensiteitLeds";
+  field5["fieldPrompt"] = "Max. Intensiteit LEDS";
+  field5["fieldValue"] = deviceSettings.maxIntensiteitLeds;
+  field5["fieldType"] = "n";
+  field5["fieldMin"] = deviceAttributes.maxIntensiteitLedsMin;
+  field5["fieldMax"] = deviceAttributes.maxIntensiteitLedsMax;
+  field5["fieldStep"] = 1;
 
-void SettingsClass::setScrollSnelheid(uint8_t scrollSnelheid) {
-    settings.scrollSnelheid = scrollSnelheid;
-}
+  //-- std::string skipItems;
+  JsonObject field6 = fields.createNestedObject();
+  field6["fieldName"] = "skipItems";
+  field6["fieldPrompt"] = "Words to skip Items";
+  field6["fieldValue"] = deviceSettings.skipItems.c_str();
+  field6["fieldType"] = "s";
+  field6["fieldLen"] = deviceAttributes.skipItemsLen;
 
-void SettingsClass::setLDRMinWaarde(uint8_t LDRMinWaarde) {
-    settings.LDRMinWaarde = LDRMinWaarde;
-}
+  // Serialize to a string and return it
+  std::string jsonString;
+  serializeJson(doc, jsonString);
+  debug->printf("buildDeviceFieldsJson(): JSON string: %s\n", jsonString.c_str());
+  // Return the JSON string
+  return jsonString;
 
-void SettingsClass::setLDRMaxWaarde(uint8_t LDRMaxWaarde) {
-    settings.LDRMaxWaarde = LDRMaxWaarde;
-}
+} // buildDeviceFieldsJson()
 
-void SettingsClass::setMaxIntensiteitLeds(uint8_t maxIntensiteitLeds) {
-    settings.maxIntensiteitLeds = maxIntensiteitLeds;
-}
+std::string SettingsClass::buildWeerliveFieldsJson()
+{
+  // Estimate the size (you can also use the ArduinoJson Assistant online)
+  //-- to big for the stack: StaticJsonDocument<4096> doc;
+  //-- move to the heap
+  DynamicJsonDocument doc(4096);
 
-void SettingsClass::setWeerliveAuthToken(const std::string& authToken) {
-    settings.weerliveAuthToken = authToken;
-}
+  // Set the root-level keys
+  doc["type"] = "update";
+  doc["target"] = "weerliveSettings";
+  doc["settingsName"] = "Weerlive Settings";
 
-void SettingsClass::setWeerlivePlaats(const std::string& plaats) {
-    settings.weerlivePlaats = plaats;
-}
+  // Add the "fields" array - CHANGE FROM "devFields" to "fields"
+  JsonArray fields = doc.createNestedArray("fields");
 
-void SettingsClass::setWeerliveRequestInterval(uint8_t interval) {
-    settings.weerliveRequestInterval = interval;
-}
+  //-- std::string weerliveAuthToken;
+  JsonObject field1 = fields.createNestedObject();
+  field1["fieldName"] = "authToken";
+  field1["fieldPrompt"] = "weerlive Auth. Tokend";
+  field1["fieldValue"] = weerliveSettings.authToken.c_str();
+  field1["fieldType"] = "s";
+  field1["fieldLen"] = weerliveAttributes.authTokenLen;
 
-void SettingsClass::setSkipItems(const std::string& skipItems) {
-    settings.skipItems = skipItems;
-}
-****/
+  //-- std::string weerlivePlaats;
+  JsonObject field2 = fields.createNestedObject();
+  field2["fieldName"] = "plaats";
+  field2["fieldPrompt"] = "Plaats";
+  field2["fieldValue"] = weerliveSettings.plaats;
+  field2["fieldType"] = "s";
+  field2["fieldMin"] = weerliveAttributes.plaatsLen;
 
-void SettingsClass::readSettings() {
+  //-- uint8_t requestInterval;
+  JsonObject field3 = fields.createNestedObject();
+  field3["fieldName"] = "requestIntervals";
+  field3["fieldPrompt"] = "Request Interval (minuten)";
+  field3["fieldValue"] = weerliveSettings.requestInterval;
+  field3["fieldType"] = "n";
+  field3["fieldMin"] = weerliveAttributes.requestIntervalMin;
+  field3["fieldMax"] = weerliveAttributes.requestIntervalMax;
+  field3["fieldStep"] = 1;
+    
+  // Serialize to a string and return it
+  std::string jsonString;
+  serializeJson(doc, jsonString);
+  debug->printf("buildDeviceFieldsJson(): JSON string: %s\n", jsonString.c_str());
+  // Return the JSON string
+  return jsonString;
+
+} // buildWeerliveFieldsJson()
+
+
+void SettingsClass::readDeviceSettings() 
+{
     File file = LittleFS.open("/settings.ini", "r");
 
     if (!file) {
-        debug->println("Failed to open settings.ini file for reading");
+        debug->println("readDeviceSettings(): Failed to open settings.ini file for reading");
         return;
     }
 
     String line;
-    while (file.available()) {
+    while (file.available()) 
+    {
         line = file.readStringUntil('\n');
 
         // Read and parse settings from each line
+        debug->printf("readDeviceSettings(): line: [%s]\n", line.c_str());
+
         if (line.startsWith("hostname=")) {
-            settings.hostname = std::string(line.substring(9).c_str());
+          deviceSettings.hostname = std::string(line.substring(9).c_str());
         }
         else if (line.startsWith("scrollSnelheid=")) {
-            settings.scrollSnelheid = line.substring(15).toInt();
+          deviceSettings.scrollSnelheid = line.substring(15).toInt();
         }
         else if (line.startsWith("LDRMinWaarde=")) {
-            settings.LDRMinWaarde = line.substring(14).toInt();
+          deviceSettings.LDRMinWaarde = line.substring(13).toInt();
         }
         else if (line.startsWith("LDRMaxWaarde=")) {
-            settings.LDRMaxWaarde = line.substring(14).toInt();
+          deviceSettings.LDRMaxWaarde = line.substring(13).toInt();
         }
         else if (line.startsWith("maxIntensiteitLeds=")) {
-            settings.maxIntensiteitLeds = line.substring(19).toInt();
-        }
-        else if (line.startsWith("weerliveAuthToken=")) {
-            settings.weerliveAuthToken = std::string(line.substring(18).c_str());
-        }
-        else if (line.startsWith("weerlivePlaats=")) {
-            settings.weerlivePlaats = std::string(line.substring(15).c_str());
-        }
-        else if (line.startsWith("weerliveRequestInterval=")) {
-            settings.weerliveRequestInterval = line.substring(23).toInt();
+          deviceSettings.maxIntensiteitLeds = line.substring(19).toInt();
         }
         else if (line.startsWith("skipItems=")) {
-            settings.skipItems = std::string(line.substring(10).c_str());
+          deviceSettings.skipItems = std::string(line.substring(10).c_str());
         }
     }
 
     file.close();
-    debug->println("Settings read successfully");
+    debug->println("readDeviceSettings(): read successfully");
 
-} // readSettings()
+} // readDeviceSettings()
 
 
-void SettingsClass::writeSettings() 
+void SettingsClass::writeDeviceSettings() 
 {
     File file = LittleFS.open("/settings.ini", "w");
 
     if (!file) {
-        debug->println("Failed to open settings.ini file for writing");
+        debug->println("writeDeviceSettings(): Failed to open settings.ini file for writing");
         return;
     }
 
     // Validate and write hostname
-    if (settings.hostname.length() > settingsAttributes.hostnameMaxLength) {
+    if (deviceSettings.hostname.length() > deviceAttributes.hostnameLen) {
         debug->println("Error: Hostname exceeds maximum length, truncating");
-        settings.hostname = settings.hostname.substr(0, settingsAttributes.hostnameMaxLength);
+        deviceSettings.hostname = deviceSettings.hostname.substr(0, deviceAttributes.hostnameLen);
     }
-    file.printf("hostname=%s\n", settings.hostname.c_str());
+    file.printf("hostname=%s\n", deviceSettings.hostname.c_str());
 
     // Validate and write scrollSnelheid
-    if (settings.scrollSnelheid > 255) {
+    if (deviceSettings.scrollSnelheid > 255) {
         debug->println("Error: Scroll Snelheid is above maximum (255), setting to 255");
-        settings.scrollSnelheid = 255;
+        deviceSettings.scrollSnelheid = 255;
     }
-    file.printf("scrollSnelheid=%d\n", settings.scrollSnelheid);
+    file.printf("scrollSnelheid=%d\n", deviceSettings.scrollSnelheid);
 
     // Validate and write LDRMinWaarde
-    if (settings.LDRMinWaarde < settingsAttributes.LDRMinWaardeMin) {
+    if (deviceSettings.LDRMinWaarde < deviceAttributes.LDRMinWaardeMin) {
         debug->println("Error: LDRMinWaarde below minimum, setting to minimum");
-        settings.LDRMinWaarde = settingsAttributes.LDRMinWaardeMin;
-    } else if (settings.LDRMinWaarde > settingsAttributes.LDRMinWaardeMax) {
+        deviceSettings.LDRMinWaarde = deviceAttributes.LDRMinWaardeMin;
+    } else if (deviceSettings.LDRMinWaarde > deviceAttributes.LDRMinWaardeMax) {
         debug->println("Error: LDRMinWaarde above maximum, setting to maximum");
-        settings.LDRMinWaarde = settingsAttributes.LDRMinWaardeMax;
+        deviceSettings.LDRMinWaarde = deviceAttributes.LDRMinWaardeMax;
     }
-    file.printf("LDRMinWaarde=%d\n", settings.LDRMinWaarde);
+    file.printf("LDRMinWaarde=%d\n", deviceSettings.LDRMinWaarde);
 
     // Validate and write LDRMaxWaarde
-    if (settings.LDRMaxWaarde < settingsAttributes.LDRMaxWaardeMin) {
+    if (deviceSettings.LDRMaxWaarde < deviceAttributes.LDRMaxWaardeMin) {
         debug->println("Error: LDRMaxWaarde below minimum, setting to minimum");
-        settings.LDRMaxWaarde = settingsAttributes.LDRMaxWaardeMin;
-    } else if (settings.LDRMaxWaarde > settingsAttributes.LDRMaxWaardeMax) {
+        deviceSettings.LDRMaxWaarde = deviceAttributes.LDRMaxWaardeMin;
+    } else if (deviceSettings.LDRMaxWaarde > deviceAttributes.LDRMaxWaardeMax) {
         debug->println("Error: LDRMaxWaarde above maximum, setting to maximum");
-        settings.LDRMaxWaarde = settingsAttributes.LDRMaxWaardeMax;
+        deviceSettings.LDRMaxWaarde = deviceAttributes.LDRMaxWaardeMax;
     }
-    file.printf("LDRMaxWaarde=%d\n", settings.LDRMaxWaarde);
+    file.printf("LDRMaxWaarde=%d\n", deviceSettings.LDRMaxWaarde);
 
     // Validate and write maxIntensiteitLeds
-    if (settings.maxIntensiteitLeds < settingsAttributes.maxIntensiteitLedsMin) {
+    if (deviceSettings.maxIntensiteitLeds < deviceAttributes.maxIntensiteitLedsMin) {
         debug->println("Error: maxIntensiteitLeds below minimum, setting to minimum");
-        settings.maxIntensiteitLeds = settingsAttributes.maxIntensiteitLedsMin;
-    } else if (settings.maxIntensiteitLeds > settingsAttributes.maxIntensiteitLedsMax) {
+        deviceSettings.maxIntensiteitLeds = deviceAttributes.maxIntensiteitLedsMin;
+    } else if (deviceSettings.maxIntensiteitLeds > deviceAttributes.maxIntensiteitLedsMax) {
         debug->println("Error: maxIntensiteitLeds above maximum, setting to maximum");
-        settings.maxIntensiteitLeds = settingsAttributes.maxIntensiteitLedsMax;
+        deviceSettings.maxIntensiteitLeds = deviceAttributes.maxIntensiteitLedsMax;
     }
-    file.printf("maxIntensiteitLeds=%d\n", settings.maxIntensiteitLeds);
+    file.printf("maxIntensiteitLeds=%d\n", deviceSettings.maxIntensiteitLeds);
 
     // Validate and write weerliveAuthToken
-    if (settings.weerliveAuthToken.length() > settingsAttributes.weerliveAuthTokenMaxLength) {
+    if (deviceSettings.weerliveAuthToken.length() > deviceAttributes.weerliveAuthTokenLen) {
         debug->println("Error: WeerliveAuthToken exceeds maximum length, truncating");
-        settings.weerliveAuthToken = settings.weerliveAuthToken.substr(0, settingsAttributes.weerliveAuthTokenMaxLength);
+        deviceSettings.weerliveAuthToken = deviceSettings.weerliveAuthToken.substr(0, deviceAttributes.weerliveAuthTokenLen);
     }
-    file.printf("weerliveAuthToken=%s\n", settings.weerliveAuthToken.c_str());
+    file.printf("weerliveAuthToken=%s\n", deviceSettings.weerliveAuthToken.c_str());
 
     // Validate and write weerlivePlaats
-    if (settings.weerlivePlaats.length() > settingsAttributes.weerlivePlaatsMaxLength) {
+    if (deviceSettings.weerlivePlaats.length() > deviceAttributes.weerlivePlaatsLen) {
         debug->println("Error: WeerlivePlaats exceeds maximum length, truncating");
-        settings.weerlivePlaats = settings.weerlivePlaats.substr(0, settingsAttributes.weerlivePlaatsMaxLength);
+        deviceSettings.weerlivePlaats = deviceSettings.weerlivePlaats.substr(0, deviceAttributes.weerlivePlaatsLen);
     }
-    file.printf("weerlivePlaats=%s\n", settings.weerlivePlaats.c_str());
+    file.printf("weerlivePlaats=%s\n", deviceSettings.weerlivePlaats.c_str());
 
     // Validate and write weerliveRequestInterval
-    if (settings.weerliveRequestInterval < settingsAttributes.weerliveRequestIntervalMin) {
+    if (deviceSettings.weerliveRequestInterval < deviceAttributes.weerliveRequestIntervalMin) {
         debug->println("Error: WeerliveRequestInterval below minimum, setting to minimum");
-        settings.weerliveRequestInterval = settingsAttributes.weerliveRequestIntervalMin;
-    } else if (settings.weerliveRequestInterval > settingsAttributes.weerliveRequestIntervalMax) {
+        deviceSettings.weerliveRequestInterval = deviceAttributes.weerliveRequestIntervalMin;
+    } else if (deviceSettings.weerliveRequestInterval > deviceAttributes.weerliveRequestIntervalMax) {
         debug->println("Error: WeerliveRequestInterval above maximum, setting to maximum");
-        settings.weerliveRequestInterval = settingsAttributes.weerliveRequestIntervalMax;
+        deviceSettings.weerliveRequestInterval = deviceAttributes.weerliveRequestIntervalMax;
     }
-    file.printf("weerliveRequestInterval=%d\n", settings.weerliveRequestInterval);
+    debug->printf("weerliveRequestInterval=[%d]\n", deviceSettings.weerliveRequestInterval);
+    file.printf("weerliveRequestInterval=%d\n", deviceSettings.weerliveRequestInterval);
 
     // Validate and write skipItems
-    if (settings.skipItems.length() > settingsAttributes.skipItemsMaxLength) {
+    if (deviceSettings.skipItems.length() > deviceAttributes.skipItemsLen) {
         debug->println("Error: SkipItems exceeds maximum length, truncating");
-        settings.skipItems = settings.skipItems.substr(0, settingsAttributes.skipItemsMaxLength);
+        deviceSettings.skipItems = deviceSettings.skipItems.substr(0, deviceAttributes.skipItemsLen);
     }
-    file.printf("skipItems=%s\n", settings.skipItems.c_str());
+    file.printf("skipItems=%s\n", deviceSettings.skipItems.c_str());
+
+    file.close();
+    debug->println("writeDeviceSettings(): Settings saved successfully");
+
+} // writeDeviceSettings()
+
+
+void SettingsClass::readWeerliveSettings() 
+{
+    File file = LittleFS.open("/weerlive.ini", "r");
+
+    if (!file) {
+        debug->println("readWeerliveSettings(): Failed to open weerlive.ini file for reading");
+        return;
+    }
+
+    String line;
+    while (file.available()) 
+    {
+        line = file.readStringUntil('\n');
+
+        // Read and parse settings from each line
+        debug->printf("readWeerliveSettings(): line: [%s]\n", line.c_str());
+
+        if (line.startsWith("authToken=")) {
+          weerliveSettings.authToken = std::string(line.substring(10).c_str());
+        }
+        else if (line.startsWith("plaats=")) {
+          weerliveSettings.plaats = std::string(line.substring(7).c_str());
+        }
+        else if (line.startsWith("requestInterval=")) {
+          weerliveSettings.requestInterval = line.substring(16).toInt();
+        }
+    }
+
+    file.close();
+    debug->println("readWeerliveSettings(): read successfully");
+
+} // readWeerliveSettings()
+
+
+void SettingsClass::writeWeerliveSettings() 
+{
+    File file = LittleFS.open("/weerlive.ini", "w");
+
+    if (!file) {
+        debug->println("writeWeerliveSettings(): Failed to open weerlive.ini file for writing");
+        return;
+    }
+
+    // Validate and write authToken
+    if (weerliveSettings.authToken.length() > weerliveAttributes.authTokenLen) {
+        debug->println("Error: authToken exceeds maximum length, truncating");
+        weerliveSettings.authToken = weerliveSettings.authToken.substr(0, weerliveAttributes.authTokenLen);
+    }
+    file.printf("authToken=%s\n", weerliveSettings.authToken.c_str());
+
+    // Validate and write weerlivePlaats
+    if (weerliveSettings.plaats.length() > weerliveAttributes.plaatsLen) {
+        debug->println("Error: plaats exceeds maximum length, truncating");
+        weerliveSettings.plaats = weerliveSettings.plaats.substr(0, weerliveAttributes.plaatsLen);
+    }
+    file.printf("plaats=%s\n", weerliveSettings.plaats.c_str());
+
+    // Validate and write weerliveRequestInterval
+    if (weerliveSettings.requestInterval < weerliveAttributes.requestIntervalMin) {
+        debug->println("Error: requestInterval below minimum, setting to minimum");
+        weerliveSettings.requestInterval = weerliveAttributes.requestIntervalMin;
+    } else if (weerliveSettings.requestInterval > weerliveAttributes.requestIntervalMax) {
+        debug->println("Error: requestInterval above maximum, setting to maximum");
+        weerliveSettings.requestInterval = weerliveAttributes.requestIntervalMax;
+    }
+    debug->printf("requestInterval=[%d]\n", weerliveSettings.requestInterval);
+    file.printf("requestInterval=%d\n", weerliveSettings.requestInterval);
 
     file.close();
     debug->println("Settings saved successfully");
+
 } // writeSettings()

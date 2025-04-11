@@ -31,7 +31,7 @@ private:
     static const char  *apiHost;
     String              apiKey;
     String              weerliveText;
-    char                jsonResponse[3000];   
+    char                jsonResponse[10000];   
     int                 alarmInd = -1;
     uint32_t            requestInterval = 0;
     uint32_t            loopTimer = 0;
@@ -44,9 +44,9 @@ private:
 
     void configureFilters();
   #ifdef WEERLIVE_DEBUG
-    bool do_debug = true;
+    bool doDebug = true;
   #else
-    bool do_debug = false;
+    bool doDebug = false;
   #endif
 
 };
