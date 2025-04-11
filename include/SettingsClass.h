@@ -35,23 +35,43 @@ struct DeviceAttributes {
     size_t skipItemsLen = 256;
 };
 
+struct WeerliveSettings {
+  std::string authToken;
+  std::string plaats;
+  uint8_t requestInterval;
+};
+
+struct WeerliveAttributes {
+  size_t authTokenLen = 16;
+  size_t plaatsLen = 32;
+  uint8_t requestIntervalMin = 1;
+  uint8_t requestIntervalMax = 120;
+};
+
 class SettingsClass {
 private:
-    DeviceSettings settings;
+    DeviceSettings deviceSettings;
+    WeerliveSettings weerliveSettings;
     Stream* debug = nullptr; // Optional, default to nullptr
     DeviceAttributes deviceAttributes;
+    WeerliveAttributes weerliveAttributes;
 
 public:
     SettingsClass();
     void setDebug(Stream* debugPort);
 
     // Getters
-    DeviceSettings& getSettings();
+    DeviceSettings& getDeviceSettings();
     const DeviceAttributes& getDeviceAttributes();
+    WeerliveSettings& getWeerliveSettings();
+    const WeerliveAttributes& getWeerliveAttributes();
     std::string buildDeviceFieldsJson();
+    std::string buildWeerliveFieldsJson();
     // Methods for reading and writing settings
-    void readSettings();
-    void writeSettings();
+    void readDeviceSettings();
+    void writeDeviceSettings();
+    void readWeerliveSettings();
+    void writeWeerliveSettings();
 };
 
 #endif // SETTINGS_CLASS_H
