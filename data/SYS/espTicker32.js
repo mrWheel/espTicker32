@@ -280,28 +280,6 @@ function updateWeerliveSettings(event) {
   }
 } // updateWeerliveSettings()
 
-// Function to save weerlive settings via WebSocket
-function saveWeerliveSettings() {
-  console.log('saveWeerliveSettings called');
-  if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-    // Create a copy of the weerliveSettings object with the correct structure
-    const formattedSettings = {
-      fields: weerliveSettings.fields.map(field => ({
-        fieldName: field.fieldName,
-        value: field.fieldValue  // Change fieldValue to value to match what C++ expects
-      }))
-    };
-    
-    window.ws.send(JSON.stringify({
-      type: 'process',
-      processType: 'saveWeerliveSettings',
-      inputValues: { 'weerliveSettingsData': JSON.stringify(formattedSettings) }
-    }));
-  } else {
-    console.error('WebSocket is not connected');
-  }
-} // saveWeerliveSettings()
-
 
 // Function to request weerlive settings data from the server
 function requestWeerliveSettings() {
@@ -415,29 +393,6 @@ function updateDevSetting(event) {
   }
 } //  updateDevSetting()
 
-// Function to save device settings via WebSocket
-function saveDevSettings() {
-  console.log('saveDevSettings called');
-  if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-    // Create a copy of the devSettings object with the correct structure
-    const formattedSettings = {
-      fields: devSettings.fields.map(field => ({
-        fieldName: field.fieldName,
-        value: field.fieldValue  // Change fieldValue to value to match what C++ expects
-      }))
-    };
-    
-    window.ws.send(JSON.stringify({
-      type: 'process',
-      processType: 'saveDevSettings',
-      inputValues: { 'devSettingsData': JSON.stringify(formattedSettings) }
-    }));
-  } else {
-    console.error('WebSocket is not connected');
-  }
-
-} // saveDevSettings()
-
 // Function to request device settings data from the server
 function requestDevSettings() 
 {
@@ -453,12 +408,43 @@ function saveSettings() {
   
   console.log('saveSettings called for:', settingsName);
   
+  // Determine which settings object to use based on the settingsName
+  let settingsObj = null;
+  let processType = '';
+  let dataKey = '';
+  
   if (settingsName === 'Device Settings') {
-    saveDevSettings();
+    settingsObj = devSettings;
+    processType = 'saveDevSettings';
+    dataKey = 'devSettingsData';
   } else if (settingsName === 'Weerlive Settings') {
-    saveWeerliveSettings();
+    settingsObj = weerliveSettings;
+    processType = 'saveWeerliveSettings';
+    dataKey = 'weerliveSettingsData';
   } else {
     console.error('Unknown settings type:', settingsName);
+    return;
+  }
+  
+  if (window.ws && window.ws.readyState === WebSocket.OPEN && settingsObj) {
+    // Create a copy of the settings object with the correct structure
+    const formattedSettings = {
+      fields: settingsObj.fields.map(field => ({
+        fieldName: field.fieldName,
+        value: field.fieldValue  // Change fieldValue to value to match what C++ expects
+      }))
+    };
+    
+    const inputValues = {};
+    inputValues[dataKey] = JSON.stringify(formattedSettings);
+    
+    window.ws.send(JSON.stringify({
+      type: 'process',
+      processType: processType,
+      inputValues: inputValues
+    }));
+  } else {
+    console.error('WebSocket is not connected or settings object is null');
   }
 } // saveSettings()
 
