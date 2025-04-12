@@ -293,6 +293,7 @@ void SettingsClass::writeDeviceSettings()
         debug->println("Error: Hostname exceeds maximum length, truncating");
         deviceSettings.hostname = deviceSettings.hostname.substr(0, deviceAttributes.hostnameLen);
     }
+    debug->printf("writeDeviceSettings(): hostname=%s\n", deviceSettings.hostname.c_str());
     file.printf("hostname=%s\n", deviceSettings.hostname.c_str());
 
     // Validate and write scrollSnelheid
@@ -300,6 +301,7 @@ void SettingsClass::writeDeviceSettings()
         debug->println("Error: Scroll Snelheid is above maximum (255), setting to 255");
         deviceSettings.scrollSnelheid = 255;
     }
+    debug->printf("writeDeviceSettings(): scrollSnelheid=%d\n", deviceSettings.scrollSnelheid);
     file.printf("scrollSnelheid=%d\n", deviceSettings.scrollSnelheid);
 
     // Validate and write LDRMinWaarde
@@ -310,6 +312,7 @@ void SettingsClass::writeDeviceSettings()
         debug->println("Error: LDRMinWaarde above maximum, setting to maximum");
         deviceSettings.LDRMinWaarde = deviceAttributes.LDRMinWaardeMax;
     }
+    debug->printf("writeDeviceSettings(): LDRMinWaarde=%d\n", deviceSettings.LDRMinWaarde);
     file.printf("LDRMinWaarde=%d\n", deviceSettings.LDRMinWaarde);
 
     // Validate and write LDRMaxWaarde
@@ -320,6 +323,7 @@ void SettingsClass::writeDeviceSettings()
         debug->println("Error: LDRMaxWaarde above maximum, setting to maximum");
         deviceSettings.LDRMaxWaarde = deviceAttributes.LDRMaxWaardeMax;
     }
+    debug->printf("writeDeviceSettings(): LDRMaxWaarde=%d\n", deviceSettings.LDRMaxWaarde);
     file.printf("LDRMaxWaarde=%d\n", deviceSettings.LDRMaxWaarde);
 
     // Validate and write maxIntensiteitLeds
@@ -330,6 +334,7 @@ void SettingsClass::writeDeviceSettings()
         debug->println("Error: maxIntensiteitLeds above maximum, setting to maximum");
         deviceSettings.maxIntensiteitLeds = deviceAttributes.maxIntensiteitLedsMax;
     }
+    debug->printf("writeDeviceSettings(): maxIntensiteitLeds=%d\n", deviceSettings.maxIntensiteitLeds);
     file.printf("maxIntensiteitLeds=%d\n", deviceSettings.maxIntensiteitLeds);
 
     // Validate and write skipItems
@@ -337,6 +342,7 @@ void SettingsClass::writeDeviceSettings()
         debug->println("Error: SkipItems exceeds maximum length, truncating");
         deviceSettings.skipItems = deviceSettings.skipItems.substr(0, deviceAttributes.skipItemsLen);
     }
+    debug->printf("writeDeviceSettings(): skipItems=%s\n", deviceSettings.skipItems.c_str());
     file.printf("skipItems=%s\n", deviceSettings.skipItems.c_str());
 
     file.close();
@@ -399,6 +405,7 @@ void SettingsClass::writeParolaSettings()
         debug->println("Error: hardwareType is above maximum, setting to maximum");
         parolaSettings.hardwareType = parolaAttributes.hardwareTypeMax;
     }
+    debug->printf("writeParolaSettings(): hardwareType=%d\n", parolaSettings.hardwareType);
     file.printf("hardwareType=%d\n", parolaSettings.hardwareType);
 
     // Validate and write numDevices
@@ -409,6 +416,7 @@ void SettingsClass::writeParolaSettings()
         debug->println("Error: numDevices above maximum, setting to maximum");
         parolaSettings.numDevices = parolaAttributes.numDevicesMax;
     }
+    debug->printf("writeParolaSettings(): numDevices=%d\n", parolaSettings.numDevices);
     file.printf("numDevices=%d\n", parolaSettings.numDevices);
 
     // Validate and write numZones
@@ -419,6 +427,7 @@ void SettingsClass::writeParolaSettings()
         debug->println("Error: numZones above maximum, setting to maximum");
         parolaSettings.numZones = parolaAttributes.numZonesMax;
     }
+    debug->printf("writeParolaSettings(): numZones=%d\n", parolaSettings.numZones);
     file.printf("numZones=%d\n", parolaSettings.numZones);
 
     // Validate and write speed
@@ -429,6 +438,7 @@ void SettingsClass::writeParolaSettings()
         debug->println("Error: speed above maximum, setting to maximum");
         parolaSettings.speed = parolaAttributes.speedMax;
     }
+    debug->printf("writeParolaSettings(): speed=%d\n", parolaSettings.speed);
     file.printf("speed=%d\n", parolaSettings.speed);
 
     file.close();

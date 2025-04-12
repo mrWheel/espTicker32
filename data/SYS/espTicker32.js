@@ -248,6 +248,10 @@ function renderWeerliveSettings()
         input.max = field.fieldMax;
         input.step = field.fieldStep;
         
+        input.dataset.fieldName = field.fieldName;  // ADD THIS LINE
+        input.dataset.fieldType = field.fieldType;  // ADD THIS LINE
+        input.addEventListener('input', updateWeerliveSettings);  // ADD THIS LINE
+
         // Create a container for the input and range text
         const container = document.createElement('div');
         container.style.display = 'flex';
@@ -394,6 +398,10 @@ function renderparolaSettings()
         input.max = field.fieldMax;
         input.step = field.fieldStep;
         
+        input.dataset.fieldName = field.fieldName;  // ADD THIS LINE
+        input.dataset.fieldType = field.fieldType;  // ADD THIS LINE
+        input.addEventListener('input', updateparolaSettings);  // ADD THIS LINE
+
         // Create a container for the input and range text
         const container = document.createElement('div');
         container.style.display = 'flex';
@@ -540,7 +548,11 @@ function renderDevSettings()
         input.min = field.fieldMin;
         input.max = field.fieldMax;
         input.step = field.fieldStep;
-        
+
+        input.dataset.fieldName = field.fieldName;  // ADD THIS LINE
+        input.dataset.fieldType = field.fieldType;  // ADD THIS LINE
+        input.addEventListener('input', updateDevSetting);  // ADD THIS LINE
+
         // Create a container for the input and range text
         const container = document.createElement('div');
         container.style.display = 'flex';
@@ -644,8 +656,7 @@ function saveSettings()
     return;
   }
   
-  if (window.ws && window.ws.readyState === WebSocket.OPEN && settingsObj) 
-  {
+  if (window.ws && window.ws.readyState === WebSocket.OPEN && settingsObj) {
     // Create a copy of the settings object with the correct structure
     const formattedSettings = {
       fields: settingsObj.fields.map(field => ({
@@ -665,7 +676,6 @@ function saveSettings()
   } else {
     console.error('WebSocket is not connected or settings object is null');
   }
-
 } // saveSettings()
 
 

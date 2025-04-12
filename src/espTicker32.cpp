@@ -584,18 +584,22 @@ void processDevSettings(const std::string& jsonString)
       debug->printf("processDevSettings(): Setting scrollSnelheid to [%d]\n", newValue);
       gDeviceSettings->scrollSnelheid = newValue;
     }
-    /******  
-    else if (strcmp(fieldName, "authToken") == 0) {
-      std::string newAuthToken = field["value"].as<std::string>();
-      debug->printf("processDevSettings(): Setting weerliveAuthToken to [%s]\n", newAuthToken.c_str());
-      gDeviceSettings->weerliveAuthToken = newAuthToken;
-    }
-    else if (strcmp(fieldName, "weerliveRequestInterval") == 0) {
+    else if (strcmp(fieldName, "LDRMinWaarde") == 0) {
       uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processDevSettings(): Setting weerliveRequestInterval to [%d]\n", newValue);
-      gDeviceSettings->weerliveRequestInterval = newValue;
+      debug->printf("processDevSettings(): Setting LDRMinWaarde to [%d]\n", newValue);
+      gDeviceSettings->LDRMinWaarde = newValue;
     }
-    *******/
+    else if (strcmp(fieldName, "LDRMaxWaarde") == 0) {
+      uint8_t newValue = field["value"].as<uint8_t>();
+      debug->printf("processDevSettings(): Setting LDRMaxWaarde to [%d]\n", newValue);
+      //debug->printf("processDevSettings(): Setting [%s] to [%s]\n", fieldName, newValue);
+      gDeviceSettings->LDRMaxWaarde = newValue;
+    }
+    else if (strcmp(fieldName, "maxIntensiteitLeds") == 0) {
+      uint8_t newValue = field["value"].as<uint8_t>();
+      debug->printf("processDevSettings(): Setting [%s] to [%d]\n", fieldName, newValue);
+      gDeviceSettings->maxIntensiteitLeds = newValue;
+    }
     else if (strcmp(fieldName, "skipItems") == 0) {
       std::string newValue = field["value"].as<std::string>();
       debug->printf("processDevSettings(): Setting skipItems to [%s]\n", newValue);
