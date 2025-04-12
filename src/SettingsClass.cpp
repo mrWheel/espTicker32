@@ -28,6 +28,17 @@ const WeerliveAttributes& SettingsClass::getWeerliveAttributes()
   return weerliveAttributes;
 }
 
+ParolaSettings& SettingsClass::getParolaSettings()
+{
+  return parolaSettings;
+}
+
+const ParolaAttributes& SettingsClass::getParolaAttributes()
+{
+  return parolaAttributes;
+}
+
+
 std::string SettingsClass::buildDeviceFieldsJson()
 {
   // Estimate the size (you can also use the ArduinoJson Assistant online)
@@ -108,6 +119,71 @@ std::string SettingsClass::buildDeviceFieldsJson()
 
 } // buildDeviceFieldsJson()
 
+
+std::string SettingsClass::buildParolaFieldsJson()
+{
+  // Estimate the size (you can also use the ArduinoJson Assistant online)
+  //-- to big for the stack: StaticJsonDocument<4096> doc;
+  //-- move to the heap
+  DynamicJsonDocument doc(4096);
+
+  // Set the root-level keys
+  doc["type"] = "update";
+  doc["target"] = "parolaSettings";
+  doc["settingsName"] = "Parola Settings";
+
+  JsonArray fields = doc.createNestedArray("fields");
+
+  //-- std::string parola hardwareType;
+  JsonObject field1 = fields.createNestedObject();
+  field1["fieldName"] = "hardwareType";
+  field1["fieldPrompt"] = "Type (1=PAROLA_HW, 2=FC16_HW, 3=GENERIC_HW)";
+  field1["fieldValue"] = parolaSettings.hardwareType;
+  field1["fieldType"] = "n";
+  field1["fieldMin"] = parolaAttributes.hardwareTypeMin;
+  field1["fieldMax"] = parolaAttributes.hardwareTypeMax;
+  field1["fieldStep"] = 1;
+
+  //-- std::string parola numDevices;
+  JsonObject field2 = fields.createNestedObject();
+  field2["fieldName"] = "numDevices";
+  field2["fieldPrompt"] = "Aantal segmenten";
+  field2["fieldValue"] = parolaSettings.numDevices;
+  field2["fieldType"] = "n";
+  field2["fieldMin"] = parolaAttributes.numDevicesMin;
+  field2["fieldMax"] = parolaAttributes.numDevicesMax;
+  field2["fieldStep"] = 1;
+
+  //-- std::string parola numZones;
+  JsonObject field3 = fields.createNestedObject();
+  field3["fieldName"] = "numZones";
+  field3["fieldPrompt"] = "Aantal rijen (Zones)";
+  field3["fieldValue"] = parolaSettings.numZones;
+  field3["fieldType"] = "n";
+  field3["fieldMin"] = parolaAttributes.numZonesMin;
+  field3["fieldMax"] = parolaAttributes.numZonesMax;
+  field3["fieldStep"] = 1;
+
+  //-- std::string parola scroll speed;
+  JsonObject field4 = fields.createNestedObject();
+  field4["fieldName"] = "speed";
+  field4["fieldPrompt"] = "Scroll Speed";
+  field4["fieldValue"] = parolaSettings.speed;
+  field4["fieldType"] = "n";
+  field4["fieldMin"] = parolaAttributes.speedMin;
+  field4["fieldMax"] = parolaAttributes.speedMax;
+  field4["fieldStep"] = 1;    
+
+  // Serialize to a string and return it
+  std::string jsonString;
+  serializeJson(doc, jsonString);
+  debug->printf("buildParolaFieldsJson(): JSON string: %s\n", jsonString.c_str());
+  // Return the JSON string
+  return jsonString;
+
+} // buildParolaFieldsJson()
+
+
 std::string SettingsClass::buildWeerliveFieldsJson()
 {
   // Estimate the size (you can also use the ArduinoJson Assistant online)
@@ -142,7 +218,7 @@ std::string SettingsClass::buildWeerliveFieldsJson()
 
   //-- uint8_t requestInterval;
   JsonObject field3 = fields.createNestedObject();
-  field3["fieldName"] = "requestIntervals";
+  field3["fieldName"] = "requestInterval";
   field3["fieldPrompt"] = "Request Interval (minuten)";
   field3["fieldValue"] = weerliveSettings.requestInterval;
   field3["fieldType"] = "n";
@@ -256,31 +332,6 @@ void SettingsClass::writeDeviceSettings()
     }
     file.printf("maxIntensiteitLeds=%d\n", deviceSettings.maxIntensiteitLeds);
 
-    // Validate and write weerliveAuthToken
-    if (deviceSettings.weerliveAuthToken.length() > deviceAttributes.weerliveAuthTokenLen) {
-        debug->println("Error: WeerliveAuthToken exceeds maximum length, truncating");
-        deviceSettings.weerliveAuthToken = deviceSettings.weerliveAuthToken.substr(0, deviceAttributes.weerliveAuthTokenLen);
-    }
-    file.printf("weerliveAuthToken=%s\n", deviceSettings.weerliveAuthToken.c_str());
-
-    // Validate and write weerlivePlaats
-    if (deviceSettings.weerlivePlaats.length() > deviceAttributes.weerlivePlaatsLen) {
-        debug->println("Error: WeerlivePlaats exceeds maximum length, truncating");
-        deviceSettings.weerlivePlaats = deviceSettings.weerlivePlaats.substr(0, deviceAttributes.weerlivePlaatsLen);
-    }
-    file.printf("weerlivePlaats=%s\n", deviceSettings.weerlivePlaats.c_str());
-
-    // Validate and write weerliveRequestInterval
-    if (deviceSettings.weerliveRequestInterval < deviceAttributes.weerliveRequestIntervalMin) {
-        debug->println("Error: WeerliveRequestInterval below minimum, setting to minimum");
-        deviceSettings.weerliveRequestInterval = deviceAttributes.weerliveRequestIntervalMin;
-    } else if (deviceSettings.weerliveRequestInterval > deviceAttributes.weerliveRequestIntervalMax) {
-        debug->println("Error: WeerliveRequestInterval above maximum, setting to maximum");
-        deviceSettings.weerliveRequestInterval = deviceAttributes.weerliveRequestIntervalMax;
-    }
-    debug->printf("weerliveRequestInterval=[%d]\n", deviceSettings.weerliveRequestInterval);
-    file.printf("weerliveRequestInterval=%d\n", deviceSettings.weerliveRequestInterval);
-
     // Validate and write skipItems
     if (deviceSettings.skipItems.length() > deviceAttributes.skipItemsLen) {
         debug->println("Error: SkipItems exceeds maximum length, truncating");
@@ -292,6 +343,98 @@ void SettingsClass::writeDeviceSettings()
     debug->println("writeDeviceSettings(): Settings saved successfully");
 
 } // writeDeviceSettings()
+
+
+void SettingsClass::readParolaSettings() 
+{
+    File file = LittleFS.open("/parola.ini", "r");
+
+    if (!file) {
+        debug->println("readParolaSettings(): Failed to open parola.ini file for reading");
+        return;
+    }
+
+    String line;
+    while (file.available()) 
+    {
+        line = file.readStringUntil('\n');
+
+        // Read and parse settings from each line
+        debug->printf("readParolaSettings(): line: [%s]\n", line.c_str());
+
+        if (line.startsWith("hardwareType=")) {
+          parolaSettings.hardwareType = line.substring(13).toInt();
+        }
+        else if (line.startsWith("numDevices=")) {
+          parolaSettings.numDevices = line.substring(11).toInt();
+        }
+        else if (line.startsWith("numZones=")) {
+          parolaSettings.numZones = line.substring(9).toInt();
+        }
+        else if (line.startsWith("speed=")) {
+          parolaSettings.speed = line.substring(6).toInt();
+        }
+    }
+
+    file.close();
+    debug->println("readParolaSettings(): read successfully");
+
+} // readParolaSettings()
+
+
+void SettingsClass::writeParolaSettings() 
+{
+    File file = LittleFS.open("/parola.ini", "w");
+
+    if (!file) {
+        debug->println("writeParolaSettings(): Failed to open parola.ini file for writing");
+        return;
+    }
+
+    // Validate and write hardwareType
+    if (parolaSettings.hardwareType < parolaAttributes.hardwareTypeMin) {
+      debug->println("Error: hardwareType is below minimum, setting to minumum");
+      parolaSettings.hardwareType = parolaAttributes.hardwareTypeMin;
+    } else if (parolaSettings.hardwareType > parolaAttributes.hardwareTypeMax) {
+        debug->println("Error: hardwareType is above maximum, setting to maximum");
+        parolaSettings.hardwareType = parolaAttributes.hardwareTypeMax;
+    }
+    file.printf("hardwareType=%d\n", parolaSettings.hardwareType);
+
+    // Validate and write numDevices
+    if (parolaSettings.numDevices < parolaAttributes.numDevicesMin) {
+        debug->println("Error: numDevices below minimum, setting to minimum");
+        parolaSettings.numDevices = parolaAttributes.numDevicesMin;
+    } else if (parolaSettings.numDevices > parolaAttributes.numDevicesMax) {
+        debug->println("Error: numDevices above maximum, setting to maximum");
+        parolaSettings.numDevices = parolaAttributes.numDevicesMax;
+    }
+    file.printf("numDevices=%d\n", parolaSettings.numDevices);
+
+    // Validate and write numZones
+    if (parolaSettings.numZones < parolaAttributes.numZonesMin) {
+      debug->println("Error: numZones below minimum, setting to minimum");
+      parolaSettings.numZones = parolaAttributes.numZonesMin;
+    } else if (parolaSettings.numZones > parolaAttributes.numZonesMax) {
+        debug->println("Error: numZones above maximum, setting to maximum");
+        parolaSettings.numZones = parolaAttributes.numZonesMax;
+    }
+    file.printf("numZones=%d\n", parolaSettings.numZones);
+
+    // Validate and write speed
+    if (parolaSettings.speed < parolaAttributes.speedMin) {
+      debug->println("Error: speed below minimum, setting to minimum");
+      parolaSettings.speed = parolaAttributes.speedMin;
+    } else if (parolaSettings.speed > parolaAttributes.speedMax) {
+        debug->println("Error: speed above maximum, setting to maximum");
+        parolaSettings.speed = parolaAttributes.speedMax;
+    }
+    file.printf("speed=%d\n", parolaSettings.speed);
+
+    file.close();
+    debug->println("writeParolaSettings(): Settings saved successfully");
+
+} // writeParolaSettings()
 
 
 void SettingsClass::readWeerliveSettings() 
@@ -342,16 +485,18 @@ void SettingsClass::writeWeerliveSettings()
         debug->println("Error: authToken exceeds maximum length, truncating");
         weerliveSettings.authToken = weerliveSettings.authToken.substr(0, weerliveAttributes.authTokenLen);
     }
+    debug->printf("writeWeerliveSettings(): authToken=%s\n", weerliveSettings.authToken.c_str());
     file.printf("authToken=%s\n", weerliveSettings.authToken.c_str());
 
-    // Validate and write weerlivePlaats
+    // Validate and write plaats
     if (weerliveSettings.plaats.length() > weerliveAttributes.plaatsLen) {
         debug->println("Error: plaats exceeds maximum length, truncating");
         weerliveSettings.plaats = weerliveSettings.plaats.substr(0, weerliveAttributes.plaatsLen);
     }
+    debug->printf("writeWeerliveSetting(): plaats=%s\n", weerliveSettings.plaats.c_str());
     file.printf("plaats=%s\n", weerliveSettings.plaats.c_str());
 
-    // Validate and write weerliveRequestInterval
+    // Validate and write requestInterval
     if (weerliveSettings.requestInterval < weerliveAttributes.requestIntervalMin) {
         debug->println("Error: requestInterval below minimum, setting to minimum");
         weerliveSettings.requestInterval = weerliveAttributes.requestIntervalMin;
@@ -359,13 +504,14 @@ void SettingsClass::writeWeerliveSettings()
         debug->println("Error: requestInterval above maximum, setting to maximum");
         weerliveSettings.requestInterval = weerliveAttributes.requestIntervalMax;
     }
-    debug->printf("requestInterval=[%d]\n", weerliveSettings.requestInterval);
+    debug->printf("writeWeerliveSetting(): requestInterval=%d\n", weerliveSettings.requestInterval);
     file.printf("requestInterval=%d\n", weerliveSettings.requestInterval);
 
     file.close();
-    debug->println("Settings saved successfully");
+    debug->println("weerliveSettings saved successfully");
 
-} // writeSettings()
+} // writeWeerliveSettings()
+
 
 void SettingsClass::saveSettings(const std::string& target)
 {
@@ -374,6 +520,9 @@ void SettingsClass::saveSettings(const std::string& target)
   if (target == "deviceSettings") {
     writeDeviceSettings();
   } 
+  else if (target == "parolaSettings") {
+    writeParolaSettings();
+  }
   else if (target == "weerliveSettings") {
     writeWeerliveSettings();
   }

@@ -174,22 +174,27 @@ function isEspTicker32Loaded()
 
 
 // Function to request input fields data from the server
-function requestInputFields() {
+function requestInputFields() 
+{
   console.log("Requesting input fields data from server");
   window.ws.send(JSON.stringify({
     type: 'requestInputFields'
   }));
+
 } // requestInputFields()
 
 // Function to check if the page is ready for weerlive settings
-function isPageReadyForWeerliveSettings() {
+function isPageReadyForWeerliveSettings() 
+{
   // Check if the settingsTableBody element exists
   const tableBody = document.getElementById('settingsTableBody');
   return !!tableBody;
-}
+
+} //  isPageReadyForWeerliveSettings()
 
 // Function to initialize the weerlive settings from JSON
-function initializeWeerliveSettings(jsonString) {
+function initializeWeerliveSettings(jsonString) 
+{
   console.log('initializeWeerliveSettings called with:', jsonString);
   try {
     weerliveSettings = JSON.parse(jsonString) || { fields: [] };
@@ -198,10 +203,11 @@ function initializeWeerliveSettings(jsonString) {
     console.error('Error parsing JSON:', e);
     weerliveSettings = { fields: [] };
   }
-}
+} // initializeWeerliveSettings()
 
 // Function to render the weerlive settings in the table
-function renderWeerliveSettings() {
+function renderWeerliveSettings() 
+{
   console.log('renderWeerliveSettings called');
   
   // Check if the page is ready
@@ -220,6 +226,7 @@ function renderWeerliveSettings() {
       // Field prompt cell
       const promptCell = document.createElement('td');
       promptCell.style.padding = '8px';
+      promptCell.style.textAlign = 'right'; 
       promptCell.textContent = field.fieldPrompt;
       
       // Field value cell
@@ -240,6 +247,31 @@ function renderWeerliveSettings() {
         input.min = field.fieldMin;
         input.max = field.fieldMax;
         input.step = field.fieldStep;
+        
+        // Create a container for the input and range text
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        
+        // Add the input to the container
+        container.appendChild(input);
+        
+        // Add the range text
+        const rangeText = document.createElement('span');
+        rangeText.textContent = ` (${field.fieldMin} .. ${field.fieldMax})`;
+        rangeText.style.marginLeft = '8px';
+        rangeText.style.fontSize = '0.9em';
+        rangeText.style.color = '#666';
+        container.appendChild(rangeText);
+        
+        // Add the container to the cell instead of just the input
+        valueCell.appendChild(container);
+        row.appendChild(promptCell);
+        row.appendChild(valueCell);
+        tableBody.appendChild(row);
+        
+        // Skip the rest of this iteration since we've already added everything
+        return;
       }
       
       input.style.width = '100%';
@@ -262,8 +294,10 @@ function renderWeerliveSettings() {
 
 } // renderWeerliveSettings()
 
+
 // Function to update a weerlive setting
-function updateWeerliveSettings(event) {
+function updateWeerliveSettings(event) 
+{
   const input = event.target || this;
   const fieldName = input.dataset.fieldName;
   const fieldType = input.dataset.fieldType;
@@ -278,11 +312,13 @@ function updateWeerliveSettings(event) {
       field.fieldValue = value;
     }
   }
+
 } // updateWeerliveSettings()
 
 
 // Function to request weerlive settings data from the server
-function requestWeerliveSettings() {
+function requestWeerliveSettings() 
+{
   console.log("Requesting weerlive settings data from server");
   window.ws.send(JSON.stringify({
     type: 'requestWeerliveSettings'
@@ -290,49 +326,53 @@ function requestWeerliveSettings() {
 
 } // requestWeerliveSettings()
 
-// Device Settings variables and functions
-let devSettings = null;
-let weerliveSettings = null;
-
-// Function to check if the page is ready for device settings
-function isPageReadyForDevSettings() {
+//===========[Parola]==================================================================
+// Function to check if the page is ready for parola settings
+function isPageReadyForParolaSettings() 
+{
   // Check if the settingsTableBody element exists
   const tableBody = document.getElementById('settingsTableBody');
   return !!tableBody;
-}
 
-// Function to initialize the device settings from JSON
-function initializeDevSettings(jsonString) {
-  console.log('initializeDevSettings called with:', jsonString);
+} // isPageReadyForParolaSettings()
+
+// Function to initialize the parola settings from JSON
+function initializeParolaSettings(jsonString) 
+{
+  console.log('initializeParolaSettings called with:', jsonString);
   try {
-    devSettings = JSON.parse(jsonString) || { fields: [] };
-    renderDevSettings();
+    parolaSettings = JSON.parse(jsonString) || { fields: [] };
+    renderparolaSettings();
   } catch (e) {
     console.error('Error parsing JSON:', e);
-    devSettings = { fields: [] };
+    parolaSettings = { fields: [] };
   }
-}
 
-// Function to render the device settings in the table
-function renderDevSettings() {
-  console.log('renderDevSettings called');
+} // initializeparolaSettings()
+
+
+// Function to render the parola settings in the table
+function renderparolaSettings() 
+{
+  console.log('renderparolaSettings called');
   
   // Check if the page is ready
-  if (!isPageReadyForDevSettings()) {
-    console.error('Device settings table body not found in DOM, page not ready yet');
+  if (!isPageReadyForParolaSettings()) {
+    console.error('parola settings table body not found in DOM, page not ready yet');
     return;
   }
   
   const tableBody = document.getElementById('settingsTableBody');
   tableBody.innerHTML = '';
   
-  if (devSettings && devSettings.fields) {
-    devSettings.fields.forEach((field) => {
+  if (parolaSettings && parolaSettings.fields) {
+    parolaSettings.fields.forEach((field) => {
       const row = document.createElement('tr');
       
       // Field prompt cell
       const promptCell = document.createElement('td');
       promptCell.style.padding = '8px';
+      promptCell.style.textAlign = 'right'; 
       promptCell.textContent = field.fieldPrompt;
       
       // Field value cell
@@ -353,6 +393,178 @@ function renderDevSettings() {
         input.min = field.fieldMin;
         input.max = field.fieldMax;
         input.step = field.fieldStep;
+        
+        // Create a container for the input and range text
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        
+        // Add the input to the container
+        container.appendChild(input);
+        
+        // Add the range text
+        const rangeText = document.createElement('span');
+        rangeText.textContent = ` (${field.fieldMin} .. ${field.fieldMax})`;
+        rangeText.style.marginLeft = '8px';
+        rangeText.style.fontSize = '0.9em';
+        rangeText.style.color = '#666';
+        container.appendChild(rangeText);
+        
+        // Add the container to the cell instead of just the input
+        valueCell.appendChild(container);
+        row.appendChild(promptCell);
+        row.appendChild(valueCell);
+        tableBody.appendChild(row);
+        
+        // Skip the rest of this iteration since we've already added everything
+        return;
+      }
+      
+      input.style.width = '100%';
+      input.dataset.fieldName = field.fieldName;
+      input.dataset.fieldType = field.fieldType;
+      input.addEventListener('input', updateparolaSettings);
+      
+      valueCell.appendChild(input);
+      row.appendChild(promptCell);
+      row.appendChild(valueCell);
+      tableBody.appendChild(row);
+    });
+  }
+  
+  // Update the settings name
+  const settingsNameElement = document.getElementById('settingsName');
+  if (settingsNameElement) {
+    settingsNameElement.textContent = 'Parola Settings';
+  }
+
+} // renderparolaSettings()
+
+// Function to update a parola setting
+function updateparolaSettings(event) 
+{
+  const input = event.target || this;
+  const fieldName = input.dataset.fieldName;
+  const fieldType = input.dataset.fieldType;
+  const value = fieldType === 'n' ? parseFloat(input.value) : input.value;
+  
+  console.log(`Updating parola setting: ${fieldName} = ${value}`);
+  
+  // Find and update the field in the parolaSettings object
+  if (parolaSettings && parolaSettings.fields) {
+    const field = parolaSettings.fields.find(f => f.fieldName === fieldName);
+    if (field) {
+      field.fieldValue = value;
+    }
+  }
+} // updateparolaSettings()
+
+
+// Function to request parola settings data from the server
+function requestParolaSettings() 
+{
+  console.log("Requesting parola settings data from server");
+  window.ws.send(JSON.stringify({
+    type: 'requestParolaSettings'
+  }));
+
+} // requestParolaSettings()
+
+// Device Settings variables and functions
+let devSettings = null;
+let parolaSettings = null;
+let weerliveSettings = null;
+
+//===========[Device Settings]=========================================================
+// Function to check if the page is ready for device settings
+function isPageReadyForDevSettings() 
+{
+  // Check if the settingsTableBody element exists
+  const tableBody = document.getElementById('settingsTableBody');
+  return !!tableBody;
+} // isPageReadyForDevSettings()
+
+// Function to initialize the device settings from JSON
+function initializeDevSettings(jsonString) 
+{
+  console.log('initializeDevSettings called with:', jsonString);
+  try {
+    devSettings = JSON.parse(jsonString) || { fields: [] };
+    renderDevSettings();
+  } catch (e) {
+    console.error('Error parsing JSON:', e);
+    devSettings = { fields: [] };
+  }
+
+} //  initializeDevSettings()
+
+// Function to render the device settings in the table
+function renderDevSettings() 
+{
+  console.log('renderDevSettings called');
+  
+  // Check if the page is ready
+  if (!isPageReadyForDevSettings()) {
+    console.error('Device settings table body not found in DOM, page not ready yet');
+    return;
+  }
+  
+  const tableBody = document.getElementById('settingsTableBody');
+  tableBody.innerHTML = '';
+  
+  if (devSettings && devSettings.fields) {
+    devSettings.fields.forEach((field) => {
+      const row = document.createElement('tr');
+      
+      // Field prompt cell
+      const promptCell = document.createElement('td');
+      promptCell.style.padding = '8px';
+      promptCell.style.textAlign = 'right'; 
+      promptCell.textContent = field.fieldPrompt;
+      
+      // Field value cell
+      const valueCell = document.createElement('td');
+      valueCell.style.padding = '8px';
+      
+      // Create input element based on field type
+      const input = document.createElement('input');
+      if (field.fieldType === 's') {
+        // String input
+        input.type = 'text';
+        input.value = field.fieldValue;
+        input.maxLength = field.fieldLen;
+      } else if (field.fieldType === 'n') {
+        // Numeric input
+        input.type = 'number';
+        input.value = field.fieldValue;
+        input.min = field.fieldMin;
+        input.max = field.fieldMax;
+        input.step = field.fieldStep;
+        
+        // Create a container for the input and range text
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        
+        // Add the input to the container
+        container.appendChild(input);
+        
+        // Add the range text
+        const rangeText = document.createElement('span');
+        rangeText.textContent = ` (${field.fieldMin} .. ${field.fieldMax})`;
+        rangeText.style.marginLeft = '8px';
+        rangeText.style.fontSize = '0.9em';
+        rangeText.style.color = '#666';
+        container.appendChild(rangeText);
+        
+        // Add the container to the cell instead of just the input
+        valueCell.appendChild(container);
+        row.appendChild(promptCell);
+        row.appendChild(valueCell);
+        tableBody.appendChild(row);
+        
+        // Skip the rest of this iteration since we've already added everything
+        return;
       }
       
       input.style.width = '100%';
@@ -366,7 +578,6 @@ function renderDevSettings() {
       tableBody.appendChild(row);
     });
   }
-  
   // Update the settings name
   const settingsNameElement = document.getElementById('settingsName');
   if (settingsNameElement) {
@@ -376,7 +587,8 @@ function renderDevSettings() {
 } // renderDevSettings()
 
 // Function to update a device setting
-function updateDevSetting(event) {
+function updateDevSetting(event) 
+{
   const input = event.target || this;
   const fieldName = input.dataset.fieldName;
   const fieldType = input.dataset.fieldType;
@@ -391,6 +603,7 @@ function updateDevSetting(event) {
       field.fieldValue = value;
     }
   }
+
 } //  updateDevSetting()
 
 // Function to request device settings data from the server
@@ -403,7 +616,8 @@ function requestDevSettings()
 } //  requestDevSettings()
 
 // Function to set the correct save function based on the settings page
-function saveSettings() {
+function saveSettings() 
+{
   const settingsName = document.getElementById('settingsName').textContent;
   
   console.log('saveSettings called for:', settingsName);
@@ -417,6 +631,10 @@ function saveSettings() {
     settingsObj = devSettings;
     processType = 'saveDevSettings';
     dataKey = 'devSettingsData';
+  } else if (settingsName === 'Parola Settings') {
+    settingsObj = parolaSettings;
+    processType = 'saveParolaSettings';
+    dataKey = 'parolaSettingsData';
   } else if (settingsName === 'Weerlive Settings') {
     settingsObj = weerliveSettings;
     processType = 'saveWeerliveSettings';
@@ -426,7 +644,8 @@ function saveSettings() {
     return;
   }
   
-  if (window.ws && window.ws.readyState === WebSocket.OPEN && settingsObj) {
+  if (window.ws && window.ws.readyState === WebSocket.OPEN && settingsObj) 
+  {
     // Create a copy of the settings object with the correct structure
     const formattedSettings = {
       fields: settingsObj.fields.map(field => ({
@@ -446,6 +665,7 @@ function saveSettings() {
   } else {
     console.error('WebSocket is not connected or settings object is null');
   }
+
 } // saveSettings()
 
 
@@ -492,6 +712,13 @@ function isEspTicker32Loaded() {
         // Initialize with the data
         initializeDevSettings(data.data);
       }
+      // Check if this is our custom parolaSettingsData message
+      else if (data.type === 'custom' && data.action === 'parolaSettingsData') {
+        console.log('Received parola settings data');
+        
+        // Initialize with the data
+        initializeParolaSettings(data.data);
+      }
       // Check if this is our custom weerliveSettingsData message
       else if (data.type === 'custom' && data.action === 'weerliveSettingsData') {
         console.log('Received weerlive settings data');
@@ -533,6 +760,12 @@ function isEspTicker32Loaded() {
   if (pageTitle.includes("Device Settings") && isPageReadyForDevSettings()) {
     console.log("Page is ready for device settings, requesting data from server");
     requestDevSettings();
+  }
+
+  // Check if the page is ready for parola settings (only for Parola Settings page)
+  if (pageTitle.includes("Parola Settings") && isPageReadyForParolaSettings()) {
+    console.log("Page is ready for parola settings, requesting data from server");
+    requestParolaSettings();
   }
   
   // Check if the page is ready for weerlive settings (only for Weerlive Settings page)

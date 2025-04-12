@@ -12,27 +12,40 @@ struct DeviceSettings {
     uint8_t LDRMinWaarde;
     uint8_t LDRMaxWaarde;
     uint8_t maxIntensiteitLeds;
-    std::string weerliveAuthToken;
-    std::string weerlivePlaats;
-    uint8_t weerliveRequestInterval;
     std::string skipItems;
+    
 };
 
 struct DeviceAttributes {
     size_t hostnameLen = 32;
-    uint8_t scrollSnelheidMin = 0;
+    uint8_t scrollSnelheidMin = 5;
     uint8_t scrollSnelheidMax = 255;
-    uint8_t LDRMinWaardeMin = 0;
-    uint8_t LDRMinWaardeMax = 255;
-    uint8_t LDRMaxWaardeMin = 0;
-    uint8_t LDRMaxWaardeMax = 255;
-    uint8_t maxIntensiteitLedsMin = 0;
-    uint8_t maxIntensiteitLedsMax = 255;
-    uint8_t weerliveRequestIntervalMin = 10;
-    uint8_t weerliveRequestIntervalMax = 120;
-    size_t weerliveAuthTokenLen = 128;
-    size_t weerlivePlaatsLen = 64;
+    uint8_t LDRMinWaardeMin = 10;
+    uint8_t LDRMinWaardeMax = 100;
+    uint8_t LDRMaxWaardeMin = 11;
+    uint8_t LDRMaxWaardeMax = 101;
+    uint8_t maxIntensiteitLedsMin = 10;
+    uint8_t maxIntensiteitLedsMax = 55;
     size_t skipItemsLen = 256;
+};
+
+struct ParolaSettings {
+  uint8_t hardwareType;
+  uint8_t numDevices;
+  uint8_t numZones;
+  uint8_t speed;
+  
+};
+
+struct ParolaAttributes {
+  uint8_t hardwareTypeMin = 1;
+  uint8_t hardwareTypeMax = 3;
+  uint8_t numDevicesMin = 1;
+  uint8_t numDevicesMax = 22;
+  uint8_t numZonesMin = 1;
+  uint8_t numZonesMax = 2;
+  uint8_t speedMin = 1;
+  uint8_t speedMax = 100;
 };
 
 struct WeerliveSettings {
@@ -52,9 +65,11 @@ class SettingsClass {
 private:
     DeviceSettings deviceSettings;
     WeerliveSettings weerliveSettings;
+    ParolaSettings parolaSettings;
     Stream* debug = nullptr; // Optional, default to nullptr
     DeviceAttributes deviceAttributes;
     WeerliveAttributes weerliveAttributes;
+    ParolaAttributes parolaAttributes;
 
 public:
     SettingsClass();
@@ -65,13 +80,18 @@ public:
     const DeviceAttributes& getDeviceAttributes();
     WeerliveSettings& getWeerliveSettings();
     const WeerliveAttributes& getWeerliveAttributes();
+    ParolaSettings& getParolaSettings();
+    const ParolaAttributes& getParolaAttributes();
     std::string buildDeviceFieldsJson();
     std::string buildWeerliveFieldsJson();
+    std::string buildParolaFieldsJson();
     // Methods for reading and writing settings
     void readDeviceSettings();
     void writeDeviceSettings();
     void readWeerliveSettings();
     void writeWeerliveSettings();
+    void readParolaSettings();
+    void writeParolaSettings();
     // Generic method to save settings based on target
     void saveSettings(const std::string& target);
 
