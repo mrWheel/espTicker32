@@ -74,6 +74,7 @@ public:
     void writeWeerliveSettings();
     // Generic method to save settings based on target
     void saveSettings(const std::string& target);
+
 };
 
 #endif // SETTINGS_CLASS_H

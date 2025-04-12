@@ -948,9 +948,7 @@ void mainCallbackSettings()
   spa.setErrorMessage("Main Menu \"Settings\" clicked!", 5);
   spa.activatePage("mainSettingsPage");
 
-} // mainCallbackSettings()
-    
-
+} // mainCallbackSettings()    
 
 
 void mainCallbackFSmanager()
@@ -984,8 +982,6 @@ void doJsFunction(std::string functionName)
     // You can add more conditions for other functions as needed
 
 } // doJsFunction()
-
-
 
 
 void processInputCallback(const std::map<std::string, std::string>& inputValues)
@@ -1353,6 +1349,7 @@ void setup()
     debug->println("Done with setup() ..\n");
 
 } // setup()
+
 
 void loop()
 {

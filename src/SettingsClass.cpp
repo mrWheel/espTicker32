@@ -139,6 +139,7 @@ std::string SettingsClass::buildWeerliveFieldsJson()
   field2["fieldType"] = "s";
   field2["fieldLen"] = weerliveAttributes.plaatsLen;
 
+
   //-- uint8_t requestInterval;
   JsonObject field3 = fields.createNestedObject();
   field3["fieldName"] = "requestIntervals";

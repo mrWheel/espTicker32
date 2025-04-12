@@ -281,7 +281,6 @@ function updateWeerliveSettings(event) {
 } // updateWeerliveSettings()
 
 
-
 // Function to request weerlive settings data from the server
 function requestWeerliveSettings() {
   console.log("Requesting weerlive settings data from server");
@@ -393,7 +392,6 @@ function updateDevSetting(event) {
     }
   }
 } //  updateDevSetting()
-
 
 // Function to request device settings data from the server
 function requestDevSettings() 
