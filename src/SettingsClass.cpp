@@ -137,7 +137,7 @@ std::string SettingsClass::buildWeerliveFieldsJson()
   field2["fieldPrompt"] = "Plaats";
   field2["fieldValue"] = weerliveSettings.plaats;
   field2["fieldType"] = "s";
-  field2["fieldMin"] = weerliveAttributes.plaatsLen;
+  field2["fieldLen"] = weerliveAttributes.plaatsLen;
 
   //-- uint8_t requestInterval;
   JsonObject field3 = fields.createNestedObject();
@@ -365,3 +365,18 @@ void SettingsClass::writeWeerliveSettings()
     debug->println("Settings saved successfully");
 
 } // writeSettings()
+
+void SettingsClass::saveSettings(const std::string& target)
+{
+  debug->printf("saveSettings(): Saving settings for target: %s\n", target.c_str());
+  
+  if (target == "deviceSettings") {
+    writeDeviceSettings();
+  } 
+  else if (target == "weerliveSettings") {
+    writeWeerliveSettings();
+  }
+  else {
+    debug->printf("saveSettings(): Unknown target: %s\n", target.c_str());
+  }
+} // saveSettings()

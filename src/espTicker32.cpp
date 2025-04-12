@@ -13,6 +13,12 @@
 #include "SettingsClass.h"
 #include "LocalMessagesIO.h"
 #include "WeerliveClass.h"
+//#include <MD_Parola.h>
+//#include <MD_MAX72xx.h>
+//#include <SPI.h>
+#include "ParolaManager.h"
+
+ParolaManager display(5);  // 5 = your CS pin
 
 #define CLOCK_UPDATE_INTERVAL  1000
 #define LOCAL_MESSAGES_PATH      "/localMessages.txt"
@@ -26,7 +32,6 @@ DeviceSettings* gDeviceSettings = nullptr;
 const DeviceAttributes* gDeviceAttributes = nullptr;
 WeerliveSettings* gWeerliveSettings = nullptr;
 const WeerliveAttributes* gWeerliveAttributes = nullptr;
-
 
 LocalMessagesIO localMessages(LOCAL_MESSAGES_PATH, LOCAL_MESSAGES_RECORD_SIZE);
 
@@ -43,9 +48,68 @@ uint32_t lastCounterUpdate = 0;
 
 const char *hostName = "espTicker32";
 uint32_t  counter = 0;
+uint16_t nr = 1;  //-- name it like "parolaMessageNr"
+
+std::string actMessage = "";
+char weerliveText[2000] = {};
 
 // Global variable to track the current active page
 std::string currentActivePage = "";
+
+
+String getWeatherLine()
+{
+    // Read ONE line from weather source
+    //return "Weather: Sunny 24C"; // <<< replace with real file reading
+    return weerliveText;
+}
+
+String getNewsLine()
+{
+    return "News: Aliens Landed!"; // <<< replace with real file reading
+}
+
+String getDataFeedLine()
+{
+    return "Sensor: 45% humidity"; // <<< replace with real file reading
+}
+
+String getLocalMessage()
+{
+    return "Local: Party Tonight!"; // <<< replace with real file reading
+}
+
+std::string nextMessage()
+{
+  std::string newMessage = "";
+
+    switch (nr)
+    {
+    case 1:
+        newMessage = getNewsLine().c_str();
+        nr++;
+        break;
+    case 2:
+        newMessage = getWeatherLine().c_str();
+        nr++;
+        break;
+    case 3:
+        newMessage = getDataFeedLine().c_str();
+        nr++;
+        break;
+    case 4:
+        newMessage = getLocalMessage().c_str();
+        nr++;
+        break;
+    default:
+        nr = 1;
+        nextMessage(); // Call again to restart
+        break;
+    }
+    display.sendNextText(newMessage.c_str());
+    return newMessage;
+
+} // nextMessage()
 
 
 // Function to build a JSON string with input field data
@@ -494,12 +558,12 @@ void processWeerliveSettings(const std::string& jsonString)
     const char* fieldName = field["fieldName"];
     
     // Update the appropriate setting based on the field name
-    if (strcmp(fieldName, "weerliveAuthToken") == 0) {
+    if (strcmp(fieldName, "authToken") == 0) {
       std::string newAuthToken = field["value"].as<std::string>();
       debug->printf("processWeerliveSettings(): Setting authToken to [%s]\n", newAuthToken.c_str());
       gWeerliveSettings->authToken = newAuthToken;
     }
-    else if (strcmp(fieldName, "weerlivePlaats") == 0) {
+    else if (strcmp(fieldName, "plaats") == 0) {
       std::string newPlaats = field["value"].as<std::string>();
       debug->printf("processWeerliveSettings(): Setting plaats to [%s]\n", newPlaats.c_str());
       gWeerliveSettings->plaats = newPlaats;
@@ -532,6 +596,156 @@ void processWeerliveSettings(const std::string& jsonString)
   sendWeerliveFieldsToClient();
 
 } // processWeerliveSettings()
+
+
+// Generic function to process settings from the client
+void processSettings(const std::string& jsonString, const std::string& target)
+{
+  debug->println("processSettings(): Processing settings from JSON:");
+  debug->println(jsonString.c_str());
+  debug->printf("processSettings(): Target: %s\n", target.c_str());
+  
+  // Use ArduinoJson library to parse the JSON
+  DynamicJsonDocument doc(2048);
+  DeserializationError error = deserializeJson(doc, jsonString);
+  
+  if (error) 
+  {
+    debug->printf("processSettings(): JSON parsing error: %s\n", error.c_str());
+    return;
+  }
+  
+  // Check if the JSON has the expected structure
+  if (!doc.containsKey("fields") || !doc["fields"].is<JsonArray>()) 
+  {
+    debug->println("processSettings(): JSON does not contain fields array");
+    return;
+  }
+  
+  JsonArray fields = doc["fields"].as<JsonArray>();
+  debug->printf("processSettings(): Processing array with %d fields\n", fields.size());
+  
+  if (target == "deviceSettings")
+  {
+    // Process each field for device settings
+    for (JsonObject field : fields) {
+      if (!field.containsKey("fieldName") || !field.containsKey("value")) {
+        debug->println("processSettings(): Field missing required properties");
+        continue;
+      }
+      
+      const char* fieldName = field["fieldName"];
+      
+      // Update the appropriate setting based on the field name
+      if (strcmp(fieldName, "hostname") == 0) {
+        std::string newHostname = field["value"].as<std::string>();
+        debug->printf("processSettings(): Setting hostname to [%s]\n", newHostname.c_str());
+        gDeviceSettings->hostname = newHostname;
+      }
+      else if (strcmp(fieldName, "scrollSnelheid") == 0) {
+        uint8_t newValue = field["value"].as<uint8_t>();
+        debug->printf("processSettings(): Setting scrollSnelheid to [%d]\n", newValue);
+        gDeviceSettings->scrollSnelheid = newValue;
+      }
+      else if (strcmp(fieldName, "LDRMinWaarde") == 0) {
+        uint8_t newValue = field["value"].as<uint8_t>();
+        debug->printf("processSettings(): Setting LDRMinWaarde to [%d]\n", newValue);
+        gDeviceSettings->LDRMinWaarde = newValue;
+      }
+      else if (strcmp(fieldName, "LDRMaxWaarde") == 0) {
+        uint8_t newValue = field["value"].as<uint8_t>();
+        debug->printf("processSettings(): Setting LDRMaxWaarde to [%d]\n", newValue);
+        gDeviceSettings->LDRMaxWaarde = newValue;
+      }
+      else if (strcmp(fieldName, "maxIntensiteitLeds") == 0) {
+        uint8_t newValue = field["value"].as<uint8_t>();
+        debug->printf("processSettings(): Setting maxIntensiteitLeds to [%d]\n", newValue);
+        gDeviceSettings->maxIntensiteitLeds = newValue;
+      }
+      else if (strcmp(fieldName, "weerliveAuthToken") == 0) {
+        std::string newAuthToken = field["value"].as<std::string>();
+        debug->printf("processSettings(): Setting weerliveAuthToken to [%s]\n", newAuthToken.c_str());
+        gDeviceSettings->weerliveAuthToken = newAuthToken;
+      }
+      else if (strcmp(fieldName, "weerlivePlaats") == 0) {
+        std::string newPlaats = field["value"].as<std::string>();
+        debug->printf("processSettings(): Setting weerlivePlaats to [%s]\n", newPlaats.c_str());
+        gDeviceSettings->weerlivePlaats = newPlaats;
+      }
+      else if (strcmp(fieldName, "weerliveRequestInterval") == 0) {
+        uint8_t newValue = field["value"].as<uint8_t>();
+        debug->printf("processSettings(): Setting weerliveRequestInterval to [%d]\n", newValue);
+        gDeviceSettings->weerliveRequestInterval = newValue;
+      }
+      else if (strcmp(fieldName, "skipItems") == 0) {
+        std::string newValue = field["value"].as<std::string>();
+        debug->printf("processSettings(): Setting skipItems to [%s]\n", newValue);
+        gDeviceSettings->skipItems = newValue;
+      }
+      else {
+        debug->printf("processSettings(): Unknown field: %s\n", fieldName);
+      }
+    }
+  }
+  else if (target == "weerliveSettings")
+  {
+    // Process each field for weerlive settings
+    for (JsonObject field : fields) {
+      if (!field.containsKey("fieldName") || !field.containsKey("value")) {
+        debug->println("processSettings(): Field missing required properties");
+        continue;
+      }
+      
+      const char* fieldName = field["fieldName"];
+      
+      // Update the appropriate setting based on the field name
+      if (strcmp(fieldName, "authToken") == 0) {
+        std::string newAuthToken = field["value"].as<std::string>();
+        debug->printf("processSettings(): Setting authToken to [%s]\n", newAuthToken.c_str());
+        gWeerliveSettings->authToken = newAuthToken;
+      }
+      else if (strcmp(fieldName, "plaats") == 0) {
+        std::string newPlaats = field["value"].as<std::string>();
+        debug->printf("processSettings(): Setting plaats to [%s]\n", newPlaats.c_str());
+        gWeerliveSettings->plaats = newPlaats;
+      }
+      else if (strcmp(fieldName, "requestIntervals") == 0) {
+        uint8_t newValue = field["value"].as<uint8_t>();
+        debug->printf("processSettings(): Setting requestInterval to [%d]\n", newValue);
+        gWeerliveSettings->requestInterval = newValue;
+      }
+      else {
+        debug->printf("processSettings(): Unknown field: %s\n", fieldName);
+      }
+    }
+  }
+  else
+  {
+    debug->printf("processSettings(): Unknown target: %s\n", target.c_str());
+    return;
+  }
+  
+  // Save settings using the generic method
+  debug->printf("processSettings(): Saving settings for target: %s\n", target.c_str());
+  settings.saveSettings(target);
+  
+  // Send a confirmation message to the client
+  DynamicJsonDocument confirmDoc(512);
+  confirmDoc["type"] = "update";
+  confirmDoc["target"] = "message";
+  confirmDoc["content"] = "Settings saved successfully!";
+  
+  std::string confirmMessage;
+  serializeJson(confirmDoc, confirmMessage);
+  spa.ws.broadcastTXT(confirmMessage.c_str(), confirmMessage.length());
+  
+  // Refresh the settings display
+  if (target == "deviceSettings") {
+    sendDevFieldsToClient();
+  } else if (target == "weerliveSettings") {
+    sendWeerliveFieldsToClient();
+  }
+} // processSettings()
 
 
 // WebSocket event handler to receive messages from the client
@@ -955,6 +1169,11 @@ void setupMainSettingsPage()
 {
   const char *settingsPage = R"HTML(
     <div style="font-size: 48px; text-align: center; font-weight: bold;">Settings</div>
+    <br>You can modify system settings here that influence the operation of the device.
+    <ul>
+    <li>Device settings</li>
+    <li>Weerlive settings</li>
+    </ul> 
     )HTML";
   
   debug->println("\nsetupMainSettingsPage(): Adding main settings page");
@@ -1008,6 +1227,33 @@ void listFiles(const char * dirname, int numTabs)
   }
 
 } // listFiles()  
+
+
+void setupParola()
+{
+    PAROLA config = {
+        .HARDWARE_TYPE = 1, // FC16_HW
+        .MAX_DEVICES = 32,
+        .MAX_ZONES = 2,
+        .MAX_SPEED = 2
+    };
+
+    display.begin(config);
+
+    display.setRandomEffects({
+        PA_SCROLL_LEFT,
+        PA_SCROLL_RIGHT,
+        PA_FADE,
+        PA_WIPE
+    });
+
+    display.setCallback([](const String& finishedText) {
+      debug->print("[FINISHED] ");
+      debug->println(finishedText);
+      actMessage = nextMessage();
+    });
+
+} // setupParola()
 
 
 void setup()
@@ -1092,13 +1338,17 @@ void setup()
     setupSettingsPage();
     setupFSmanagerPage();
 
-    debug->printf("setup(): weerliveAuthToken: [%s], weerlivePlaats: [%s]\n"
-                                                                , gDeviceSettings->weerliveAuthToken.c_str()
-                                                                , gDeviceSettings->weerlivePlaats.c_str());
-    weerlive.setup(gDeviceSettings->weerliveAuthToken.c_str(), gDeviceSettings->weerlivePlaats.c_str(), debug);
-    weerlive.setInterval(gDeviceSettings->weerliveRequestInterval); // Set interval to 10 minutes
+    debug->printf("setup(): weerliveAuthToken: [%s], weerlivePlaats: [%s], requestInterval: [%d minuten]\n"
+                                                                , gWeerliveSettings->authToken.c_str()
+                                                                , gWeerliveSettings->plaats.c_str()
+                                                                , gWeerliveSettings->requestInterval);
+    weerlive.setup(gWeerliveSettings->authToken.c_str(), gWeerliveSettings->plaats.c_str(), debug);
+    weerlive.setInterval(gWeerliveSettings->requestInterval); // Set interval to 10 minutes
 
     spa.activatePage("Main");
+
+    setupParola();
+    actMessage = nextMessage();
 
     debug->println("Done with setup() ..\n");
 
@@ -1109,7 +1359,6 @@ void loop()
   network->loop();
   spa.server.handleClient();
   spa.ws.loop();
-  char weerliveText[2000] = {};
   std::string weerliveInfo = {};
   if (weerlive.loop(weerliveInfo))
   {
@@ -1127,4 +1376,6 @@ void loop()
     lastPrint = millis();
   }
   
-} // loop()loop()
+  display.loop();
+
+} // loop()
