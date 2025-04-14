@@ -54,6 +54,7 @@ uint16_t nr = 1;  //-- name it like "parolaMessageNr"
 
 std::string actMessage = "";
 char weerliveText[2000] = {};
+char localMessage[LOCAL_MESSAGES_RECORD_SIZE +2] = {};
 
 // Global variable to track the current active page
 std::string currentActivePage = "";
@@ -78,8 +79,18 @@ String getDataFeedLine()
 
 String getLocalMessage()
 {
-    return "Local: Party Tonight!"; // <<< replace with real file reading
-}
+  static uint8_t msgNr = 0;
+
+  snprintf(localMessage, sizeof(localMessage), "%s", localMessages.read(msgNr++).c_str());
+  if (strlen(localMessage) == 0) 
+  {
+    msgNr = 0;
+    snprintf(localMessage, sizeof(localMessage), "%s", localMessages.read(msgNr++).c_str());
+  } 
+  debug->printf("getLocalMessage(): msgNr = [%d] localMessage = [%s]\n", msgNr, localMessage);
+  return localMessage;
+
+} // getLocalMessage()
 
 std::string nextMessage()
 {
