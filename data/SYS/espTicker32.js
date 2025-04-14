@@ -678,6 +678,167 @@ function saveSettings()
   }
 } // saveSettings()
 
+// Variable to track if a message is currently being displayed
+let isDisplayingMessage = false;
+// Queue to store pending messages
+let messageQueue = [];
+
+function queueMessageToMonitor(text) 
+{
+  // Check if text is undefined, null, or empty
+  if (!text) 
+  {
+    console.log("queueMessageToMonitor called with empty or undefined text");
+    return; // Exit the function early
+  }
+  
+  // Add the message to the queue
+  messageQueue.push(text);
+  
+  // If we're not already displaying a message, start displaying
+  if (!isDisplayingMessage) {
+    processNextMessage();
+  }
+} // queueMessageToMonitor()
+
+// Function to process the next message in the queue
+async function processNextMessage() 
+{
+  // If the queue is empty, we're done
+  if (messageQueue.length === 0) {
+    isDisplayingMessage = false;
+    return;
+  }
+  
+  // Mark that we're displaying a message
+  isDisplayingMessage = true;
+  
+  const monitor = document.getElementById("scrollingMonitor");
+  const maxWidth = 80; // 80 characters per line
+  const delay = 30; // delay between each character in ms
+  
+  // Calculate visible lines based on CSS properties
+  // height: 18em, line-height: 1.3em, padding: 0.5em (top) + 0.5em (bottom)
+  // Available height = 18em - 1em (padding) = 17em
+  // Number of lines = 17em / 1.3em = ~13 lines
+  const visibleLines = 13; // Based on the CSS properties
+  
+  // Get the next message from the queue
+  const text = messageQueue.shift();
+  
+  const words = text.split(/(?<=\s)|(?=[\n\r])/g); // keeps spaces/newlines as separate tokens
+  let buffer = [];
+  let currentLine = "";
+  
+  // Helper to flush current line to buffer
+  function flushLine() 
+  {
+    buffer.push(currentLine);
+    currentLine = "";
+  }
+  
+  // Word wrapping logic
+  for (let word of words) 
+  {
+    // Normalize newlines
+    if (word === "\n" || word === "\r") 
+    {
+      flushLine();
+      continue;
+    }
+    
+    // Handle word wrapping
+    while (word.length + currentLine.length > maxWidth) 
+    {
+      const spaceLeft = maxWidth - currentLine.length;
+      currentLine += word.slice(0, spaceLeft);
+      flushLine();
+      word = word.slice(spaceLeft);
+    }
+    
+    currentLine += word;
+    
+    // If line is exactly maxWidth, flush it
+    if (currentLine.length === maxWidth) 
+    {
+      flushLine();
+    }
+  }
+  
+  // Flush any remaining content
+  if (currentLine) flushLine();
+  
+  // Initialize the monitor if it's empty
+  if (!monitor.textContent.trim()) {
+    // Fill with empty lines to position text at the bottom
+    monitor.textContent = Array(visibleLines).fill("").join("\n");
+  }
+  
+  // Get current content and split into lines
+  let contentLines = monitor.textContent.split("\n");
+  
+  // If we have more lines than we need, trim the excess
+  if (contentLines.length > visibleLines) {
+    contentLines = contentLines.slice(contentLines.length - visibleLines);
+  }
+  
+  // If we have fewer lines than we need, add empty lines at the top
+  while (contentLines.length < visibleLines) {
+    contentLines.unshift("");
+  }
+  
+  // Process each line from our buffer
+  for (let i = 0; i < buffer.length; i++) {
+    const line = buffer[i];
+    
+    // Check if there are more messages in the queue and this is the last line
+    const skipAnimation = messageQueue.length > 0 && i === buffer.length - 1;
+    
+    // Shift all lines up by one
+    for (let j = 0; j < contentLines.length - 1; j++) {
+      contentLines[j] = contentLines[j + 1];
+    }
+    
+    // Clear the bottom line for new content
+    contentLines[contentLines.length - 1] = "";
+    
+    if (skipAnimation) {
+      // If we need to skip animation, just set the line immediately
+      contentLines[contentLines.length - 1] = line;
+      monitor.textContent = contentLines.join("\n");
+    } else {
+      // Otherwise animate character by character
+      let displayedLine = "";
+      
+      // Type each character with animation
+      for (let char of line) {
+        displayedLine += char;
+        
+        // Update the bottom line of the content
+        contentLines[contentLines.length - 1] = displayedLine;
+        
+        // Join back and update the monitor
+        monitor.textContent = contentLines.join("\n");
+        
+        // Check if a new message has arrived
+        if (messageQueue.length > 0) {
+          // If so, finish this line immediately
+          contentLines[contentLines.length - 1] = line;
+          monitor.textContent = contentLines.join("\n");
+          break;
+        }
+        
+        // Wait for the animation delay
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+  
+  // Process the next message if there is one
+  processNextMessage();
+  
+} // processNextMessage()
+
 
 // Update the isEspTicker32Loaded function to handle device settings
 function isEspTicker32Loaded() {
@@ -785,6 +946,7 @@ function isEspTicker32Loaded() {
   }
   
   return true;
+
 } // isEspTicker32Loaded()
 
 // Log that the script has loaded

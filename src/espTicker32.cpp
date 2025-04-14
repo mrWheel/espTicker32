@@ -68,7 +68,7 @@ String getWeatherLine()
 
 String getNewsLine()
 {
-    return "News: Aliens Landed!"; // <<< replace with real file reading
+    return "This is a really long line =========================================================================================================================== and so forth and so on!"; // <<< replace with real file reading
 }
 
 String getDataFeedLine()
@@ -83,7 +83,9 @@ String getLocalMessage()
 
 std::string nextMessage()
 {
-  std::string newMessage = "";
+    std::string newMessage = "-";
+    if (nr > 4) {nr = 1;}
+    debug->printf("nextMessage(): nr = [%d]\n", nr);
 
     switch (nr)
     {
@@ -93,10 +95,20 @@ std::string nextMessage()
         break;
     case 2:
         newMessage = getWeatherLine().c_str();
+        if (newMessage[0] == '\0') 
+        {
+            debug->println("nextMessage(): No weather data available");
+            newMessage = "No weather data available";
+        }
         nr++;
         break;
     case 3:
         newMessage = getDataFeedLine().c_str();
+        if (newMessage[0] == '\0') 
+        {
+            debug->println("nextMessage(): No RSS feed data available");
+            newMessage = "No RSS feed data available";
+        }
         nr++;
         break;
     case 4:
@@ -108,7 +120,11 @@ std::string nextMessage()
         nextMessage(); // Call again to restart
         break;
     }
+
+    debug->printf("nextMessage(): Sending text: [%s]\n", newMessage.c_str()); 
     display.sendNextText(newMessage.c_str());
+    spa.callJsFunction("queueMessageToMonitor", newMessage.c_str());
+
     return newMessage;
 
 } // nextMessage()
@@ -974,6 +990,39 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
       return;
     }
     
+    // Check if this is a jsFunctionResult message
+    if (doc["type"] == "jsFunctionResult") 
+    {
+      debug->println("handleLocalWebSocketEvent(): Handling jsFunctionResult message");
+      
+      // Extract the function name and result
+      const char* functionName = doc["function"];
+      const char* result = doc["result"];
+      
+      // Safely print the function name and result with null checks
+      if (functionName && result) 
+      {
+        debug->printf("handleLocalWebSocketEvent(): JavaScript function [%s] returned result: %s\n", 
+                      functionName, result);
+        
+        // Handle specific function results if needed
+        if (strcmp(functionName, "queueMessageToMonitor") == 0) 
+        {
+          debug->printf("handleLocalWebSocketEvent(): queueMessageToMonitor result: %s\n", result);
+          // Add any specific handling for queueMessageToMonitor results here
+        }
+      } else {
+        debug->println("handleLocalWebSocketEvent(): Received jsFunctionResult with null function name or result");
+        if (functionName) {
+          debug->printf("handleLocalWebSocketEvent(): JavaScript function [%s] returned null result\n", functionName);
+        } else if (result) {
+          debug->printf("handleLocalWebSocketEvent(): Unknown JavaScript function returned result: %s\n", result);
+        }
+      }
+      
+      return;
+    }
+    
     // Check if this is a requestInputFields message
     if (doc["type"] == "requestInputFields") {
       debug->println("handleLocalWebSocketEvent(): Handling requestInputFields message");
@@ -1275,9 +1324,21 @@ void handleMenuItem(std::string itemName)
 void setupMainPage()
 {
     const char *mainPage = R"HTML(
-    <div style="font-size: 48px; text-align: center; font-weight: bold;">esp Ticker32</div>
-    )HTML";
-    
+    <div style="font-size: 48px; text-align: left; font-weight: bold;">Ticker Monitor</div>
+    <pre id="scrollingMonitor" style="
+    width: 80ch;
+    height: 18em;
+    overflow: hidden;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.2em;
+    line-height: 1.3em;
+    white-space: pre-wrap;
+    border: 1px solid #ccc;
+    padding: 0.5em;
+    margin: 1em 0;
+">
+</pre>
+)HTML";
     debug->println("\nsetupMainPage(): Setting up Main page");
     spa.addPage("Main", mainPage);
     spa.setPageTitle("Main", "esp Ticker32");
@@ -1494,10 +1555,12 @@ void setupParola()
         PA_WIPE
     });
 
-    display.setCallback([](const String& finishedText) {
+    display.setCallback([](const String& finishedText) 
+    {
       debug->print("[FINISHED] ");
       debug->println(finishedText);
       actMessage = nextMessage();
+      //spa.callJsFunction("queueMessageToMonitor", actMessage.c_str());
     });
 
 } // setupParola()
@@ -1627,7 +1690,7 @@ void loop()
   }
   
   static uint32_t lastDisplay = 0;
-  if (millis() - lastDisplay >= 10000)
+  if (millis() - lastDisplay >= 5000)
   {
     display.loop();
     lastDisplay = millis();
