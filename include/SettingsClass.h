@@ -72,7 +72,7 @@ struct MediastackSettings {
 };
 
 struct MediastackAttributes {
-  size_t authTokenLen = 16;
+  size_t authTokenLen = 32;
   uint8_t requestIntervalMin = 60;
   uint8_t requestIntervalMax = 240;
   uint8_t maxMessagesMin = 1;

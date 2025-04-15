@@ -81,6 +81,24 @@ String getDataFeedLine()
     return "Sensor: 45% humidity"; // <<< replace with real file reading
 }
 
+String getMediastackMessage()
+{
+  static uint8_t msgNr = 0;
+  char mediastackMessage[2000] = {};
+
+  snprintf(mediastackMessage, sizeof(mediastackMessage), "%s", mediastack.readFileById("NWS", msgNr).c_str());
+  if (strlen(mediastackMessage) == 0) 
+  {
+    msgNr = 0;
+    snprintf(mediastackMessage, sizeof(mediastackMessage), "%s", mediastack.readFileById("NWS", msgNr).c_str());
+  } 
+  debug->printf("getMediastackMessage(): msgNr = [%d] mediastackMessage = [%s]\n", msgNr, mediastackMessage);
+  msgNr++;
+  return mediastackMessage;
+
+} // getMediastackMessage()
+
+
 String getLocalMessage()
 {
   static uint8_t msgNr = 0;
@@ -96,56 +114,6 @@ String getLocalMessage()
 
 } // getLocalMessage()
 
-/****** 
-std::string nextMessage()
-{
-    std::string newMessage = "-";
-    if (nr > 4) {nr = 1;}
-    debug->printf("nextMessage(): nr = [%d]\n", nr);
-
-    switch (nr)
-    {
-    case 1:
-        newMessage = getNewsLine().c_str();
-        nr++;
-        break;
-    case 2:
-        newMessage = getWeatherLine().c_str();
-        if (newMessage[0] == '\0') 
-        {
-            debug->println("nextMessage(): No weather data available");
-            newMessage = "No weather data available";
-        }
-        nr++;
-        break;
-    case 3:
-        newMessage = getDataFeedLine().c_str();
-        if (newMessage[0] == '\0') 
-        {
-            debug->println("nextMessage(): No RSS feed data available");
-            newMessage = "No RSS feed data available";
-        }
-        nr++;
-        break;
-    case 4:
-        newMessage = getLocalMessage().c_str();
-        nr++;
-        break;
-    default:
-        nr = 1;
-        nextMessage(); // Call again to restart
-        break;
-    }
-
-    debug->printf("nextMessage(): Sending text: [%s]\n", newMessage.c_str()); 
-    display.sendNextText(newMessage.c_str());
-    spa.callJsFunction("queueMessageToMonitor", newMessage.c_str());
-
-    return newMessage;
-
-} // nextMessage()
-*****/
-
 std::string nextMessage()
 {
     std::string newMessage = "-";
@@ -156,10 +124,10 @@ std::string nextMessage()
         debug->println("nextMessage(): weerlive message");
         newMessage = getWeatherLine().c_str();
     }
-    else if (strcmp(newMessage.c_str(), "<news>") == 0) 
+    else if (strcmp(newMessage.c_str(), "<mediastack>") == 0) 
     {
-        debug->println("nextMessage(): newsfeed message");
-        newMessage = getNewsLine().c_str();
+        debug->println("nextMessage(): mediastack message");
+        newMessage = getMediastackMessage().c_str();
     }
     else if (strcmp(newMessage.c_str(), "<date>") == 0) 
     {
@@ -1012,6 +980,11 @@ void processMediastackSettings(const std::string& jsonString)
       debug->printf("processMediastackSettings(): Setting requestInterval to [%d]\n", newValue);
       gMediastackSettings->requestInterval = newValue;
     }
+    else if (strcmp(fieldName, "maxMessages") == 0) {
+      uint8_t newValue = field["value"].as<uint8_t>();
+      debug->printf("processMediastackSettings(): Setting maxMessages to [%d]\n", newValue);
+      gMediastackSettings->maxMessages = newValue;
+    }
     else if (strcmp(fieldName, "onlyDuringDay") == 0) {
       uint8_t newValue = field["value"].as<uint8_t>();
       debug->printf("processMediastackSettings(): Setting onlyDuringDay to [%d]\n", newValue);
@@ -1105,33 +1078,6 @@ void processSettings(const std::string& jsonString, const std::string& target)
         debug->printf("processSettings(): Setting maxIntensiteitLeds to [%d]\n", newValue);
         gDeviceSettings->maxIntensiteitLeds = newValue;
       }
-      /************ 
-      else if (strcmp(fieldName, "weerliveAuthToken") == 0) {
-        std::string newAuthToken = field["value"].as<std::string>();
-        debug->printf("processSettings(): Setting weerliveAuthToken to [%s]\n", newAuthToken.c_str());
-        gDeviceSettings->weerliveAuthToken = newAuthToken;
-      }
-      else if (strcmp(fieldName, "weerlivePlaats") == 0) {
-        std::string newPlaats = field["value"].as<std::string>();
-        debug->printf("processSettings(): Setting weerlivePlaats to [%s]\n", newPlaats.c_str());
-        gDeviceSettings->weerlivePlaats = newPlaats;
-      }
-      else if (strcmp(fieldName, "requestInterval") == 0) {
-        uint8_t newValue = field["value"].as<uint8_t>();
-        debug->printf("processSettings(): Setting requestInterval to [%d]\n", newValue);
-        gDeviceSettings->requestInterval = newValue;
-      }
-      else if (strcmp(fieldName, "authToken") == 0) {
-        std::string newAuthToken = field["value"].as<std::string>();
-        debug->printf("processSettings(): Setting weerliveAuthToken to [%s]\n", newAuthToken.c_str());
-        gDeviceSettings->weerliveAuthToken = newAuthToken;
-      }
-      else if (strcmp(fieldName, "weerliveRequestInterval") == 0) {
-        uint8_t newValue = field["value"].as<uint8_t>();
-        debug->printf("processSettings(): Setting weerliveRequestInterval to [%d]\n", newValue);
-        gDeviceSettings->weerliveRequestInterval = newValue;
-      }
-      ************/
       else if (strcmp(fieldName, "skipItems") == 0) {
         std::string newValue = field["value"].as<std::string>();
         debug->printf("processSettings(): Setting skipItems to [%s]\n", newValue);
@@ -1168,6 +1114,45 @@ void processSettings(const std::string& jsonString, const std::string& target)
         uint8_t newValue = field["value"].as<uint8_t>();
         debug->printf("processSettings(): Setting requestInterval to [%d]\n", newValue);
         gWeerliveSettings->requestInterval = newValue;
+      }
+      else {
+        debug->printf("processSettings(): Unknown field: %s\n", fieldName);
+      }
+    }
+  }
+  else if (target == "mediastackSettings")
+  {
+    // Process each field for mediastack settings
+    debug->println("processSettings(): Processing mediastack settings");
+    for (JsonObject field : fields) 
+    {
+      if (!field.containsKey("fieldName") || !field.containsKey("value")) {
+        debug->println("processSettings(): Field missing required properties");
+        continue;
+      }
+      
+      const char* fieldName = field["fieldName"];
+      
+      // Update the appropriate setting based on the field name
+      if (strcmp(fieldName, "authToken") == 0) {
+        std::string newAuthToken = field["value"].as<std::string>();
+        debug->printf("processSettings(): Setting authToken to [%s]\n", newAuthToken.c_str());
+        gMediastackSettings->authToken = newAuthToken;
+      }
+      else if (strcmp(fieldName, "requestIntervals") == 0) {
+        uint8_t newValue = field["value"].as<uint8_t>();
+        debug->printf("processSettings(): Setting requestInterval to [%d]\n", newValue);
+        gMediastackSettings->requestInterval = newValue;
+      }
+      else if (strcmp(fieldName, "onlyDuringDay") == 0) {
+        uint8_t newValue = field["value"].as<uint8_t>();
+        debug->printf("processSettings(): Setting onlyDuringDay to [%d]\n", newValue);
+        gMediastackSettings->requestInterval = newValue;
+      }
+      else if (strcmp(fieldName, "maxMessages") == 0) {
+        uint8_t newValue = field["value"].as<uint8_t>();
+        debug->printf("processSettings(): Setting maxMessages to [%d]\n", newValue);
+        gMediastackSettings->maxMessages = newValue;
       }
       else {
         debug->printf("processSettings(): Unknown field: %s\n", fieldName);
@@ -1956,11 +1941,16 @@ void setup()
     weerlive.setup(gWeerliveSettings->authToken.c_str(), gWeerliveSettings->plaats.c_str(), debug);
     weerlive.setInterval(gWeerliveSettings->requestInterval); 
 
-    debug->printf("setup(): mediastackAuthToken: [%s], requestInterval: [%d minuten]\n"
-                                                                , gMediastackSettings->authToken.c_str()
-                                                                , gMediastackSettings->requestInterval);
-    mediastack.setup(gMediastackSettings->authToken.c_str(), gMediastackSettings->maxMessages, debug);
-    mediastack.setInterval(gMediastackSettings->requestInterval);
+    debug->printf("setup(): mediastackAuthToken: [%s], requestInterval: [%d minuten], maxMessages: [%d], onlyDuringDay: [%s]\n"
+                                              , gMediastackSettings->authToken.c_str()
+                                              , gMediastackSettings->requestInterval
+                                              , gMediastackSettings->maxMessages
+                                              , gMediastackSettings->onlyDuringDay ? "true" : "false");
+    mediastack.setup(gMediastackSettings->authToken.c_str(), gMediastackSettings->requestInterval
+                                                           , gMediastackSettings->maxMessages
+                                                           , gMediastackSettings->onlyDuringDay
+                                                           , debug);
+    //mediastack.setInterval(gMediastackSettings->requestInterval);
 
     spa.activatePage("Main");
 
@@ -1981,9 +1971,14 @@ void loop()
   if (weerlive.loop(weerliveInfo))
   {
     snprintf(weerliveText, 2000, "%s", weerliveInfo.c_str());
-    debug->printf("loop(): weerliveText: [%s]\n", weerliveText);
+    debug->printf("weerlive::loop(): weerliveText: [%s]\n", weerliveText);
   
   }
+  if (mediastack.loop(network->ntpGetTmStruct()))
+  {
+    debug->println("mediastack::loop(): mediastack updated");
+  }
+
   //-- Print current time every 60 seconds
   static unsigned long lastPrint = 0;
   if (millis() - lastPrint >= 60000)

@@ -289,15 +289,25 @@ std::string SettingsClass::buildMediastackFieldsJson()
   field2["fieldMax"] = mediastackAttributes.requestIntervalMax;
   field2["fieldStep"] = 1;
 
-  //-- uint8_t onlyDuringDay;
+  //-- uint8_t maxMessages;
   JsonObject field3 = fields.createNestedObject();
-  field3["fieldName"] = "onlyDuringDay";
-  field3["fieldPrompt"] = "Update alleen tussen 08:00 en 18:00";
-  field3["fieldValue"] = mediastackSettings.onlyDuringDay;
+  field3["fieldName"] = "maxMessages";
+  field3["fieldPrompt"] = "Max. Messages to save";
+  field3["fieldValue"] = mediastackSettings.maxMessages;
   field3["fieldType"] = "n";
-  field3["fieldMin"] = mediastackAttributes.onlyDuringDayMin;
-  field3["fieldMax"] = mediastackAttributes.onlyDuringDayMax;
-  field2["fieldStep"] = 1;
+  field3["fieldMin"] = mediastackAttributes.maxMessagesMin;
+  field3["fieldMax"] = mediastackAttributes.maxMessagesMax;
+  field3["fieldStep"] = 1;
+
+  //-- uint8_t onlyDuringDay;
+  JsonObject field4 = fields.createNestedObject();
+  field4["fieldName"] = "onlyDuringDay";
+  field4["fieldPrompt"] = "Update alleen tussen 08:00 en 18:00";
+  field4["fieldValue"] = mediastackSettings.onlyDuringDay;
+  field4["fieldType"] = "n";
+  field4["fieldMin"] = mediastackAttributes.onlyDuringDayMin;
+  field4["fieldMax"] = mediastackAttributes.onlyDuringDayMax;
+  field4["fieldStep"] = 1;
     
   // Serialize to a string and return it
   std::string jsonString;
@@ -621,6 +631,9 @@ void SettingsClass::readMediastackSettings()
         else if (line.startsWith("requestInterval=")) {
           mediastackSettings.requestInterval = line.substring(16).toInt();
         }
+        else if (line.startsWith("maxMessages=")) {
+          mediastackSettings.maxMessages = line.substring(12).toInt();
+        }
         else if (line.startsWith("onlyDuringDay=")) {
           mediastackSettings.onlyDuringDay = line.substring(14).toInt();
         }
@@ -659,16 +672,27 @@ void SettingsClass::writeMediastackSettings()
     debug->printf("mediastackSetting(): requestInterval=%d\n", mediastackSettings.requestInterval);
     file.printf("requestInterval=%d\n", mediastackSettings.requestInterval);
 
+    // Validate and write maxMessages
+    if (mediastackSettings.maxMessages < mediastackAttributes.maxMessagesMin) {
+      debug->println("Error: maxMessages below minimum, setting to minimum");
+      mediastackSettings.maxMessages = mediastackAttributes.maxMessagesMin;
+    } else if (mediastackSettings.maxMessages > mediastackAttributes.maxMessagesMax) {
+        debug->println("Error: maxMessages above maximum, setting to maximum");
+        mediastackSettings.maxMessages = mediastackAttributes.maxMessagesMax;
+    }
+    debug->printf("mediastackSetting(): maxMessages=%d\n", mediastackSettings.maxMessages);
+    file.printf("maxMessages=%d\n", mediastackSettings.maxMessages);
+
     // Validate and write onlyDuringDay
     if (mediastackSettings.onlyDuringDay < mediastackAttributes.onlyDuringDayMin) {
-      debug->println("Error: onlyDuringDay below minimum, setting to minimum");
-      mediastackSettings.onlyDuringDay = mediastackAttributes.onlyDuringDayMin;
-  } else if (mediastackSettings.onlyDuringDay > mediastackAttributes.onlyDuringDayMax) {
-      debug->println("Error: onlyDuringDay above maximum, setting to maximum");
-      mediastackSettings.onlyDuringDay = mediastackAttributes.onlyDuringDayMax;
-  }
-  debug->printf("mediastackSetting(): onlyDuringDay=%d\n", mediastackSettings.onlyDuringDay);
-  file.printf("onlyDuringDay=%d\n", mediastackSettings.onlyDuringDay);
+        debug->println("Error: onlyDuringDay below minimum, setting to minimum");
+        mediastackSettings.onlyDuringDay = mediastackAttributes.onlyDuringDayMin;
+    } else if (mediastackSettings.onlyDuringDay > mediastackAttributes.onlyDuringDayMax) {
+        debug->println("Error: onlyDuringDay above maximum, setting to maximum");
+        mediastackSettings.onlyDuringDay = mediastackAttributes.onlyDuringDayMax;
+    }
+    debug->printf("mediastackSetting(): onlyDuringDay=%d\n", mediastackSettings.onlyDuringDay);
+    file.printf("onlyDuringDay=%d\n", mediastackSettings.onlyDuringDay);
 
     file.close();
     debug->println("MediastackSettings saved successfully");

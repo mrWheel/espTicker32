@@ -10,24 +10,26 @@
 class Mediastack {
 public:
     Mediastack(WiFiClient &wmediastackClient);
-    void setup(const char *key, uint8_t maxMessages, Stream* debugPort);
+    void setup(const char *key, uint8_t newRequestInterval, uint8_t newMaxMessages, bool newOnlyDuringDay, Stream* debugPort);
     void setInterval(int newInterval);
+    bool loop(struct tm timeInfo);
     bool fetchNews();
     void clearNewsFiles();
 
-    // Previously externs – now public methods you can override
-    virtual void updateMessage(const char* id, const char* msg);
-    virtual void writeFileById(const char* prefix, int id, const char* content);
-    virtual bool hasNoNoWord(const char* text);
-    virtual int strIndex(const char* str, const char* substr);
+    void updateMessage(const char* id, const char* msg);
+    void writeFileById(const char* prefix, int id, const char* content);
+    std::string readFileById(const char* prefix, int id);
+    bool hasNoNoWord(const char* text);
+    int strIndex(const char* str, const char* substr);
 
 private:
     WiFiClient         &thisClient;
     void replaceUnicode(char* message);
 
-    uint32_t            requestInterval = 0;
+    uint8_t            requestInterval = 0;
     uint32_t            loopTimer = 0;
-    uint8_t  maxMessages;
+    uint8_t             maxMessages;
+    bool                onlyDuringDay;  
     String              apiUrl;
     static const char  *apiHost;
     String              apiKey;
