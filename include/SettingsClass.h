@@ -105,12 +105,15 @@ public:
     const ParolaAttributes& getParolaAttributes();
     std::string buildDeviceFieldsJson();
     std::string buildWeerliveFieldsJson();
+    std::string buildMediastackFieldsJson();
     std::string buildParolaFieldsJson();
     // Methods for reading and writing settings
     void readDeviceSettings();
     void writeDeviceSettings();
     void readWeerliveSettings();
     void writeWeerliveSettings();
+    void readMediastackSettings();
+    void writeMediastackSettings();
     void readParolaSettings();
     void writeParolaSettings();
     // Generic method to save settings based on target

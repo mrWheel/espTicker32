@@ -256,6 +256,48 @@ std::string SettingsClass::buildWeerliveFieldsJson()
 
 } // buildWeerliveFieldsJson()
 
+std::string SettingsClass::buildMediastackFieldsJson()
+{
+  // Estimate the size (you can also use the ArduinoJson Assistant online)
+  //-- to big for the stack: StaticJsonDocument<4096> doc;
+  //-- move to the heap
+  DynamicJsonDocument doc(4096);
+
+  // Set the root-level keys
+  doc["type"] = "update";
+  doc["target"] = "MediastackSettings";
+  doc["settingsName"] = "Mediastack Settings";
+
+  // Add the "fields" array - CHANGE FROM "devFields" to "fields"
+  JsonArray fields = doc.createNestedArray("fields");
+
+  //-- std::string MediastackAuthToken;
+  JsonObject field1 = fields.createNestedObject();
+  field1["fieldName"] = "authToken";
+  field1["fieldPrompt"] = "mediastack Auth. Tokend";
+  field1["fieldValue"] = mediastackSettings.authToken.c_str();
+  field1["fieldType"] = "s";
+  field1["fieldLen"] = mediastackAttributes.authTokenLen;
+
+  //-- uint8_t requestInterval;
+  JsonObject field2 = fields.createNestedObject();
+  field2["fieldName"] = "requestInterval";
+  field2["fieldPrompt"] = "Request Interval (minuten)";
+  field2["fieldValue"] = mediastackSettings.requestInterval;
+  field2["fieldType"] = "n";
+  field2["fieldMin"] = mediastackAttributes.requestIntervalMin;
+  field2["fieldMax"] = mediastackAttributes.requestIntervalMax;
+  field2["fieldStep"] = 1;
+    
+  // Serialize to a string and return it
+  std::string jsonString;
+  serializeJson(doc, jsonString);
+  debug->printf("buildMediastackFieldsJson(): JSON string: %s\n", jsonString.c_str());
+  // Return the JSON string
+  return jsonString;
+
+} // buildMediastackFieldsJson()
+
 
 void SettingsClass::readDeviceSettings() 
 {
@@ -464,18 +506,6 @@ void SettingsClass::writeParolaSettings()
     }
     debug->printf("writeParolaSettings(): numZones=%d\n", parolaSettings.numZones);
     file.printf("numZones=%d\n", parolaSettings.numZones);
-/******
-    // Validate and write speed
-    if (parolaSettings.speed < parolaAttributes.speedMin) {
-      debug->println("Error: speed below minimum, setting to minimum");
-      parolaSettings.speed = parolaAttributes.speedMin;
-    } else if (parolaSettings.speed > parolaAttributes.speedMax) {
-        debug->println("Error: speed above maximum, setting to maximum");
-        parolaSettings.speed = parolaAttributes.speedMax;
-    }
-    debug->printf("writeParolaSettings(): speed=%d\n", parolaSettings.speed);
-    file.printf("speed=%d\n", parolaSettings.speed);
-******/
     file.close();
     debug->println("writeParolaSettings(): Settings saved successfully");
 
@@ -558,6 +588,70 @@ void SettingsClass::writeWeerliveSettings()
 } // writeWeerliveSettings()
 
 
+void SettingsClass::readMediastackSettings() 
+{
+    File file = LittleFS.open("/Mediastack.ini", "r");
+
+    if (!file) {
+        debug->println("readMediastackSettings(): Failed to open Mediastack.ini file for reading");
+        return;
+    }
+
+    String line;
+    while (file.available()) 
+    {
+        line = file.readStringUntil('\n');
+
+        // Read and parse settings from each line
+        debug->printf("readMediastackSettings(): line: [%s]\n", line.c_str());
+
+        if (line.startsWith("authToken=")) {
+          mediastackSettings.authToken = std::string(line.substring(10).c_str());
+        }
+        else if (line.startsWith("requestInterval=")) {
+          mediastackSettings.requestInterval = line.substring(16).toInt();
+        }
+    }
+
+    file.close();
+    debug->println("readMediastackSettings(): read successfully");
+
+} // readMediastackSettings()
+
+void SettingsClass::writeMediastackSettings() 
+{
+    File file = LittleFS.open("/Mediastack.ini", "w");
+
+    if (!file) {
+        debug->println("MediastackliveSettings(): Failed to open Mediastack.ini file for writing");
+        return;
+    }
+
+    // Validate and write authToken
+    if (mediastackSettings.authToken.length() > mediastackAttributes.authTokenLen) {
+        debug->println("Error: authToken exceeds maximum length, truncating");
+        mediastackSettings.authToken = mediastackSettings.authToken.substr(0, mediastackAttributes.authTokenLen);
+    }
+    debug->printf("mediastackliveSettings(): authToken=%s\n", mediastackSettings.authToken.c_str());
+    file.printf("authToken=%s\n", mediastackSettings.authToken.c_str());
+
+    // Validate and write requestInterval
+    if (mediastackSettings.requestInterval < mediastackAttributes.requestIntervalMin) {
+        debug->println("Error: requestInterval below minimum, setting to minimum");
+        mediastackSettings.requestInterval = mediastackAttributes.requestIntervalMin;
+    } else if (mediastackSettings.requestInterval > mediastackAttributes.requestIntervalMax) {
+        debug->println("Error: requestInterval above maximum, setting to maximum");
+        mediastackSettings.requestInterval = mediastackAttributes.requestIntervalMax;
+    }
+    debug->printf("mediastackSetting(): requestInterval=%d\n", mediastackSettings.requestInterval);
+    file.printf("requestInterval=%d\n", mediastackSettings.requestInterval);
+
+    file.close();
+    debug->println("MediastackSettings saved successfully");
+
+} // writeMediastackSettings()
+
+
 void SettingsClass::saveSettings(const std::string& target)
 {
   debug->printf("saveSettings(): Saving settings for target: %s\n", target.c_str());
@@ -570,6 +664,9 @@ void SettingsClass::saveSettings(const std::string& target)
   }
   else if (target == "weerliveSettings") {
     writeWeerliveSettings();
+  }
+  else if (target == "mediastackSettings") {
+    writeMediastackSettings();
   }
   else {
     debug->printf("saveSettings(): Unknown target: %s\n", target.c_str());
