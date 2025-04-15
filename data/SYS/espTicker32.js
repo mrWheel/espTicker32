@@ -56,7 +56,7 @@ function renderLocalMessages()
     input.style.width = '100ch'; // Set to exactly 100ch wide
     input.style.maxWidth = '100ch';
     input.style.fontFamily = "'Courier New', Courier, monospace"; // Set monospace font
-    input.maxLength = 100;
+    input.maxLength = 150;
     input.dataset.index = index;
     input.addEventListener('input', (e) => {
       LocalMessages[e.target.dataset.index] = e.target.value;
