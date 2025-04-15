@@ -18,6 +18,16 @@ const DeviceAttributes& SettingsClass::getDeviceAttributes()
   return deviceAttributes;
 }
 
+ParolaSettings& SettingsClass::getParolaSettings()
+{
+  return parolaSettings;
+}
+
+const ParolaAttributes& SettingsClass::getParolaAttributes()
+{
+  return parolaAttributes;
+}
+
 WeerliveSettings& SettingsClass::getWeerliveSettings()
 {
   return weerliveSettings;
@@ -28,14 +38,14 @@ const WeerliveAttributes& SettingsClass::getWeerliveAttributes()
   return weerliveAttributes;
 }
 
-ParolaSettings& SettingsClass::getParolaSettings()
+MediastackSettings& SettingsClass::getMediastackSettings()
 {
-  return parolaSettings;
+  return mediastackSettings;
 }
 
-const ParolaAttributes& SettingsClass::getParolaAttributes()
+const MediastackAttributes& SettingsClass::getMediastackAttributes()
 {
-  return parolaAttributes;
+  return mediastackAttributes;
 }
 
 
@@ -110,6 +120,17 @@ std::string SettingsClass::buildDeviceFieldsJson()
   field6["fieldType"] = "s";
   field6["fieldLen"] = deviceAttributes.skipItemsLen;
 
+  //-- uint8_t tickerSpeed;
+  JsonObject field7 = fields.createNestedObject();
+  field7["fieldName"] = "tickerSpeed";
+  field7["fieldPrompt"] = "Ticker Scroll Speed";
+  field7["fieldValue"] = deviceSettings.tickerSpeed;
+  field7["fieldType"] = "n";
+  field7["fieldMin"] = deviceAttributes.tickerSpeedMin;
+  field7["fieldMax"] = deviceAttributes.tickerSpeedMax;
+  field7["fieldStep"] = 1;
+    
+
   // Serialize to a string and return it
   std::string jsonString;
   serializeJson(doc, jsonString);
@@ -165,14 +186,14 @@ std::string SettingsClass::buildParolaFieldsJson()
   field3["fieldStep"] = 1;
 
   //-- std::string parola scroll speed;
-  JsonObject field4 = fields.createNestedObject();
-  field4["fieldName"] = "speed";
-  field4["fieldPrompt"] = "Scroll Speed";
-  field4["fieldValue"] = parolaSettings.speed;
-  field4["fieldType"] = "n";
-  field4["fieldMin"] = parolaAttributes.speedMin;
-  field4["fieldMax"] = parolaAttributes.speedMax;
-  field4["fieldStep"] = 1;    
+  //JsonObject field4 = fields.createNestedObject();
+  //field4["fieldName"] = "speed";
+  //field4["fieldPrompt"] = "Scroll Speed";
+  //field4["fieldValue"] = parolaSettings.speed;
+  //field4["fieldType"] = "n";
+  //field4["fieldMin"] = parolaAttributes.speedMin;
+  //field4["fieldMax"] = parolaAttributes.speedMax;
+  //field4["fieldStep"] = 1;    
 
   // Serialize to a string and return it
   std::string jsonString;
@@ -235,6 +256,68 @@ std::string SettingsClass::buildWeerliveFieldsJson()
 
 } // buildWeerliveFieldsJson()
 
+std::string SettingsClass::buildMediastackFieldsJson()
+{
+  // Estimate the size (you can also use the ArduinoJson Assistant online)
+  //-- to big for the stack: StaticJsonDocument<4096> doc;
+  //-- move to the heap
+  DynamicJsonDocument doc(4096);
+
+  // Set the root-level keys
+  doc["type"] = "update";
+  doc["target"] = "mediastackSettings";
+  doc["settingsName"] = "Mediastack Settings";
+
+  // Add the "fields" array - CHANGE FROM "devFields" to "fields"
+  JsonArray fields = doc.createNestedArray("fields");
+
+  //-- std::string MediastackAuthToken;
+  JsonObject field1 = fields.createNestedObject();
+  field1["fieldName"] = "authToken";
+  field1["fieldPrompt"] = "mediastack Auth. Tokend";
+  field1["fieldValue"] = mediastackSettings.authToken.c_str();
+  field1["fieldType"] = "s";
+  field1["fieldLen"] = mediastackAttributes.authTokenLen;
+
+  //-- uint8_t requestInterval;
+  JsonObject field2 = fields.createNestedObject();
+  field2["fieldName"] = "requestInterval";
+  field2["fieldPrompt"] = "Request Interval (minuten)";
+  field2["fieldValue"] = mediastackSettings.requestInterval;
+  field2["fieldType"] = "n";
+  field2["fieldMin"] = mediastackAttributes.requestIntervalMin;
+  field2["fieldMax"] = mediastackAttributes.requestIntervalMax;
+  field2["fieldStep"] = 1;
+
+  //-- uint8_t maxMessages;
+  JsonObject field3 = fields.createNestedObject();
+  field3["fieldName"] = "maxMessages";
+  field3["fieldPrompt"] = "Max. Messages to save";
+  field3["fieldValue"] = mediastackSettings.maxMessages;
+  field3["fieldType"] = "n";
+  field3["fieldMin"] = mediastackAttributes.maxMessagesMin;
+  field3["fieldMax"] = mediastackAttributes.maxMessagesMax;
+  field3["fieldStep"] = 1;
+
+  //-- uint8_t onlyDuringDay;
+  JsonObject field4 = fields.createNestedObject();
+  field4["fieldName"] = "onlyDuringDay";
+  field4["fieldPrompt"] = "Update alleen tussen 08:00 en 18:00";
+  field4["fieldValue"] = mediastackSettings.onlyDuringDay;
+  field4["fieldType"] = "n";
+  field4["fieldMin"] = mediastackAttributes.onlyDuringDayMin;
+  field4["fieldMax"] = mediastackAttributes.onlyDuringDayMax;
+  field4["fieldStep"] = 1;
+    
+  // Serialize to a string and return it
+  std::string jsonString;
+  serializeJson(doc, jsonString);
+  debug->printf("buildMediastackFieldsJson(): JSON string: %s\n", jsonString.c_str());
+  // Return the JSON string
+  return jsonString;
+
+} // buildMediastackFieldsJson()
+
 
 void SettingsClass::readDeviceSettings() 
 {
@@ -270,6 +353,9 @@ void SettingsClass::readDeviceSettings()
         }
         else if (line.startsWith("skipItems=")) {
           deviceSettings.skipItems = std::string(line.substring(10).c_str());
+        }
+        else if (line.startsWith("tickerSpeed=")) {
+          deviceSettings.tickerSpeed = line.substring(12).toInt();
         }
     }
 
@@ -345,6 +431,17 @@ void SettingsClass::writeDeviceSettings()
     debug->printf("writeDeviceSettings(): skipItems=%s\n", deviceSettings.skipItems.c_str());
     file.printf("skipItems=%s\n", deviceSettings.skipItems.c_str());
 
+    // Validate and write tickerSpeed
+    if (deviceSettings.tickerSpeed < deviceAttributes.tickerSpeedMin) {
+      debug->println("Error: tickerSpeed below minimum, setting to minimum");
+      deviceSettings.tickerSpeed = deviceAttributes.tickerSpeedMin;
+  } else if (deviceSettings.tickerSpeed > deviceAttributes.tickerSpeedMax) {
+      debug->println("Error: tickerSpeed above maximum, setting to maximum");
+      deviceSettings.tickerSpeed = deviceAttributes.tickerSpeedMax;
+  }
+  debug->printf("writeDeviceSettings(): tickerSpeed=%d\n", deviceSettings.tickerSpeed);
+  file.printf("tickerSpeed=%d\n", deviceSettings.tickerSpeed);
+
     file.close();
     debug->println("writeDeviceSettings(): Settings saved successfully");
 
@@ -377,9 +474,9 @@ void SettingsClass::readParolaSettings()
         else if (line.startsWith("numZones=")) {
           parolaSettings.numZones = line.substring(9).toInt();
         }
-        else if (line.startsWith("speed=")) {
-          parolaSettings.speed = line.substring(6).toInt();
-        }
+//       else if (line.startsWith("speed=")) {
+//        parolaSettings.speed = line.substring(6).toInt();
+//      }
     }
 
     file.close();
@@ -429,18 +526,6 @@ void SettingsClass::writeParolaSettings()
     }
     debug->printf("writeParolaSettings(): numZones=%d\n", parolaSettings.numZones);
     file.printf("numZones=%d\n", parolaSettings.numZones);
-
-    // Validate and write speed
-    if (parolaSettings.speed < parolaAttributes.speedMin) {
-      debug->println("Error: speed below minimum, setting to minimum");
-      parolaSettings.speed = parolaAttributes.speedMin;
-    } else if (parolaSettings.speed > parolaAttributes.speedMax) {
-        debug->println("Error: speed above maximum, setting to maximum");
-        parolaSettings.speed = parolaAttributes.speedMax;
-    }
-    debug->printf("writeParolaSettings(): speed=%d\n", parolaSettings.speed);
-    file.printf("speed=%d\n", parolaSettings.speed);
-
     file.close();
     debug->println("writeParolaSettings(): Settings saved successfully");
 
@@ -523,6 +608,98 @@ void SettingsClass::writeWeerliveSettings()
 } // writeWeerliveSettings()
 
 
+void SettingsClass::readMediastackSettings() 
+{
+    File file = LittleFS.open("/Mediastack.ini", "r");
+
+    if (!file) {
+        debug->println("readMediastackSettings(): Failed to open Mediastack.ini file for reading");
+        return;
+    }
+
+    String line;
+    while (file.available()) 
+    {
+        line = file.readStringUntil('\n');
+
+        // Read and parse settings from each line
+        debug->printf("readMediastackSettings(): line: [%s]\n", line.c_str());
+
+        if (line.startsWith("authToken=")) {
+          mediastackSettings.authToken = std::string(line.substring(10).c_str());
+        }
+        else if (line.startsWith("requestInterval=")) {
+          mediastackSettings.requestInterval = line.substring(16).toInt();
+        }
+        else if (line.startsWith("maxMessages=")) {
+          mediastackSettings.maxMessages = line.substring(12).toInt();
+        }
+        else if (line.startsWith("onlyDuringDay=")) {
+          mediastackSettings.onlyDuringDay = line.substring(14).toInt();
+        }
+    }
+
+    file.close();
+    debug->println("readMediastackSettings(): read successfully");
+
+} // readMediastackSettings()
+
+void SettingsClass::writeMediastackSettings() 
+{
+    File file = LittleFS.open("/Mediastack.ini", "w");
+
+    if (!file) {
+        debug->println("MediastackliveSettings(): Failed to open Mediastack.ini file for writing");
+        return;
+    }
+
+    // Validate and write authToken
+    if (mediastackSettings.authToken.length() > mediastackAttributes.authTokenLen) {
+        debug->println("Error: authToken exceeds maximum length, truncating");
+        mediastackSettings.authToken = mediastackSettings.authToken.substr(0, mediastackAttributes.authTokenLen);
+    }
+    debug->printf("mediastackliveSettings(): authToken=%s\n", mediastackSettings.authToken.c_str());
+    file.printf("authToken=%s\n", mediastackSettings.authToken.c_str());
+
+    // Validate and write requestInterval
+    if (mediastackSettings.requestInterval < mediastackAttributes.requestIntervalMin) {
+        debug->println("Error: requestInterval below minimum, setting to minimum");
+        mediastackSettings.requestInterval = mediastackAttributes.requestIntervalMin;
+    } else if (mediastackSettings.requestInterval > mediastackAttributes.requestIntervalMax) {
+        debug->println("Error: requestInterval above maximum, setting to maximum");
+        mediastackSettings.requestInterval = mediastackAttributes.requestIntervalMax;
+    }
+    debug->printf("mediastackSetting(): requestInterval=%d\n", mediastackSettings.requestInterval);
+    file.printf("requestInterval=%d\n", mediastackSettings.requestInterval);
+
+    // Validate and write maxMessages
+    if (mediastackSettings.maxMessages < mediastackAttributes.maxMessagesMin) {
+      debug->println("Error: maxMessages below minimum, setting to minimum");
+      mediastackSettings.maxMessages = mediastackAttributes.maxMessagesMin;
+    } else if (mediastackSettings.maxMessages > mediastackAttributes.maxMessagesMax) {
+        debug->println("Error: maxMessages above maximum, setting to maximum");
+        mediastackSettings.maxMessages = mediastackAttributes.maxMessagesMax;
+    }
+    debug->printf("mediastackSetting(): maxMessages=%d\n", mediastackSettings.maxMessages);
+    file.printf("maxMessages=%d\n", mediastackSettings.maxMessages);
+
+    // Validate and write onlyDuringDay
+    if (mediastackSettings.onlyDuringDay < mediastackAttributes.onlyDuringDayMin) {
+        debug->println("Error: onlyDuringDay below minimum, setting to minimum");
+        mediastackSettings.onlyDuringDay = mediastackAttributes.onlyDuringDayMin;
+    } else if (mediastackSettings.onlyDuringDay > mediastackAttributes.onlyDuringDayMax) {
+        debug->println("Error: onlyDuringDay above maximum, setting to maximum");
+        mediastackSettings.onlyDuringDay = mediastackAttributes.onlyDuringDayMax;
+    }
+    debug->printf("mediastackSetting(): onlyDuringDay=%d\n", mediastackSettings.onlyDuringDay);
+    file.printf("onlyDuringDay=%d\n", mediastackSettings.onlyDuringDay);
+
+    file.close();
+    debug->println("MediastackSettings saved successfully");
+
+} // writeMediastackSettings()
+
+
 void SettingsClass::saveSettings(const std::string& target)
 {
   debug->printf("saveSettings(): Saving settings for target: %s\n", target.c_str());
@@ -535,6 +712,9 @@ void SettingsClass::saveSettings(const std::string& target)
   }
   else if (target == "weerliveSettings") {
     writeWeerliveSettings();
+  }
+  else if (target == "mediastackSettings") {
+    writeMediastackSettings();
   }
   else {
     debug->printf("saveSettings(): Unknown target: %s\n", target.c_str());

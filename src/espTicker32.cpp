@@ -13,6 +13,7 @@
 #include "SettingsClass.h"
 #include "LocalMessagesIO.h"
 #include "WeerliveClass.h"
+#include "MediastackClass.h"
 //#include <MD_Parola.h>
 //#include <MD_MAX72xx.h>
 //#include <SPI.h>
@@ -32,13 +33,16 @@ DeviceSettings* gDeviceSettings = nullptr;
 const DeviceAttributes* gDeviceAttributes = nullptr;
 WeerliveSettings* gWeerliveSettings = nullptr;
 const WeerliveAttributes* gWeerliveAttributes = nullptr;
+MediastackSettings* gMediastackSettings = nullptr;
+const MediastackAttributes* gMediastackAttributes = nullptr;
 ParolaSettings* gParolaSettings = nullptr;
 const ParolaAttributes* gParolaAttributes = nullptr;
 
 LocalMessagesIO localMessages(LOCAL_MESSAGES_PATH, LOCAL_MESSAGES_RECORD_SIZE);
 
-WiFiClient weerliveClient;
-Weerlive weerlive(weerliveClient);
+WiFiClient wifiClient;
+Weerlive weerlive(wifiClient);
+Mediastack mediastack(wifiClient);
 
 SPAmanager spa(80);
 //WebServer server(80);
@@ -77,6 +81,24 @@ String getDataFeedLine()
     return "Sensor: 45% humidity"; // <<< replace with real file reading
 }
 
+String getMediastackMessage()
+{
+  static uint8_t msgNr = 0;
+  char mediastackMessage[2000] = {};
+
+  snprintf(mediastackMessage, sizeof(mediastackMessage), "%s", mediastack.readFileById("NWS", msgNr).c_str());
+  if (strlen(mediastackMessage) == 0) 
+  {
+    msgNr = 0;
+    snprintf(mediastackMessage, sizeof(mediastackMessage), "%s", mediastack.readFileById("NWS", msgNr).c_str());
+  } 
+  debug->printf("getMediastackMessage(): msgNr = [%d] mediastackMessage = [%s]\n", msgNr, mediastackMessage);
+  msgNr++;
+  return mediastackMessage;
+
+} // getMediastackMessage()
+
+
 String getLocalMessage()
 {
   static uint8_t msgNr = 0;
@@ -92,56 +114,6 @@ String getLocalMessage()
 
 } // getLocalMessage()
 
-/****** 
-std::string nextMessage()
-{
-    std::string newMessage = "-";
-    if (nr > 4) {nr = 1;}
-    debug->printf("nextMessage(): nr = [%d]\n", nr);
-
-    switch (nr)
-    {
-    case 1:
-        newMessage = getNewsLine().c_str();
-        nr++;
-        break;
-    case 2:
-        newMessage = getWeatherLine().c_str();
-        if (newMessage[0] == '\0') 
-        {
-            debug->println("nextMessage(): No weather data available");
-            newMessage = "No weather data available";
-        }
-        nr++;
-        break;
-    case 3:
-        newMessage = getDataFeedLine().c_str();
-        if (newMessage[0] == '\0') 
-        {
-            debug->println("nextMessage(): No RSS feed data available");
-            newMessage = "No RSS feed data available";
-        }
-        nr++;
-        break;
-    case 4:
-        newMessage = getLocalMessage().c_str();
-        nr++;
-        break;
-    default:
-        nr = 1;
-        nextMessage(); // Call again to restart
-        break;
-    }
-
-    debug->printf("nextMessage(): Sending text: [%s]\n", newMessage.c_str()); 
-    display.sendNextText(newMessage.c_str());
-    spa.callJsFunction("queueMessageToMonitor", newMessage.c_str());
-
-    return newMessage;
-
-} // nextMessage()
-*****/
-
 std::string nextMessage()
 {
     std::string newMessage = "-";
@@ -152,10 +124,10 @@ std::string nextMessage()
         debug->println("nextMessage(): weerlive message");
         newMessage = getWeatherLine().c_str();
     }
-    else if (strcmp(newMessage.c_str(), "<news>") == 0) 
+    else if (strcmp(newMessage.c_str(), "<mediastack>") == 0) 
     {
-        debug->println("nextMessage(): newsfeed message");
-        newMessage = getNewsLine().c_str();
+        debug->println("nextMessage(): mediastack message");
+        newMessage = getMediastackMessage().c_str();
     }
     else if (strcmp(newMessage.c_str(), "<date>") == 0) 
     {
@@ -463,6 +435,102 @@ void sendWeerliveFieldsToClient()
 
 } // sendWeerliveFieldsToClient()
 
+// Function to send the JSON string to the client when mediastackSettingsPage is activated
+void sendMediastackFieldsToClient()
+{
+  std::string jsonData = settings.buildMediastackFieldsJson();
+  debug->printf("sendMediastackFieldsToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
+  
+  // First, send the HTML content for the mediastack settings fields
+  DynamicJsonDocument doc(4096);
+  doc["type"] = "update";
+  doc["target"] = "settingsTableBody";
+  
+  // Create the HTML content for the mediastack settings fields
+  std::string htmlContent = "";
+  
+  // Parse the JSON
+  DynamicJsonDocument mediastackSettings(4096);
+  DeserializationError error = deserializeJson(mediastackSettings, jsonData);
+  
+  if (!error) {
+    if (mediastackSettings.containsKey("fields") && mediastackSettings["fields"].is<JsonArray>()) {
+      JsonArray fields = mediastackSettings["fields"].as<JsonArray>();
+      
+      for (size_t i = 0; i < fields.size(); i++) {
+        JsonObject field = fields[i];
+        
+        // Create a table row for each field
+        htmlContent += "<tr><td style='padding: 8px;'>";
+        htmlContent += field["fieldPrompt"].as<String>().c_str();
+        htmlContent += "</td><td style='padding: 8px;'>";
+        
+        // Create the appropriate input element based on fieldType
+        if (field["fieldType"] == "s") {
+          // String input
+          htmlContent += "<input type='text' value='";
+          htmlContent += field["fieldValue"].as<String>().c_str();
+          htmlContent += "' style='width: 100%;' maxlength='";
+          htmlContent += field["fieldLen"].as<String>().c_str();
+          htmlContent += "' data-field-name='";
+          htmlContent += field["fieldName"].as<String>().c_str();
+          htmlContent += "' data-field-type='s' oninput='updateMediastackSettings(this)'>";
+        } else if (field["fieldType"] == "n") {
+          // Numeric input
+          htmlContent += "<input type='number' value='";
+          htmlContent += field["fieldValue"].as<String>().c_str();
+          htmlContent += "' style='width: 100%;' min='";
+          htmlContent += field["fieldMin"].as<String>().c_str();
+          htmlContent += "' max='";
+          htmlContent += field["fieldMax"].as<String>().c_str();
+          htmlContent += "' step='";
+          htmlContent += field["fieldStep"].as<String>().c_str();
+          htmlContent += "' data-field-name='";
+          htmlContent += field["fieldName"].as<String>().c_str();
+          htmlContent += "' data-field-type='n' oninput='updateMediastackSettings(this)'>";
+        }
+        
+        htmlContent += "</td></tr>";
+      }
+    }
+    
+    // Update the settings name in the page
+    if (mediastackSettings.containsKey("settingsName")) {
+      DynamicJsonDocument nameDoc(512);
+      nameDoc["type"] = "update";
+      nameDoc["target"] = "settingsName";
+      nameDoc["content"] = mediastackSettings["settingsName"].as<String>().c_str();
+      
+      std::string nameMessage;
+      serializeJson(nameDoc, nameMessage);
+      
+      // Send the name update message via WebSocket
+      spa.ws.broadcastTXT(nameMessage.c_str(), nameMessage.length());
+    }
+  }
+  
+  doc["content"] = htmlContent.c_str();
+  
+  // Serialize the message
+  std::string message;
+  serializeJson(doc, message);
+  
+  // Send the structured message via WebSocket
+  spa.ws.broadcastTXT(message.c_str(), message.length());
+  
+  // Now send the raw JSON data in a format that SPAmanager can understand
+  DynamicJsonDocument jsonDoc(4096);
+  jsonDoc["type"] = "custom";
+  jsonDoc["action"] = "mediastackSettingsData";
+  jsonDoc["data"] = jsonData;
+  
+  std::string jsonMessage;
+  serializeJson(jsonDoc, jsonMessage);
+  
+  // Send the JSON message via WebSocket
+  spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
+
+} // sendMediastackFieldsToClient()
 
 // Function to send the JSON string to the client when weerliveSettingsPage is activated
 void sendParolaFieldsToClient()
@@ -677,6 +745,11 @@ void processDevSettings(const std::string& jsonString)
       debug->printf("processDevSettings(): Setting skipItems to [%s]\n", newValue);
       gDeviceSettings->skipItems = newValue;
     }
+    else if (strcmp(fieldName, "tickerSpeed") == 0) {
+      uint8_t newValue = field["value"].as<uint8_t>();
+      debug->printf("processDeviceSettings(): Setting tickerSpeed to [%d]\n", newValue);
+      gDeviceSettings->tickerSpeed = newValue;
+    }
     else {
       debug->printf("processDevSettings(): Unknown field: %s\n", fieldName);
     }
@@ -744,23 +817,23 @@ void processParolaSettings(const std::string& jsonString)
     if (strcmp(fieldName, "hardwareType") == 0) {
       uint8_t newValue = field["value"].as<uint8_t>();
       debug->printf("processParolaSettings(): Setting hardwareType to [%d]\n", newValue);
-      parolaSettings.hardwareType = newValue;
+      gParolaSettings->hardwareType = newValue;
     }
     else if (strcmp(fieldName, "numDevices") == 0) {
       uint8_t newValue = field["value"].as<uint8_t>();
       debug->printf("processParolaSettings(): Setting numDevices to [%d]\n", newValue);
-      parolaSettings.numDevices = newValue;
+      gParolaSettings->numDevices = newValue;
     }
     else if (strcmp(fieldName, "numZones") == 0) {
       uint8_t newValue = field["value"].as<uint8_t>();
       debug->printf("processParolaSettings(): Setting numZones to [%d]\n", newValue);
-      parolaSettings.numZones = newValue;
+      gParolaSettings->numZones = newValue;
     }
-    else if (strcmp(fieldName, "speed") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processParolaSettings(): Setting speed to [%d]\n", newValue);
-      parolaSettings.speed = newValue;
-    }
+//  else if (strcmp(fieldName, "speed") == 0) {
+//    uint8_t newValue = field["value"].as<uint8_t>();
+//    debug->printf("processParolaSettings(): Setting speed to [%d]\n", newValue);
+//    gParolaSettings.speed = newValue;
+//  }
     else {
       debug->printf("processParolaSettings(): Unknown field: %s\n", fieldName);
     }
@@ -861,6 +934,85 @@ void processWeerliveSettings(const std::string& jsonString)
 
 } // processWeerliveSettings()
 
+// Function to process the received mediastack settings from the client
+void processMediastackSettings(const std::string& jsonString)
+{
+  debug->println("processMediastackSettings(): Processing mediastack settings from JSON:");
+  debug->println(jsonString.c_str());
+  
+  // Use ArduinoJson library to parse the JSON
+  DynamicJsonDocument doc(2048);
+  DeserializationError error = deserializeJson(doc, jsonString);
+  
+  if (error) 
+  {
+    debug->printf("processMediastackSettings(): JSON parsing error: %s\n", error.c_str());
+    return;
+  }
+  
+  // Check if the JSON has the expected structure
+  if (!doc.containsKey("fields") || !doc["fields"].is<JsonArray>()) 
+  {
+    debug->println("processMediastackSettings(): JSON does not contain fields array");
+    return;
+  }
+  
+  JsonArray fields = doc["fields"].as<JsonArray>();
+  debug->printf("processMediastackSettings(): Processing array with %d fields\n", fields.size());
+  
+  // Process each field
+  for (JsonObject field : fields) {
+    if (!field.containsKey("fieldName") || !field.containsKey("value")) {
+      debug->println("processMediastackSettings(): Field missing required properties");
+      continue;
+    }
+    
+    const char* fieldName = field["fieldName"];
+    
+    // Update the appropriate setting based on the field name
+    if (strcmp(fieldName, "authToken") == 0) {
+      std::string newAuthToken = field["value"].as<std::string>();
+      debug->printf("processMediastackSettings(): Setting authToken to [%s]\n", newAuthToken.c_str());
+      gMediastackSettings->authToken = newAuthToken;
+    }
+    else if (strcmp(fieldName, "requestInterval") == 0) {
+      uint8_t newValue = field["value"].as<uint8_t>();
+      debug->printf("processMediastackSettings(): Setting requestInterval to [%d]\n", newValue);
+      gMediastackSettings->requestInterval = newValue;
+    }
+    else if (strcmp(fieldName, "maxMessages") == 0) {
+      uint8_t newValue = field["value"].as<uint8_t>();
+      debug->printf("processMediastackSettings(): Setting maxMessages to [%d]\n", newValue);
+      gMediastackSettings->maxMessages = newValue;
+    }
+    else if (strcmp(fieldName, "onlyDuringDay") == 0) {
+      uint8_t newValue = field["value"].as<uint8_t>();
+      debug->printf("processMediastackSettings(): Setting onlyDuringDay to [%d]\n", newValue);
+      gMediastackSettings->onlyDuringDay = newValue;
+    }
+    else {
+      debug->printf("processMediastackSettings(): Unknown field: %s\n", fieldName);
+    }
+  }
+  
+  // Always write settings
+  debug->println("processMediastackSettings(): Writing settings to storage");
+  settings.writeMediastackSettings();
+  
+  // Send a confirmation message to the client
+  DynamicJsonDocument confirmDoc(512);
+  confirmDoc["type"] = "update";
+  confirmDoc["target"] = "message";
+  confirmDoc["content"] = "Mediastack Settings saved successfully!";
+  
+  std::string confirmMessage;
+  serializeJson(confirmDoc, confirmMessage);
+  spa.ws.broadcastTXT(confirmMessage.c_str(), confirmMessage.length());
+  
+  // Refresh the mediastack settings display
+  sendMediastackFieldsToClient();
+
+} // processMediastackSettings()
 
 // Generic function to process settings from the client
 void processSettings(const std::string& jsonString, const std::string& target)
@@ -926,33 +1078,6 @@ void processSettings(const std::string& jsonString, const std::string& target)
         debug->printf("processSettings(): Setting maxIntensiteitLeds to [%d]\n", newValue);
         gDeviceSettings->maxIntensiteitLeds = newValue;
       }
-      /************ 
-      else if (strcmp(fieldName, "weerliveAuthToken") == 0) {
-        std::string newAuthToken = field["value"].as<std::string>();
-        debug->printf("processSettings(): Setting weerliveAuthToken to [%s]\n", newAuthToken.c_str());
-        gDeviceSettings->weerliveAuthToken = newAuthToken;
-      }
-      else if (strcmp(fieldName, "weerlivePlaats") == 0) {
-        std::string newPlaats = field["value"].as<std::string>();
-        debug->printf("processSettings(): Setting weerlivePlaats to [%s]\n", newPlaats.c_str());
-        gDeviceSettings->weerlivePlaats = newPlaats;
-      }
-      else if (strcmp(fieldName, "requestInterval") == 0) {
-        uint8_t newValue = field["value"].as<uint8_t>();
-        debug->printf("processSettings(): Setting requestInterval to [%d]\n", newValue);
-        gDeviceSettings->requestInterval = newValue;
-      }
-      else if (strcmp(fieldName, "authToken") == 0) {
-        std::string newAuthToken = field["value"].as<std::string>();
-        debug->printf("processSettings(): Setting weerliveAuthToken to [%s]\n", newAuthToken.c_str());
-        gDeviceSettings->weerliveAuthToken = newAuthToken;
-      }
-      else if (strcmp(fieldName, "weerliveRequestInterval") == 0) {
-        uint8_t newValue = field["value"].as<uint8_t>();
-        debug->printf("processSettings(): Setting weerliveRequestInterval to [%d]\n", newValue);
-        gDeviceSettings->weerliveRequestInterval = newValue;
-      }
-      ************/
       else if (strcmp(fieldName, "skipItems") == 0) {
         std::string newValue = field["value"].as<std::string>();
         debug->printf("processSettings(): Setting skipItems to [%s]\n", newValue);
@@ -989,6 +1114,45 @@ void processSettings(const std::string& jsonString, const std::string& target)
         uint8_t newValue = field["value"].as<uint8_t>();
         debug->printf("processSettings(): Setting requestInterval to [%d]\n", newValue);
         gWeerliveSettings->requestInterval = newValue;
+      }
+      else {
+        debug->printf("processSettings(): Unknown field: %s\n", fieldName);
+      }
+    }
+  }
+  else if (target == "mediastackSettings")
+  {
+    // Process each field for mediastack settings
+    debug->println("processSettings(): Processing mediastack settings");
+    for (JsonObject field : fields) 
+    {
+      if (!field.containsKey("fieldName") || !field.containsKey("value")) {
+        debug->println("processSettings(): Field missing required properties");
+        continue;
+      }
+      
+      const char* fieldName = field["fieldName"];
+      
+      // Update the appropriate setting based on the field name
+      if (strcmp(fieldName, "authToken") == 0) {
+        std::string newAuthToken = field["value"].as<std::string>();
+        debug->printf("processSettings(): Setting authToken to [%s]\n", newAuthToken.c_str());
+        gMediastackSettings->authToken = newAuthToken;
+      }
+      else if (strcmp(fieldName, "requestIntervals") == 0) {
+        uint8_t newValue = field["value"].as<uint8_t>();
+        debug->printf("processSettings(): Setting requestInterval to [%d]\n", newValue);
+        gMediastackSettings->requestInterval = newValue;
+      }
+      else if (strcmp(fieldName, "onlyDuringDay") == 0) {
+        uint8_t newValue = field["value"].as<uint8_t>();
+        debug->printf("processSettings(): Setting onlyDuringDay to [%d]\n", newValue);
+        gMediastackSettings->requestInterval = newValue;
+      }
+      else if (strcmp(fieldName, "maxMessages") == 0) {
+        uint8_t newValue = field["value"].as<uint8_t>();
+        debug->printf("processSettings(): Setting maxMessages to [%d]\n", newValue);
+        gMediastackSettings->maxMessages = newValue;
       }
       else {
         debug->printf("processSettings(): Unknown field: %s\n", fieldName);
@@ -1106,18 +1270,26 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
       sendWeerliveFieldsToClient();
       return;
     }
-    
+    // Check if this is a requestMediastackSettings message
+    if (doc["type"] == "requestMediastackSettings") {
+      debug->println("handleLocalWebSocketEvent(): Handling requestMediastackSettings message");
+      sendMediastackFieldsToClient();
+      return;
+    }    
     // Check if this is a process message
-    if (doc["type"] == "process") {
+    if (doc["type"] == "process") 
+    {
       const char* processType = doc["processType"];
       debug->printf("handleLocalWebSocketEvent(): Processing message type: %s\n", processType);
       
       // Check if this is a saveLocalMessages message
-      if (strcmp(processType, "saveLocalMessages") == 0) {
+      if (strcmp(processType, "saveLocalMessages") == 0) 
+      {
         debug->println("handleLocalWebSocketEvent(): Handling saveLocalMessages message");
         
         // Check if inputValues exists and contains LocalMessagesData
-        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("LocalMessagesData")) {
+        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("LocalMessagesData")) 
+        {
           // Get the LocalMessagesData as a string
           const char* LocalMessagesData = doc["inputValues"]["LocalMessagesData"];
           debug->println("handleLocalWebSocketEvent(): Received input fields data:");
@@ -1130,11 +1302,13 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
         }
       } 
       // Check if this is a saveDevSettings message
-      else if (strcmp(processType, "saveDevSettings") == 0) {
+      else if (strcmp(processType, "saveDevSettings") == 0) 
+      {
         debug->println("handleLocalWebSocketEvent(): Handling saveDevSettings message");
         
         // Check if inputValues exists and contains devSettingsData
-        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("devSettingsData")) {
+        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("devSettingsData")) 
+        {
           // Get the devSettingsData as a string
           const char* devSettingsData = doc["inputValues"]["devSettingsData"];
           debug->println("handleLocalWebSocketEvent(): Received device settings data:");
@@ -1147,11 +1321,13 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
         }
       }
       // Check if this is a saveParolaSettings message
-      else if (strcmp(processType, "saveParolaSettings") == 0) {
+      else if (strcmp(processType, "saveParolaSettings") == 0) 
+      {
         debug->println("handleLocalWebSocketEvent(): Handling saveParolaSettings message");
         
         // Check if inputValues exists and contains parolaSettingsData
-        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("parolaSettingsData")) {
+        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("parolaSettingsData")) 
+        {
           // Get the parolaSettingsData as a string
           const char* parolaSettingsData = doc["inputValues"]["parolaSettingsData"];
           debug->println("handleLocalWebSocketEvent(): Received parola settings data:");
@@ -1164,11 +1340,13 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
         }
       }
       // Check if this is a saveWeerliveSettings message
-      else if (strcmp(processType, "saveWeerliveSettings") == 0) {
+      else if (strcmp(processType, "saveWeerliveSettings") == 0) 
+      {
         debug->println("handleLocalWebSocketEvent(): Handling saveWeerliveSettings message");
         
         // Check if inputValues exists and contains weerliveSettingsData
-        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("weerliveSettingsData")) {
+        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("weerliveSettingsData")) 
+        {
           // Get the weerliveSettingsData as a string
           const char* weerliveSettingsData = doc["inputValues"]["weerliveSettingsData"];
           debug->println("handleLocalWebSocketEvent(): Received weerlive settings data:");
@@ -1180,7 +1358,25 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
           debug->println("handleLocalWebSocketEvent(): No weerliveSettingsData found in the message");
         }
       }
-      else {
+      // Check if this is a saveMediastackSettings message
+      else if (strcmp(processType, "saveMediastackSettings") == 0) 
+      {
+        debug->println("handleLocalWebSocketEvent(): Handling saveMediastackSettings message");
+        
+        // Check if inputValues exists and contains mediastackSettingsData
+        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("mediastackSettingsData")) 
+        {
+          // Get the mediastackSettingsData as a string
+          const char* mediastackSettingsData = doc["inputValues"]["mediastackSettingsData"];
+          debug->println("handleLocalWebSocketEvent(): Received mediastack settings data:");
+          debug->println(mediastackSettingsData);
+          
+          // Process the mediastack settings data
+          processMediastackSettings(mediastackSettingsData);
+        } else {
+          debug->println("handleLocalWebSocketEvent(): No mediastackSettingsData found in the message");
+        }
+      } else {
         debug->printf("handleLocalWebSocketEvent(): Unknown process type: %s\n", processType);
       }
     } else {
@@ -1288,6 +1484,20 @@ void mainCallbackWeerliveSettings()
   sendWeerliveFieldsToClient();
 
 } // mainCallbackWeerliveSettings()
+
+
+void mainCallbackMediastackSettings()
+{
+  spa.setMessage("Main Menu \"Mediastack Settings\" clicked!", 5);
+  spa.activatePage("mediastackSettingsPage");
+  
+  // Call the JavaScript function to set up event handlers
+  spa.callJsFunction("isEspTicker32Loaded");
+  
+  // Send the mediastack settings to the client
+  sendMediastackFieldsToClient();
+
+} // mainCallbackMediastackSettings()
 
     
 void mainCallbackSettings()
@@ -1501,27 +1711,32 @@ void setupSettingsPage()
       <div style="margin-top: 20px;">
         <button id="saveSettingsButton" onclick="saveSettings()">Save</button>
       </div>
+    <div style="font-size: 12px; text-align: center;">
+    <p>De meeste settings worden pas toegepast bij een <b>reset</b> van de espTicker32
     </div>
     )HTML";
   
   debug->println("\nsetupSettingsPage(): Adding settings page");
   spa.addPage("devSettingsPage", settingsPage);
   spa.setPageTitle("devSettingsPage", "Device Settings");
-  //-- Add Settings menu
   spa.addMenu("devSettingsPage", "Device Settings");
   spa.addMenuItem("devSettingsPage", "Device Settings", "Exit", handleMenuItem, "SET-UP");
   
   spa.addPage("parolaSettingsPage", settingsPage);
   spa.setPageTitle("parolaSettingsPage", "Parola Settings");
-  //-- Add Settings menu
   spa.addMenu("parolaSettingsPage", "Parola Settings");
   spa.addMenuItem("parolaSettingsPage", "Parola Settings", "Exit", handleMenuItem, "SET-UP");
 
   spa.addPage("weerliveSettingsPage", settingsPage);
   spa.setPageTitle("weerliveSettingsPage", "Weerlive Settings");
-  //-- Add Settings menu
   spa.addMenu("weerliveSettingsPage", "Weerlive Settings");
   spa.addMenuItem("weerliveSettingsPage", "Weerlive Settings", "Exit", handleMenuItem, "SET-UP");
+
+  spa.addPage("mediastackSettingsPage", settingsPage);
+  spa.setPageTitle("mediastackSettingsPage", "Mediastack Settings");
+  spa.addMenu("mediastackSettingsPage", "Mediastack Settings");
+  spa.addMenuItem("mediastackSettingsPage", "Mediastack Settings", "Exit", handleMenuItem, "SET-UP");
+
   
 } // setupSettingsPage()
 
@@ -1536,6 +1751,7 @@ void setupMainSettingsPage()
     <li>Device settings</li>
     <li>Parola settings</li>
     <li>Weerlive settings</li>
+    <li>Mediastack settings</li>
     </ul> 
     )HTML";
   
@@ -1547,6 +1763,7 @@ void setupMainSettingsPage()
   spa.addMenuItem("mainSettingsPage", "Settings", "Device Settings", mainCallbackDevSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Parola Settings", mainCallbackParolaSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Weerlive Settings", mainCallbackWeerliveSettings);
+  spa.addMenuItem("mainSettingsPage", "Settings", "Mediastack Settings", mainCallbackMediastackSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Exit", handleMenuItem, "SET-EXIT");
 
 } //  setupMainSettingsPage()
@@ -1651,10 +1868,22 @@ void setup()
     settings.readParolaSettings();
     debug->println("setup(): readWeerliveSettings()");
     settings.readWeerliveSettings();
+    debug->println("setup(): readMediastackSettings()");
+    settings.readMediastackSettings();
     
     // Store references to settings and attributes globally
     gDeviceSettings = &settings.getDeviceSettings();
     gDeviceAttributes = &settings.getDeviceAttributes();
+
+    gParolaSettings = &settings.getParolaSettings();
+    gParolaAttributes = &settings.getParolaAttributes();
+
+    gWeerliveSettings = &settings.getWeerliveSettings();
+    gWeerliveAttributes = &settings.getWeerliveAttributes();
+    
+    gMediastackSettings = &settings.getMediastackSettings();
+    gMediastackAttributes = &settings.getMediastackAttributes();
+
     if (gDeviceSettings->hostname.empty()) 
     {
         debug->println("setup(): No hostname found in settings, using default");
@@ -1663,8 +1892,7 @@ void setup()
         // Update the global reference after writing
         gDeviceSettings = &settings.getDeviceSettings();
     }
-    gWeerliveSettings = &settings.getWeerliveSettings();
-    gWeerliveAttributes = &settings.getWeerliveAttributes();
+
 
     //-- Define custom NTP servers (optional)
     const char* ntpServers[] = {"time.google.com", "time.cloudflare.com", nullptr};
@@ -1711,7 +1939,18 @@ void setup()
                                                                 , gWeerliveSettings->plaats.c_str()
                                                                 , gWeerliveSettings->requestInterval);
     weerlive.setup(gWeerliveSettings->authToken.c_str(), gWeerliveSettings->plaats.c_str(), debug);
-    weerlive.setInterval(gWeerliveSettings->requestInterval); // Set interval to 10 minutes
+    weerlive.setInterval(gWeerliveSettings->requestInterval); 
+
+    debug->printf("setup(): mediastackAuthToken: [%s], requestInterval: [%d minuten], maxMessages: [%d], onlyDuringDay: [%s]\n"
+                                              , gMediastackSettings->authToken.c_str()
+                                              , gMediastackSettings->requestInterval
+                                              , gMediastackSettings->maxMessages
+                                              , gMediastackSettings->onlyDuringDay ? "true" : "false");
+    mediastack.setup(gMediastackSettings->authToken.c_str(), gMediastackSettings->requestInterval
+                                                           , gMediastackSettings->maxMessages
+                                                           , gMediastackSettings->onlyDuringDay
+                                                           , debug);
+    //mediastack.setInterval(gMediastackSettings->requestInterval);
 
     spa.activatePage("Main");
 
@@ -1732,9 +1971,14 @@ void loop()
   if (weerlive.loop(weerliveInfo))
   {
     snprintf(weerliveText, 2000, "%s", weerliveInfo.c_str());
-    debug->printf("loop(): weerliveText: [%s]\n", weerliveText);
+    debug->printf("weerlive::loop(): weerliveText: [%s]\n", weerliveText);
   
   }
+  if (mediastack.loop(network->ntpGetTmStruct()))
+  {
+    debug->println("mediastack::loop(): mediastack updated");
+  }
+
   //-- Print current time every 60 seconds
   static unsigned long lastPrint = 0;
   if (millis() - lastPrint >= 60000)
