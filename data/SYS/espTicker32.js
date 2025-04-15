@@ -1,35 +1,36 @@
 //----- espTicker32.js -----
 // Array to store input field values
-let inputFields = [];
+let LocalMessages = [];
 
 // Function to check if the page is ready for input fields
-function isPageReadyForInputFields() {
+function isPageReadyForLocalMessages() 
+{
   // Check if the inputTableBody element exists
   const tableBody = document.getElementById('inputTableBody');
   return !!tableBody;
-} // isPageReadyForInputFields()
+} // isPageReadyForLocalMessages()
 
 
 // Function to initialize the input fields from JSON
-function initializeInputFields(jsonString) 
+function initializeLocalMessages(jsonString) 
 {
-  console.log('initializeInputFields called with:', jsonString);
+  console.log('initializeLocalMessages called with:', jsonString);
   try {
-    inputFields = JSON.parse(jsonString) || [];
-    renderInputFields();
+    LocalMessages = JSON.parse(jsonString) || [];
+    renderLocalMessages();
   } catch (e) {
     console.error('Error parsing JSON:', e);
-    inputFields = [];
+    LocalMessages = [];
   }
 }
 
 // Function to render the input fields in the table
-function renderInputFields() 
+function renderLocalMessages() 
 {
-  console.log('renderInputFields called');
+  console.log('renderLocalMessages called');
   
   // Check if the page is ready
-  if (!isPageReadyForInputFields()) {
+  if (!isPageReadyForLocalMessages()) {
     console.error('Input table body not found in DOM, page not ready yet');
     return;
   }
@@ -37,47 +38,151 @@ function renderInputFields()
   const tableBody = document.getElementById('inputTableBody');
   tableBody.innerHTML = '';
   
-  inputFields.forEach((value, index) => {
+  LocalMessages.forEach((value, index) => {
     const row = document.createElement('tr');
     const cell = document.createElement('td');
     cell.style.padding = '8px';
     
+    // Create a container for the input and buttons
+    const container = document.createElement('div');
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.style.width = '100%';
+    
+    // Create the input field
     const input = document.createElement('input');
     input.type = 'text';
     input.value = value;
-    input.style.width = '100%';
+    input.style.width = '100ch'; // Set to exactly 100ch wide
     input.style.maxWidth = '100ch';
+    input.style.fontFamily = "'Courier New', Courier, monospace"; // Set monospace font
     input.maxLength = 100;
     input.dataset.index = index;
     input.addEventListener('input', (e) => {
-      inputFields[e.target.dataset.index] = e.target.value;
+      LocalMessages[e.target.dataset.index] = e.target.value;
     });
     
-    cell.appendChild(input);
+    // Add the input to the container
+    container.appendChild(input);
+    
+    // Create a button container for better alignment
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.marginLeft = '8px';
+    
+    // Create the "+" button
+    const addButton = document.createElement('button');
+    addButton.textContent = '+';
+    addButton.title = 'Add empty message below';
+    addButton.style.marginRight = '4px';
+    addButton.addEventListener('click', () => {
+      addMessageBelow(index);
+    });
+    
+    // Create the "Up" button
+    const upButton = document.createElement('button');
+    upButton.textContent = 'Up';
+    upButton.title = 'Move message up';
+    upButton.style.marginRight = '4px';
+    upButton.disabled = index === 0; // Disable if it's the first message
+    upButton.addEventListener('click', () => {
+      moveMessageUp(index);
+    });
+    
+    // Create the "Down" button
+    const downButton = document.createElement('button');
+    downButton.textContent = 'Down';
+    downButton.title = 'Move message down';
+    downButton.style.marginRight = '4px';
+    downButton.disabled = index === LocalMessages.length - 1; // Disable if it's the last message
+    downButton.addEventListener('click', () => {
+      moveMessageDown(index);
+    });
+    
+    // Create the "-" button
+    const removeButton = document.createElement('button');
+    removeButton.textContent = '-';
+    removeButton.title = 'Remove message';
+    removeButton.addEventListener('click', () => {
+      removeMessage(index);
+    });
+    
+    // Add the buttons to the button container
+    buttonContainer.appendChild(addButton);
+    buttonContainer.appendChild(upButton);
+    buttonContainer.appendChild(downButton);
+    buttonContainer.appendChild(removeButton);
+    
+    // Add the button container to the main container
+    container.appendChild(buttonContainer);
+    
+    // Add the container to the cell
+    cell.appendChild(container);
     row.appendChild(cell);
     tableBody.appendChild(row);
   });
 
-} // renderInputFields()
+} // renderLocalMessages()
 
+// Function to add an empty message below the specified index
+function addMessageBelow(index) 
+{
+  console.log(`Adding empty message below index ${index}`);
+  LocalMessages.splice(index + 1, 0, '');
+  renderLocalMessages();
+}
+
+// Function to move a message up one position
+function moveMessageUp(index) 
+{
+  console.log(`Moving message at index ${index} up`);
+  if (index > 0) {
+    // Swap with the message above
+    const temp = LocalMessages[index];
+    LocalMessages[index] = LocalMessages[index - 1];
+    LocalMessages[index - 1] = temp;
+    renderLocalMessages();
+  }
+}
+
+// Function to move a message down one position
+function moveMessageDown(index) 
+{
+  console.log(`Moving message at index ${index} down`);
+  if (index < LocalMessages.length - 1) {
+    // Swap with the message below
+    const temp = LocalMessages[index];
+    LocalMessages[index] = LocalMessages[index + 1];
+    LocalMessages[index + 1] = temp;
+    renderLocalMessages();
+  }
+}
+
+// Function to remove a message
+function removeMessage(index) 
+{
+  console.log(`Removing message at index ${index}`);
+  LocalMessages.splice(index, 1);
+  renderLocalMessages();
+}
 // Function to add a new input field
 function addInputField() 
 {
   console.log('addInputField called');
-  inputFields.push('');
-  renderInputFields();
+  LocalMessages.push('');
+  renderLocalMessages();
 }
 
 // Function to save input fields via WebSocket
-function saveInputFields() 
+function saveLocalMessages() 
 {
-  console.log('saveInputFields called');
+  console.log('saveLocalMessages called');
   if (window.ws && window.ws.readyState === WebSocket.OPEN) 
   {
     window.ws.send(JSON.stringify({
       type: 'process',
-      processType: 'saveInputFields',
-      inputValues: { 'inputFieldsData': JSON.stringify(inputFields) }
+      processType: 'saveLocalMessages',
+      inputValues: { 'LocalMessagesData': JSON.stringify(LocalMessages) }
     }));
   } else {
     console.error('WebSocket is not connected');
@@ -114,19 +219,19 @@ function isEspTicker32Loaded()
       // Try to parse the message as JSON
       const data = JSON.parse(event.data);
       
-      // Check if this is our custom inputFieldsData message
-      if (data.type === 'custom' && data.action === 'inputFieldsData') {
+      // Check if this is our custom LocalMessagesData message
+      if (data.type === 'custom' && data.action === 'LocalMessagesData') {
         console.log('Received input fields data');
         
         // Initialize with the data
-        initializeInputFields(data.data);
+        initializeLocalMessages(data.data);
       }
       // Also check for direct JSON arrays for backward compatibility
       else if (event.data.startsWith('[') && event.data.endsWith(']')) {
         console.log('Received direct input fields data');
         
         // Try to initialize immediately
-        initializeInputFields(event.data);
+        initializeLocalMessages(event.data);
       }
     } catch (e) {
       console.error('Error handling WebSocket message:', e);
@@ -136,16 +241,16 @@ function isEspTicker32Loaded()
         console.log('Received direct input fields data');
         
         // Try to initialize immediately
-        initializeInputFields(event.data);
+        initializeLocalMessages(event.data);
       }
     }
   });
   
   // Check if the page is ready for input fields
-  if (isPageReadyForInputFields()) {
+  if (isPageReadyForLocalMessages()) {
     // Request input fields data from the server
     console.log("Page is ready, requesting input fields data from server");
-    requestInputFields();
+    requestLocalMessages();
   } else {
     // Page is not ready yet, wait and check again
     console.log("Page is not ready yet, waiting...");
@@ -155,9 +260,9 @@ function isEspTicker32Loaded()
     const maxRetries = 10;
     const checkInterval = setInterval(() => {
       retryCount++;
-      if (isPageReadyForInputFields()) {
+      if (isPageReadyForLocalMessages()) {
         console.log("Page is now ready, requesting input fields data from server");
-        requestInputFields();
+        requestLocalMessages();
         clearInterval(checkInterval);
       } else if (retryCount >= maxRetries) {
         console.error("Max retries reached, page still not ready");
@@ -174,14 +279,14 @@ function isEspTicker32Loaded()
 
 
 // Function to request input fields data from the server
-function requestInputFields() 
+function requestLocalMessages() 
 {
   console.log("Requesting input fields data from server");
   window.ws.send(JSON.stringify({
-    type: 'requestInputFields'
+    type: 'requestLocalMessages'
   }));
 
-} // requestInputFields()
+} // requestLocalMessages()
 
 // Function to check if the page is ready for weerlive settings
 function isPageReadyForWeerliveSettings() 
@@ -869,12 +974,12 @@ function isEspTicker32Loaded() {
       // Try to parse the message as JSON
       const data = JSON.parse(event.data);
       
-      // Check if this is our custom inputFieldsData message
-      if (data.type === 'custom' && data.action === 'inputFieldsData') {
+      // Check if this is our custom LocalMessagesData message
+      if (data.type === 'custom' && data.action === 'LocalMessagesData') {
         console.log('Received input fields data');
         
         // Initialize with the data
-        initializeInputFields(data.data);
+        initializeLocalMessages(data.data);
       }
       // Check if this is our custom devSettingsData message
       else if (data.type === 'custom' && data.action === 'devSettingsData') {
@@ -902,7 +1007,7 @@ function isEspTicker32Loaded() {
         console.log('Received direct input fields data');
         
         // Try to initialize immediately
-        initializeInputFields(event.data);
+        initializeLocalMessages(event.data);
       }
     } catch (e) {
       console.error('Error handling WebSocket message:', e);
@@ -912,7 +1017,7 @@ function isEspTicker32Loaded() {
         console.log('Received direct input fields data');
         
         // Try to initialize immediately
-        initializeInputFields(event.data);
+        initializeLocalMessages(event.data);
       }
     }
   });
@@ -921,10 +1026,10 @@ function isEspTicker32Loaded() {
   const pageTitle = document.getElementById('title').textContent;
   console.log("Current page title:", pageTitle);
   
-  // Check if the page is ready for input fields (only for Local Messages page)
-  if (pageTitle.includes("Local Messages") && isPageReadyForInputFields()) {
+  // Check if the page is ready for input fields (only for Messages page)
+  if (pageTitle.includes("Messages") && isPageReadyForLocalMessages()) {
     console.log("Page is ready for input fields, requesting data from server");
-    requestInputFields();
+    requestLocalMessages();
   }
   
   // Check if the page is ready for device settings (only for Device Settings page)
