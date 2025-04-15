@@ -22,7 +22,7 @@ ParolaManager display(5);  // 5 = your CS pin
 
 #define CLOCK_UPDATE_INTERVAL  1000
 #define LOCAL_MESSAGES_PATH      "/localMessages.txt"
-#define LOCAL_MESSAGES_RECORD_SIZE  100
+#define LOCAL_MESSAGES_RECORD_SIZE  150
 
 Networking* network = nullptr;
 Stream* debug = nullptr;
@@ -92,6 +92,7 @@ String getLocalMessage()
 
 } // getLocalMessage()
 
+/****** 
 std::string nextMessage()
 {
     std::string newMessage = "-";
@@ -132,6 +133,50 @@ std::string nextMessage()
         break;
     }
 
+    debug->printf("nextMessage(): Sending text: [%s]\n", newMessage.c_str()); 
+    display.sendNextText(newMessage.c_str());
+    spa.callJsFunction("queueMessageToMonitor", newMessage.c_str());
+
+    return newMessage;
+
+} // nextMessage()
+*****/
+
+std::string nextMessage()
+{
+    std::string newMessage = "-";
+    newMessage = getLocalMessage().c_str();
+
+    if (strcmp(newMessage.c_str(), "<weerlive>") == 0) 
+    {
+        debug->println("nextMessage(): weerlive message");
+        newMessage = getWeatherLine().c_str();
+    }
+    else if (strcmp(newMessage.c_str(), "<news>") == 0) 
+    {
+        debug->println("nextMessage(): newsfeed message");
+        newMessage = getNewsLine().c_str();
+    }
+    else if (strcmp(newMessage.c_str(), "<date>") == 0) 
+    {
+        debug->println("nextMessage(): The Date");
+        newMessage = network->ntpGetDate();
+    }
+    else if (strcmp(newMessage.c_str(), "<time>") == 0) 
+    {
+        debug->println("nextMessage(): The Time");
+        newMessage = network->ntpGetTime();
+    }
+    else if (strcmp(newMessage.c_str(), "<datetime>") == 0) 
+    {
+        debug->println("nextMessage(): The Date & Time");
+        newMessage = network->ntpGetDateTime();
+    }
+    else if (strcmp(newMessage.c_str(), "<spaces>") == 0) 
+    {
+        debug->println("nextMessage(): spaces");
+        newMessage = "                                                                                     ";
+    }
     debug->printf("nextMessage(): Sending text: [%s]\n", newMessage.c_str()); 
     display.sendNextText(newMessage.c_str());
     spa.callJsFunction("queueMessageToMonitor", newMessage.c_str());
