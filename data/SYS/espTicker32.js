@@ -788,6 +788,15 @@ let isDisplayingMessage = false;
 // Queue to store pending messages
 let messageQueue = [];
 
+// Function to check if the page is ready for scrolling monitor
+function isPageReadyForScrollingMonitor() 
+{
+  // Check if the scrollingMonitor element exists
+  const monitor = document.getElementById('scrollingMonitor');
+  return !!monitor;
+
+} // isPageReadyForScrollingMonitor()
+
 function queueMessageToMonitor(text) 
 {
   // Check if text is undefined, null, or empty
@@ -795,6 +804,13 @@ function queueMessageToMonitor(text)
   {
     console.log("queueMessageToMonitor called with empty or undefined text");
     return; // Exit the function early
+  }
+
+  // Check if the page is ready for the scrolling monitor
+  if (!isPageReadyForScrollingMonitor()) 
+  {
+    console.error('Scrolling monitor not found in DOM, page not ready yet');
+    return;
   }
   
   // Add the message to the queue
@@ -810,11 +826,20 @@ function queueMessageToMonitor(text)
 async function processNextMessage() 
 {
   // If the queue is empty, we're done
-  if (messageQueue.length === 0) {
+  if (messageQueue.length === 0) 
+  {
     isDisplayingMessage = false;
     return;
   }
   
+  // Check if the page is ready for the scrolling monitor
+  if (!isPageReadyForScrollingMonitor()) 
+  {
+    console.error('Scrolling monitor not found in DOM, page not ready yet');
+    isDisplayingMessage = false;
+    return;
+  }
+
   // Mark that we're displaying a message
   isDisplayingMessage = true;
   
@@ -831,47 +856,53 @@ async function processNextMessage()
   // Get the next message from the queue
   const text = messageQueue.shift();
   
-  const words = text.split(/(?<=\s)|(?=[\n\r])/g); // keeps spaces/newlines as separate tokens
+  // Split text into words, keeping spaces with the preceding word
+  const words = text.split(/\s+|\r|\n/).map(w => w + ' ').filter(Boolean);
   let buffer = [];
   let currentLine = "";
   
-  // Helper to flush current line to buffer
-  function flushLine() 
-  {
-    buffer.push(currentLine);
-    currentLine = "";
-  }
-  
   // Word wrapping logic
-  for (let word of words) 
-  {
-    // Normalize newlines
-    if (word === "\n" || word === "\r") 
-    {
-      flushLine();
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    
+    // Handle newlines (if a word ends with \n or \r)
+    if (word.endsWith("\n ") || word.endsWith("\r ")) {
+      // Add the word without the newline and space
+      currentLine += word.slice(0, -2);
+      buffer.push(currentLine);
+      currentLine = "";
       continue;
     }
     
-    // Handle word wrapping
-    while (word.length + currentLine.length > maxWidth) 
-    {
-      const spaceLeft = maxWidth - currentLine.length;
-      currentLine += word.slice(0, spaceLeft);
-      flushLine();
-      word = word.slice(spaceLeft);
+    // If the word fits on the current line, add it
+    if (currentLine.length + word.length <= maxWidth) {
+      currentLine += word;
+    } 
+    // If the word doesn't fit but the line is not empty, start a new line
+    else if (currentLine.length > 0) {
+      buffer.push(currentLine);
+      currentLine = word;
+    } 
+    // If the word doesn't fit and the line is empty, we have to split the word
+    else {
+      // Handle words longer than maxWidth
+      let remainingWord = word;
+      while (remainingWord.length > maxWidth) {
+        buffer.push(remainingWord.slice(0, maxWidth));
+        remainingWord = remainingWord.slice(maxWidth);
+      }
+      currentLine = remainingWord;
     }
     
-    currentLine += word;
-    
     // If line is exactly maxWidth, flush it
-    if (currentLine.length === maxWidth) 
-    {
-      flushLine();
+    if (currentLine.length >= maxWidth) {
+      buffer.push(currentLine);
+      currentLine = "";
     }
   }
   
   // Flush any remaining content
-  if (currentLine) flushLine();
+  if (currentLine) buffer.push(currentLine);
   
   // Initialize the monitor if it's empty
   if (!monitor.textContent.trim()) {
@@ -946,15 +977,18 @@ async function processNextMessage()
 
 
 // Update the isEspTicker32Loaded function to handle device settings
-function isEspTicker32Loaded() {
+function isEspTicker32Loaded() 
+{
   console.log("isEspTicker32Loaded called");
   
   // Check if we already have a WebSocket connection
-  if (!window.ws || window.ws.readyState !== WebSocket.OPEN) {
+  if (!window.ws || window.ws.readyState !== WebSocket.OPEN) 
+    {
     console.log("WebSocket not available or not open, checking global ws variable");
     
     // Try to use the global ws variable from SPAmanager.js
-    if (typeof ws !== 'undefined' && ws.readyState === WebSocket.OPEN) {
+    if (typeof ws !== 'undefined' && ws.readyState === WebSocket.OPEN) 
+      {
       console.log("Using global ws variable from SPAmanager");
       window.ws = ws;
     } else {
@@ -1026,26 +1060,40 @@ function isEspTicker32Loaded() {
   const pageTitle = document.getElementById('title').textContent;
   console.log("Current page title:", pageTitle);
   
+  // Check if this is the main page with the scrolling monitor
+  if (pageTitle.includes("Main") && isPageReadyForScrollingMonitor()) 
+  {
+    console.log("Main page is ready with scrolling monitor");
+    // If there are any queued messages, process them
+    if (messageQueue.length > 0 && !isDisplayingMessage) {
+      processNextMessage();
+    }
+  }
+
   // Check if the page is ready for input fields (only for Messages page)
-  if (pageTitle.includes("Messages") && isPageReadyForLocalMessages()) {
+  if (pageTitle.includes("Messages") && isPageReadyForLocalMessages()) 
+  {
     console.log("Page is ready for input fields, requesting data from server");
     requestLocalMessages();
   }
   
   // Check if the page is ready for device settings (only for Device Settings page)
-  if (pageTitle.includes("Device Settings") && isPageReadyForDevSettings()) {
+  if (pageTitle.includes("Device Settings") && isPageReadyForDevSettings()) 
+  {
     console.log("Page is ready for device settings, requesting data from server");
     requestDevSettings();
   }
 
   // Check if the page is ready for parola settings (only for Parola Settings page)
-  if (pageTitle.includes("Parola Settings") && isPageReadyForParolaSettings()) {
+  if (pageTitle.includes("Parola Settings") && isPageReadyForParolaSettings()) 
+  {
     console.log("Page is ready for parola settings, requesting data from server");
     requestParolaSettings();
   }
   
   // Check if the page is ready for weerlive settings (only for Weerlive Settings page)
-  if (pageTitle.includes("Weerlive Settings") && isPageReadyForWeerliveSettings()) {
+  if (pageTitle.includes("Weerlive Settings") && isPageReadyForWeerliveSettings()) 
+  {
     console.log("Page is ready for weerlive settings, requesting data from server");
     requestWeerliveSettings();
   }
