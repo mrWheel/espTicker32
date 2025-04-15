@@ -18,6 +18,16 @@ const DeviceAttributes& SettingsClass::getDeviceAttributes()
   return deviceAttributes;
 }
 
+ParolaSettings& SettingsClass::getParolaSettings()
+{
+  return parolaSettings;
+}
+
+const ParolaAttributes& SettingsClass::getParolaAttributes()
+{
+  return parolaAttributes;
+}
+
 WeerliveSettings& SettingsClass::getWeerliveSettings()
 {
   return weerliveSettings;
@@ -36,16 +46,6 @@ MediastackSettings& SettingsClass::getMediastackSettings()
 const MediastackAttributes& SettingsClass::getMediastackAttributes()
 {
   return mediastackAttributes;
-}
-
-ParolaSettings& SettingsClass::getParolaSettings()
-{
-  return parolaSettings;
-}
-
-const ParolaAttributes& SettingsClass::getParolaAttributes()
-{
-  return parolaAttributes;
 }
 
 
@@ -265,7 +265,7 @@ std::string SettingsClass::buildMediastackFieldsJson()
 
   // Set the root-level keys
   doc["type"] = "update";
-  doc["target"] = "MediastackSettings";
+  doc["target"] = "mediastackSettings";
   doc["settingsName"] = "Mediastack Settings";
 
   // Add the "fields" array - CHANGE FROM "devFields" to "fields"
@@ -287,6 +287,16 @@ std::string SettingsClass::buildMediastackFieldsJson()
   field2["fieldType"] = "n";
   field2["fieldMin"] = mediastackAttributes.requestIntervalMin;
   field2["fieldMax"] = mediastackAttributes.requestIntervalMax;
+  field2["fieldStep"] = 1;
+
+  //-- uint8_t onlyDuringDay;
+  JsonObject field3 = fields.createNestedObject();
+  field3["fieldName"] = "onlyDuringDay";
+  field3["fieldPrompt"] = "Update alleen tussen 08:00 en 18:00";
+  field3["fieldValue"] = mediastackSettings.onlyDuringDay;
+  field3["fieldType"] = "n";
+  field3["fieldMin"] = mediastackAttributes.onlyDuringDayMin;
+  field3["fieldMax"] = mediastackAttributes.onlyDuringDayMax;
   field2["fieldStep"] = 1;
     
   // Serialize to a string and return it
@@ -611,6 +621,9 @@ void SettingsClass::readMediastackSettings()
         else if (line.startsWith("requestInterval=")) {
           mediastackSettings.requestInterval = line.substring(16).toInt();
         }
+        else if (line.startsWith("onlyDuringDay=")) {
+          mediastackSettings.onlyDuringDay = line.substring(14).toInt();
+        }
     }
 
     file.close();
@@ -645,6 +658,17 @@ void SettingsClass::writeMediastackSettings()
     }
     debug->printf("mediastackSetting(): requestInterval=%d\n", mediastackSettings.requestInterval);
     file.printf("requestInterval=%d\n", mediastackSettings.requestInterval);
+
+    // Validate and write onlyDuringDay
+    if (mediastackSettings.onlyDuringDay < mediastackAttributes.onlyDuringDayMin) {
+      debug->println("Error: onlyDuringDay below minimum, setting to minimum");
+      mediastackSettings.onlyDuringDay = mediastackAttributes.onlyDuringDayMin;
+  } else if (mediastackSettings.onlyDuringDay > mediastackAttributes.onlyDuringDayMax) {
+      debug->println("Error: onlyDuringDay above maximum, setting to maximum");
+      mediastackSettings.onlyDuringDay = mediastackAttributes.onlyDuringDayMax;
+  }
+  debug->printf("mediastackSetting(): onlyDuringDay=%d\n", mediastackSettings.onlyDuringDay);
+  file.printf("onlyDuringDay=%d\n", mediastackSettings.onlyDuringDay);
 
     file.close();
     debug->println("MediastackSettings saved successfully");

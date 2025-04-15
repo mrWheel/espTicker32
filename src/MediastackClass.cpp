@@ -108,6 +108,7 @@ bool Mediastack::fetchNews() {
                         newsMessage[msgIdx++] = c;
                 }
                 newsMessage[msgIdx] = '\0';
+                //-- remove the '"description":' part from the end
                 if (msgIdx > 30)
                     newsMessage[msgIdx - 16] = 0;
 

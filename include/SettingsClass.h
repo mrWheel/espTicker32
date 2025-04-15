@@ -68,6 +68,7 @@ struct MediastackSettings {
   std::string authToken;
   uint8_t maxMessages;
   uint8_t requestInterval;
+  uint8_t onlyDuringDay;
 };
 
 struct MediastackAttributes {
@@ -76,6 +77,8 @@ struct MediastackAttributes {
   uint8_t requestIntervalMax = 240;
   uint8_t maxMessagesMin = 1;
   uint8_t maxMessagesMax = 10;
+  uint8_t onlyDuringDayMin = 0;
+  uint8_t onlyDuringDayMax = 1;
 };
 
 class SettingsClass {
