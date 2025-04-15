@@ -13,6 +13,7 @@ struct DeviceSettings {
     uint8_t LDRMaxWaarde;
     uint8_t maxIntensiteitLeds;
     std::string skipItems;
+    uint8_t tickerSpeed;
     
 };
 
@@ -27,13 +28,15 @@ struct DeviceAttributes {
     uint8_t maxIntensiteitLedsMin = 10;
     uint8_t maxIntensiteitLedsMax = 55;
     size_t skipItemsLen = 256;
-};
+    uint8_t tickerSpeedMin = 10;
+    uint8_t tickerSpeedMax = 120;
+  };
 
 struct ParolaSettings {
   uint8_t hardwareType;
   uint8_t numDevices;
   uint8_t numZones;
-  uint8_t speed;
+//uint8_t speed;
   
 };
 
@@ -44,8 +47,8 @@ struct ParolaAttributes {
   uint8_t numDevicesMax = 22;
   uint8_t numZonesMin = 1;
   uint8_t numZonesMax = 2;
-  uint8_t speedMin = 1;
-  uint8_t speedMax = 100;
+//uint8_t speedMin = 1;
+//uint8_t speedMax = 100;
 };
 
 struct WeerliveSettings {
@@ -57,18 +60,34 @@ struct WeerliveSettings {
 struct WeerliveAttributes {
   size_t authTokenLen = 16;
   size_t plaatsLen = 32;
-  uint8_t requestIntervalMin = 1;
+  uint8_t requestIntervalMin = 10;
   uint8_t requestIntervalMax = 120;
+};
+
+struct MediastackSettings {
+  std::string authToken;
+  uint8_t maxMessages;
+  uint8_t requestInterval;
+};
+
+struct MediastackAttributes {
+  size_t authTokenLen = 16;
+  uint8_t requestIntervalMin = 60;
+  uint8_t requestIntervalMax = 240;
+  uint8_t maxMessagesMin = 1;
+  uint8_t maxMessagesMax = 10;
 };
 
 class SettingsClass {
 private:
     DeviceSettings deviceSettings;
     WeerliveSettings weerliveSettings;
+    MediastackSettings mediastackSettings;
     ParolaSettings parolaSettings;
     Stream* debug = nullptr; // Optional, default to nullptr
     DeviceAttributes deviceAttributes;
     WeerliveAttributes weerliveAttributes;
+    MediastackAttributes mediastackAttributes;
     ParolaAttributes parolaAttributes;
 
 public:
@@ -79,7 +98,9 @@ public:
     DeviceSettings& getDeviceSettings();
     const DeviceAttributes& getDeviceAttributes();
     WeerliveSettings& getWeerliveSettings();
+    MediastackSettings& getMediastackSettings();
     const WeerliveAttributes& getWeerliveAttributes();
+    const MediastackAttributes& getMediastackAttributes();
     ParolaSettings& getParolaSettings();
     const ParolaAttributes& getParolaAttributes();
     std::string buildDeviceFieldsJson();

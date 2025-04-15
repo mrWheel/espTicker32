@@ -28,6 +28,16 @@ const WeerliveAttributes& SettingsClass::getWeerliveAttributes()
   return weerliveAttributes;
 }
 
+MediastackSettings& SettingsClass::getMediastackSettings()
+{
+  return mediastackSettings;
+}
+
+const MediastackAttributes& SettingsClass::getMediastackAttributes()
+{
+  return mediastackAttributes;
+}
+
 ParolaSettings& SettingsClass::getParolaSettings()
 {
   return parolaSettings;
@@ -110,6 +120,17 @@ std::string SettingsClass::buildDeviceFieldsJson()
   field6["fieldType"] = "s";
   field6["fieldLen"] = deviceAttributes.skipItemsLen;
 
+  //-- uint8_t tickerSpeed;
+  JsonObject field7 = fields.createNestedObject();
+  field7["fieldName"] = "tickerSpeed";
+  field7["fieldPrompt"] = "Ticker Scroll Speed";
+  field7["fieldValue"] = deviceSettings.tickerSpeed;
+  field7["fieldType"] = "n";
+  field7["fieldMin"] = deviceAttributes.tickerSpeedMin;
+  field7["fieldMax"] = deviceAttributes.tickerSpeedMax;
+  field7["fieldStep"] = 1;
+    
+
   // Serialize to a string and return it
   std::string jsonString;
   serializeJson(doc, jsonString);
@@ -165,14 +186,14 @@ std::string SettingsClass::buildParolaFieldsJson()
   field3["fieldStep"] = 1;
 
   //-- std::string parola scroll speed;
-  JsonObject field4 = fields.createNestedObject();
-  field4["fieldName"] = "speed";
-  field4["fieldPrompt"] = "Scroll Speed";
-  field4["fieldValue"] = parolaSettings.speed;
-  field4["fieldType"] = "n";
-  field4["fieldMin"] = parolaAttributes.speedMin;
-  field4["fieldMax"] = parolaAttributes.speedMax;
-  field4["fieldStep"] = 1;    
+  //JsonObject field4 = fields.createNestedObject();
+  //field4["fieldName"] = "speed";
+  //field4["fieldPrompt"] = "Scroll Speed";
+  //field4["fieldValue"] = parolaSettings.speed;
+  //field4["fieldType"] = "n";
+  //field4["fieldMin"] = parolaAttributes.speedMin;
+  //field4["fieldMax"] = parolaAttributes.speedMax;
+  //field4["fieldStep"] = 1;    
 
   // Serialize to a string and return it
   std::string jsonString;
@@ -271,6 +292,9 @@ void SettingsClass::readDeviceSettings()
         else if (line.startsWith("skipItems=")) {
           deviceSettings.skipItems = std::string(line.substring(10).c_str());
         }
+        else if (line.startsWith("tickerSpeed=")) {
+          deviceSettings.tickerSpeed = line.substring(12).toInt();
+        }
     }
 
     file.close();
@@ -345,6 +369,17 @@ void SettingsClass::writeDeviceSettings()
     debug->printf("writeDeviceSettings(): skipItems=%s\n", deviceSettings.skipItems.c_str());
     file.printf("skipItems=%s\n", deviceSettings.skipItems.c_str());
 
+    // Validate and write tickerSpeed
+    if (deviceSettings.tickerSpeed < deviceAttributes.tickerSpeedMin) {
+      debug->println("Error: tickerSpeed below minimum, setting to minimum");
+      deviceSettings.tickerSpeed = deviceAttributes.tickerSpeedMin;
+  } else if (deviceSettings.tickerSpeed > deviceAttributes.tickerSpeedMax) {
+      debug->println("Error: tickerSpeed above maximum, setting to maximum");
+      deviceSettings.tickerSpeed = deviceAttributes.tickerSpeedMax;
+  }
+  debug->printf("writeDeviceSettings(): tickerSpeed=%d\n", deviceSettings.tickerSpeed);
+  file.printf("tickerSpeed=%d\n", deviceSettings.tickerSpeed);
+
     file.close();
     debug->println("writeDeviceSettings(): Settings saved successfully");
 
@@ -377,9 +412,9 @@ void SettingsClass::readParolaSettings()
         else if (line.startsWith("numZones=")) {
           parolaSettings.numZones = line.substring(9).toInt();
         }
-        else if (line.startsWith("speed=")) {
-          parolaSettings.speed = line.substring(6).toInt();
-        }
+//       else if (line.startsWith("speed=")) {
+//        parolaSettings.speed = line.substring(6).toInt();
+//      }
     }
 
     file.close();
@@ -429,7 +464,7 @@ void SettingsClass::writeParolaSettings()
     }
     debug->printf("writeParolaSettings(): numZones=%d\n", parolaSettings.numZones);
     file.printf("numZones=%d\n", parolaSettings.numZones);
-
+/******
     // Validate and write speed
     if (parolaSettings.speed < parolaAttributes.speedMin) {
       debug->println("Error: speed below minimum, setting to minimum");
@@ -440,7 +475,7 @@ void SettingsClass::writeParolaSettings()
     }
     debug->printf("writeParolaSettings(): speed=%d\n", parolaSettings.speed);
     file.printf("speed=%d\n", parolaSettings.speed);
-
+******/
     file.close();
     debug->println("writeParolaSettings(): Settings saved successfully");
 

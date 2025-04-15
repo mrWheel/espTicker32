@@ -13,6 +13,7 @@
 #include "SettingsClass.h"
 #include "LocalMessagesIO.h"
 #include "WeerliveClass.h"
+#include "MediastackClass.h"
 //#include <MD_Parola.h>
 //#include <MD_MAX72xx.h>
 //#include <SPI.h>
@@ -32,13 +33,16 @@ DeviceSettings* gDeviceSettings = nullptr;
 const DeviceAttributes* gDeviceAttributes = nullptr;
 WeerliveSettings* gWeerliveSettings = nullptr;
 const WeerliveAttributes* gWeerliveAttributes = nullptr;
+MediastackSettings* gMediastackSettings = nullptr;
+const MediastackAttributes* gMediastackAttributes = nullptr;
 ParolaSettings* gParolaSettings = nullptr;
 const ParolaAttributes* gParolaAttributes = nullptr;
 
 LocalMessagesIO localMessages(LOCAL_MESSAGES_PATH, LOCAL_MESSAGES_RECORD_SIZE);
 
-WiFiClient weerliveClient;
-Weerlive weerlive(weerliveClient);
+WiFiClient wifiClient;
+Weerlive weerlive(wifiClient);
+Mediastack mediastack(wifiClient);
 
 SPAmanager spa(80);
 //WebServer server(80);
@@ -677,6 +681,11 @@ void processDevSettings(const std::string& jsonString)
       debug->printf("processDevSettings(): Setting skipItems to [%s]\n", newValue);
       gDeviceSettings->skipItems = newValue;
     }
+    else if (strcmp(fieldName, "tickerSpeed") == 0) {
+      uint8_t newValue = field["value"].as<uint8_t>();
+      debug->printf("processDeviceSettings(): Setting tickerSpeed to [%d]\n", newValue);
+      gDeviceSettings->tickerSpeed = newValue;
+    }
     else {
       debug->printf("processDevSettings(): Unknown field: %s\n", fieldName);
     }
@@ -744,23 +753,23 @@ void processParolaSettings(const std::string& jsonString)
     if (strcmp(fieldName, "hardwareType") == 0) {
       uint8_t newValue = field["value"].as<uint8_t>();
       debug->printf("processParolaSettings(): Setting hardwareType to [%d]\n", newValue);
-      parolaSettings.hardwareType = newValue;
+      gParolaSettings->hardwareType = newValue;
     }
     else if (strcmp(fieldName, "numDevices") == 0) {
       uint8_t newValue = field["value"].as<uint8_t>();
       debug->printf("processParolaSettings(): Setting numDevices to [%d]\n", newValue);
-      parolaSettings.numDevices = newValue;
+      gParolaSettings->numDevices = newValue;
     }
     else if (strcmp(fieldName, "numZones") == 0) {
       uint8_t newValue = field["value"].as<uint8_t>();
       debug->printf("processParolaSettings(): Setting numZones to [%d]\n", newValue);
-      parolaSettings.numZones = newValue;
+      gParolaSettings->numZones = newValue;
     }
-    else if (strcmp(fieldName, "speed") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processParolaSettings(): Setting speed to [%d]\n", newValue);
-      parolaSettings.speed = newValue;
-    }
+//  else if (strcmp(fieldName, "speed") == 0) {
+//    uint8_t newValue = field["value"].as<uint8_t>();
+//    debug->printf("processParolaSettings(): Setting speed to [%d]\n", newValue);
+//    gParolaSettings.speed = newValue;
+//  }
     else {
       debug->printf("processParolaSettings(): Unknown field: %s\n", fieldName);
     }
@@ -1289,6 +1298,20 @@ void mainCallbackWeerliveSettings()
 
 } // mainCallbackWeerliveSettings()
 
+
+void mainCallbackMediastackSettings()
+{
+  spa.setMessage("Main Menu \"Mediastack Settings\" clicked!", 5);
+  spa.activatePage("mediastackSettingsPage");
+  
+  // Call the JavaScript function to set up event handlers
+  spa.callJsFunction("isEspTicker32Loaded");
+  
+  // Send the mediastack settings to the client
+  //sendMediastackFieldsToClient();
+
+} // mainCallbackMediastackSettings()
+
     
 void mainCallbackSettings()
 {
@@ -1507,21 +1530,24 @@ void setupSettingsPage()
   debug->println("\nsetupSettingsPage(): Adding settings page");
   spa.addPage("devSettingsPage", settingsPage);
   spa.setPageTitle("devSettingsPage", "Device Settings");
-  //-- Add Settings menu
   spa.addMenu("devSettingsPage", "Device Settings");
   spa.addMenuItem("devSettingsPage", "Device Settings", "Exit", handleMenuItem, "SET-UP");
   
   spa.addPage("parolaSettingsPage", settingsPage);
   spa.setPageTitle("parolaSettingsPage", "Parola Settings");
-  //-- Add Settings menu
   spa.addMenu("parolaSettingsPage", "Parola Settings");
   spa.addMenuItem("parolaSettingsPage", "Parola Settings", "Exit", handleMenuItem, "SET-UP");
 
   spa.addPage("weerliveSettingsPage", settingsPage);
   spa.setPageTitle("weerliveSettingsPage", "Weerlive Settings");
-  //-- Add Settings menu
   spa.addMenu("weerliveSettingsPage", "Weerlive Settings");
   spa.addMenuItem("weerliveSettingsPage", "Weerlive Settings", "Exit", handleMenuItem, "SET-UP");
+
+  spa.addPage("mediastackSettingsPage", settingsPage);
+  spa.setPageTitle("mediastackSettingsPage", "Mediastack Settings");
+  spa.addMenu("mediastackSettingsPage", "Mediastack Settings");
+  spa.addMenuItem("mediastackSettingsPage", "Mediastack Settings", "Exit", handleMenuItem, "SET-UP");
+
   
 } // setupSettingsPage()
 
@@ -1536,6 +1562,7 @@ void setupMainSettingsPage()
     <li>Device settings</li>
     <li>Parola settings</li>
     <li>Weerlive settings</li>
+    <li>Mediastack settings</li>
     </ul> 
     )HTML";
   
@@ -1547,6 +1574,7 @@ void setupMainSettingsPage()
   spa.addMenuItem("mainSettingsPage", "Settings", "Device Settings", mainCallbackDevSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Parola Settings", mainCallbackParolaSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Weerlive Settings", mainCallbackWeerliveSettings);
+  spa.addMenuItem("mainSettingsPage", "Settings", "Mediastack Settings", mainCallbackMediastackSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Exit", handleMenuItem, "SET-EXIT");
 
 } //  setupMainSettingsPage()
@@ -1663,6 +1691,10 @@ void setup()
         // Update the global reference after writing
         gDeviceSettings = &settings.getDeviceSettings();
     }
+
+    gParolaSettings = &settings.getParolaSettings();
+    gParolaAttributes = &settings.getParolaAttributes();
+
     gWeerliveSettings = &settings.getWeerliveSettings();
     gWeerliveAttributes = &settings.getWeerliveAttributes();
 
@@ -1711,7 +1743,13 @@ void setup()
                                                                 , gWeerliveSettings->plaats.c_str()
                                                                 , gWeerliveSettings->requestInterval);
     weerlive.setup(gWeerliveSettings->authToken.c_str(), gWeerliveSettings->plaats.c_str(), debug);
-    weerlive.setInterval(gWeerliveSettings->requestInterval); // Set interval to 10 minutes
+    weerlive.setInterval(gWeerliveSettings->requestInterval); 
+
+    gMediastackSettings = &settings.getMediastackSettings();
+    gMediastackAttributes = &settings.getMediastackAttributes();
+
+    mediastack.setup(gMediastackSettings->authToken.c_str(), gMediastackSettings->maxMessages, debug);
+    mediastack.setInterval(gMediastackSettings->requestInterval);
 
     spa.activatePage("Main");
 
