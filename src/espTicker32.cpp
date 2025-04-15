@@ -142,7 +142,7 @@ std::string nextMessage()
 
 
 // Function to build a JSON string with input field data
-std::string buildInputFieldsJson()
+std::string buildLocalMessagesJson()
 {
   uint8_t recNr = 0;
   bool first = true;
@@ -176,15 +176,15 @@ std::string buildInputFieldsJson()
   jsonString += "]";
   return jsonString;
 
-} // buildInputFieldsJson()
+} // buildLocalMessagesJson()
 
 
 
 // Function to send the JSON string to the client when localMessages page is activated
-void sendInputFieldsToClient()
+void sendLocalMessagesToClient()
 {
-  std::string jsonData = buildInputFieldsJson();
-  debug->printf("sendInputFieldsToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
+  std::string jsonData = buildLocalMessagesJson();
+  debug->printf("sendLocalMessagesToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
   
   // First, send the HTML content for the input fields
   DynamicJsonDocument doc(1024);
@@ -195,11 +195,11 @@ void sendInputFieldsToClient()
   std::string htmlContent = "";
   
   // Parse the JSON array
-  DynamicJsonDocument inputFields(1024);
-  DeserializationError error = deserializeJson(inputFields, jsonData);
+  DynamicJsonDocument LocalMessages(1024);
+  DeserializationError error = deserializeJson(LocalMessages, jsonData);
   
   if (!error) {
-    JsonArray array = inputFields.as<JsonArray>();
+    JsonArray array = LocalMessages.as<JsonArray>();
     for (size_t i = 0; i < array.size(); i++) {
       String value = array[i].as<String>();
       
@@ -226,16 +226,16 @@ void sendInputFieldsToClient()
   // Now send the raw JSON data in a format that SPAmanager can understand
   DynamicJsonDocument jsonDoc(1024);
   jsonDoc["type"] = "custom";
-  jsonDoc["action"] = "inputFieldsData";
+  jsonDoc["action"] = "LocalMessagesData";
   jsonDoc["data"] = jsonData;
   
   std::string jsonMessage;
   serializeJson(jsonDoc, jsonMessage);
-  debug->printf("sendInputFieldsToClient(): Sending JSON message to client: %s\n", jsonMessage.c_str());
+  debug->printf("sendLocalMessagesToClient(): Sending JSON message to client: %s\n", jsonMessage.c_str());
   // Send the JSON message via WebSocket
   spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
   
-} // sendInputFieldsToClient()
+} // sendLocalMessagesToClient()
 
 
 // Function to send the JSON string to the client when devSettingsPage is activated
@@ -518,11 +518,11 @@ void sendParolaFieldsToClient()
 
 
 // Function to process the received input fields from the client
-void processInputFields(const std::string& jsonString)
+void processLocalMessages(const std::string& jsonString)
 {
   uint8_t recNr = 0; // record number
 
-  debug->println("processInputFields(): Processing input fields from JSON:");
+  debug->println("processLocalMessages(): Processing input fields from JSON:");
   debug->println(jsonString.c_str());
   
   //-- Use ArduinoJson library to parse the JSON
@@ -531,27 +531,27 @@ void processInputFields(const std::string& jsonString)
   
   if (error) 
   {
-    debug->printf("processInputFields(): JSON parsing error: %s\n", error.c_str());
+    debug->printf("processLocalMessages(): JSON parsing error: %s\n", error.c_str());
     return;
   }
   
   if (!doc.is<JsonArray>()) 
   {
-    debug->println("processInputFields(): JSON is not an array");
+    debug->println("processLocalMessages(): JSON is not an array");
     return;
   }
   
   JsonArray array = doc.as<JsonArray>();
-  debug->printf("processInputFields(): Processing array with %d elements\n", array.size());
+  debug->printf("processLocalMessages(): Processing array with %d elements\n", array.size());
   
   for (size_t i = 0; i < array.size(); i++) {
     // Safely handle each value, even if it's null or empty
     if (array[i].isNull()) {
-      debug->println("processInputFields(): Skip (null)\n");
+      debug->println("processLocalMessages(): Skip (null)\n");
     } else {
       // Use String for Arduino compatibility, which handles empty strings properly
       String value = array[i].as<String>();
-      debug->printf("processInputFields(): Input value[%d]: %s\n", i, value.c_str());
+      debug->printf("processLocalMessages(): Input value[%d]: %s\n", i, value.c_str());
       if (localMessages.write(recNr, value.c_str()))
       {
         recNr++;
@@ -559,10 +559,10 @@ void processInputFields(const std::string& jsonString)
     }
   }
   
-  debug->printf("processInputFields(): [%d] Local Messages written to [%s]\n", recNr, LOCAL_MESSAGES_PATH);
-  sendInputFieldsToClient();
+  debug->printf("processLocalMessages(): [%d] Local Messages written to [%s]\n", recNr, LOCAL_MESSAGES_PATH);
+  sendLocalMessagesToClient();
 
-} // processInputFields()
+} // processLocalMessages()
 
 
 // Function to process the received device settings from the client
@@ -1034,10 +1034,10 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
       return;
     }
     
-    // Check if this is a requestInputFields message
-    if (doc["type"] == "requestInputFields") {
-      debug->println("handleLocalWebSocketEvent(): Handling requestInputFields message");
-      sendInputFieldsToClient();
+    // Check if this is a requestLocalMessages message
+    if (doc["type"] == "requestLocalMessages") {
+      debug->println("handleLocalWebSocketEvent(): Handling requestLocalMessages message");
+      sendLocalMessagesToClient();
       return;
     }
     
@@ -1067,21 +1067,21 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
       const char* processType = doc["processType"];
       debug->printf("handleLocalWebSocketEvent(): Processing message type: %s\n", processType);
       
-      // Check if this is a saveInputFields message
-      if (strcmp(processType, "saveInputFields") == 0) {
-        debug->println("handleLocalWebSocketEvent(): Handling saveInputFields message");
+      // Check if this is a saveLocalMessages message
+      if (strcmp(processType, "saveLocalMessages") == 0) {
+        debug->println("handleLocalWebSocketEvent(): Handling saveLocalMessages message");
         
-        // Check if inputValues exists and contains inputFieldsData
-        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("inputFieldsData")) {
-          // Get the inputFieldsData as a string
-          const char* inputFieldsData = doc["inputValues"]["inputFieldsData"];
+        // Check if inputValues exists and contains LocalMessagesData
+        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("LocalMessagesData")) {
+          // Get the LocalMessagesData as a string
+          const char* LocalMessagesData = doc["inputValues"]["LocalMessagesData"];
           debug->println("handleLocalWebSocketEvent(): Received input fields data:");
-          debug->println(inputFieldsData);
+          debug->println(LocalMessagesData);
           
           // Process the input fields data
-          processInputFields(inputFieldsData);
+          processLocalMessages(LocalMessagesData);
         } else {
-          debug->println("handleLocalWebSocketEvent(): No inputFieldsData found in the message");
+          debug->println("handleLocalWebSocketEvent(): No LocalMessagesData found in the message");
         }
       } 
       // Check if this is a saveDevSettings message
@@ -1293,14 +1293,14 @@ void processInputCallback(const std::map<std::string, std::string>& inputValues)
   debug->printf("Received %d input values\n", inputValues.size());
   
   // Check if this is our custom input fields data
-  if (inputValues.count("inputFieldsData") > 0) 
+  if (inputValues.count("LocalMessagesData") > 0) 
   {
-    const std::string& jsonData = inputValues.at("inputFieldsData");
+    const std::string& jsonData = inputValues.at("LocalMessagesData");
     debug->println("Received input fields data:");
     debug->println(jsonData.c_str());
     
     // Process the input fields data
-    processInputFields(jsonData.c_str());
+    processLocalMessages(jsonData.c_str());
   }
   
 }
@@ -1367,12 +1367,12 @@ void setupMainPage()
 void setupLocalMessagesPage()
 {
     const char *localMessagesPage = R"HTML(
-    <div style="font-size: 48px; text-align: center; font-weight: bold;">Local Messages</div>
+    <div style="font-size: 48px; text-align: center; font-weight: bold;">Messages</div>
     <div id="dynamicInputContainer">
       <table id="inputTable" style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr>
-            <th style="text-align: left; padding: 8px;">Input Fields</th>
+            <th style="text-align: left; padding: 8px;">(Local) Messages</th>
           </tr>
         </thead>
         <tbody id="inputTableBody">
@@ -1380,8 +1380,8 @@ void setupLocalMessagesPage()
         </tbody>
       </table>
       <div style="margin-top: 20px;">
-        <button id="saveButton" onclick="saveInputFields()">Save</button>
-        <button id="addButton" onclick="addInputField()">Add</button>
+        <button id="saveButton" onclick="saveLocalMessages()">Save</button>
+        <!--<button id="addButton" onclick="addInputField()">Add</button>-->
       </div>
     </div>
     )HTML";
