@@ -173,9 +173,9 @@ std::string nextMessage()
         debug->println("nextMessage(): spaces");
         newMessage = "                                                                                     ";
     }
-    debug->printf("nextMessage(): Sending text: [%s]\n", newMessage.c_str()); 
-    display.sendNextText(newMessage.c_str());
-    spa.callJsFunction("queueMessageToMonitor", newMessage.c_str());
+    debug->printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
+    display.sendNextText(("* "+newMessage+"*  ").c_str());
+    spa.callJsFunction("queueMessageToMonitor", ("* "+newMessage+" *").c_str());
 
     return newMessage;
 
