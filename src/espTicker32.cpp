@@ -14,6 +14,7 @@
 #include "LocalMessagesIO.h"
 #include "WeerliveClass.h"
 #include "MediastackClass.h"
+#include "RSSreaderClass.h"
 //#include <MD_Parola.h>
 //#include <MD_MAX72xx.h>
 //#include <SPI.h>
@@ -43,6 +44,7 @@ LocalMessagesIO localMessages(LOCAL_MESSAGES_PATH, LOCAL_MESSAGES_RECORD_SIZE);
 WiFiClient wifiClient;
 Weerlive weerlive(wifiClient);
 Mediastack mediastack(wifiClient);
+RSSreaderClass rssReader;
 
 SPAmanager spa(80);
 //WebServer server(80);
@@ -98,6 +100,23 @@ String getMediastackMessage()
 
 } // getMediastackMessage()
 
+String getRSSfeedMessage()
+{
+  static uint8_t msgNr = 0;
+  char rssFeedMessage[2000] = {};
+
+  snprintf(rssFeedMessage, sizeof(rssFeedMessage), "%s", rssReader.readRssFeed(msgNr).c_str());
+  if (strlen(rssFeedMessage) == 0) 
+  {
+    msgNr = 0;
+    snprintf(rssFeedMessage, sizeof(rssFeedMessage), "%s", rssReader.readRssFeed(msgNr).c_str());
+  } 
+  debug->printf("getRSSfeedMessage(): msgNr = [%d] rssFeedMessage = [%s]\n", msgNr, rssFeedMessage);
+  msgNr++;
+  return rssFeedMessage;
+
+} // getRSSfeedMessage()
+
 
 String getLocalMessage()
 {
@@ -129,6 +148,11 @@ std::string nextMessage()
         debug->println("nextMessage(): mediastack message");
         newMessage = getMediastackMessage().c_str();
     }
+    else if (strcmp(newMessage.c_str(), "<rssfeed>") == 0) 
+    {
+        debug->println("nextMessage(): rssfeed message");
+        newMessage = getRSSfeedMessage().c_str();
+    }
     else if (strcmp(newMessage.c_str(), "<date>") == 0) 
     {
         debug->println("nextMessage(): The Date");
@@ -149,9 +173,9 @@ std::string nextMessage()
         debug->println("nextMessage(): spaces");
         newMessage = "                                                                                     ";
     }
-    debug->printf("nextMessage(): Sending text: [%s]\n", newMessage.c_str()); 
-    display.sendNextText(newMessage.c_str());
-    spa.callJsFunction("queueMessageToMonitor", newMessage.c_str());
+    debug->printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
+    display.sendNextText(("* "+newMessage+"*  ").c_str());
+    spa.callJsFunction("queueMessageToMonitor", ("* "+newMessage+" *").c_str());
 
     return newMessage;
 
@@ -1952,6 +1976,10 @@ void setup()
                                                            , debug);
     //mediastack.setInterval(gMediastackSettings->requestInterval);
 
+    //rssReader.setup("https://feeds.nos.nl/nosnieuwsalgemeen", "/RSS1.txt", 10, (5 * 60 * 1000), debug);
+    rssReader.setup("https://feeds.nos.nl/nosnieuwsopmerkelijk", "/RSS1.txt", 10, (5 * 60 * 1000), debug);
+    
+
     spa.activatePage("Main");
 
     setupParola();
@@ -1978,6 +2006,8 @@ void loop()
   {
     debug->println("mediastack::loop(): mediastack updated");
   }
+
+  rssReader.loop(network->ntpGetTmStruct());
 
   //-- Print current time every 60 seconds
   static unsigned long lastPrint = 0;
