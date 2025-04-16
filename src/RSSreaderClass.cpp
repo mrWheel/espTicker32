@@ -14,6 +14,21 @@ void RSSreaderClass::setup(const char* url, const char* storageFile, size_t maxF
   debug = debugPort;
   debug->printf("RSSreaderClass::setup(): URL: [%s], File: [%s], Max Feeds: [%d], Interval: [%lu]\n", _url.c_str(), _filePath.c_str(), _maxFeeds, _interval);
 
+  LittleFS.begin();
+  if (!LittleFS.exists(_filePath)) 
+  {
+    debug->printf("RSSreaderClass::setup(): Bestand [%s] bestaat niet, aanmaken...\n", _filePath.c_str());
+    File file = LittleFS.open(_filePath, "w");
+    if (file) 
+    {
+      file.close();
+      debug->println("RSSreaderClass::setup(): Bestand aangemaakt.");
+    } else {
+      debug->println("RSSreaderClass::setup(): Kan bestand niet aanmaken.");
+    }
+  } else {
+    debug->println("RSSreaderClass::setup(): Bestand bestaat al.");
+  } 
   checkForNewFeedItems();
 
 }
@@ -32,7 +47,6 @@ String RSSreaderClass::fetchFeed(const char* url)
 {
   debug->printf("RSSreaderClass::fetchFeed(): URL: [%s]\n", url);
 
-  //WiFiClientSecure secureClient;
   secureClient.setInsecure();  // Accepteer alle certificaten (NIET voor productie)
 
   HTTPClient http;
@@ -65,13 +79,20 @@ std::vector<String> RSSreaderClass::extractTitles(const String& feed)
     if (end == -1) break;
     String title = feed.substring(start, end);
     title.trim();
+    
+    // Add code to remove CDATA tags
+    if (title.startsWith("<![CDATA[") && title.endsWith("]]>")) {
+      title = title.substring(9, title.length() - 3);
+    }
+    
     pos = end + 8;
     if (title.length() > 0) titles.push_back(title);
   }
 
   if (!titles.empty()) titles.erase(titles.begin()); // verwijder kanaaltitel
   return titles;
-}
+} // extractTitles()
+
 
 std::vector<String> RSSreaderClass::getStoredLines() 
 {
