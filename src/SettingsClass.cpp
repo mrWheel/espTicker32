@@ -1,722 +1,280 @@
 #include "SettingsClass.h"
 
-SettingsClass::SettingsClass() {
-    // Constructor can initialize default settings if needed
+SettingsClass::SettingsClass() 
+{
+  // Initialize settings containers
+  initializeSettingsContainers();
 }
 
-void SettingsClass::setDebug(Stream* debugPort) {
+void SettingsClass::setDebug(Stream* debugPort) 
+{
   debug = debugPort;
 }
 
-DeviceSettings& SettingsClass::getDeviceSettings()
+void SettingsClass::initializeSettingsContainers() 
 {
-  return deviceSettings;
-}
-
-const DeviceAttributes& SettingsClass::getDeviceAttributes()
-{
-  return deviceAttributes;
-}
-
-ParolaSettings& SettingsClass::getParolaSettings()
-{
-  return parolaSettings;
-}
-
-const ParolaAttributes& SettingsClass::getParolaAttributes()
-{
-  return parolaAttributes;
-}
-
-WeerliveSettings& SettingsClass::getWeerliveSettings()
-{
-  return weerliveSettings;
-}
-
-const WeerliveAttributes& SettingsClass::getWeerliveAttributes()
-{
-  return weerliveAttributes;
-}
-
-MediastackSettings& SettingsClass::getMediastackSettings()
-{
-  return mediastackSettings;
-}
-
-const MediastackAttributes& SettingsClass::getMediastackAttributes()
-{
-  return mediastackAttributes;
-}
-
-
-std::string SettingsClass::buildDeviceFieldsJson()
-{
-  // Estimate the size (you can also use the ArduinoJson Assistant online)
-  //-- to big for the stack: StaticJsonDocument<4096> doc;
-  //-- move to the heap
-  DynamicJsonDocument doc(4096);
-
-  // Set the root-level keys
-  doc["type"] = "update";
-  doc["target"] = "deviceSettings";
-  doc["settingsName"] = "Device Settings";
-
-  // Add the "fields" array - CHANGE FROM "devFields" to "fields"
-  JsonArray fields = doc.createNestedArray("fields");
-
-  //-- std::string hostname;
-  JsonObject field1 = fields.createNestedObject();
-  field1["fieldName"] = "hostname";
-  field1["fieldPrompt"] = "hostname";
-  field1["fieldValue"] = deviceSettings.hostname.c_str();
-  field1["fieldType"] = "s";
-  field1["fieldLen"] = deviceAttributes.hostnameLen;
-
-  //-- uint8_t scrollSnelheid;
-  JsonObject field2 = fields.createNestedObject();
-  field2["fieldName"] = "scrollSnelheid";
-  field2["fieldPrompt"] = "Scroll Snelheid";
-  field2["fieldValue"] = deviceSettings.scrollSnelheid;
-  field2["fieldType"] = "n";
-  field2["fieldMin"] = deviceAttributes.scrollSnelheidMin;
-  field2["fieldMax"] = deviceAttributes.scrollSnelheidMax;
-  field2["fieldStep"] = 1;
-
-  //-- uint8_t LDRMinWaarde;
-  JsonObject field3 = fields.createNestedObject();
-  field3["fieldName"] = "LDRMinWaarde";
-  field3["fieldPrompt"] = "LDR Min. Waarde";
-  field3["fieldValue"] = deviceSettings.LDRMinWaarde;
-  field3["fieldType"] = "n";
-  field3["fieldMin"] = deviceAttributes.LDRMinWaardeMin;
-  field3["fieldMax"] = deviceAttributes.LDRMinWaardeMax;
-  field3["fieldStep"] = 1;
-
-  //-- uint8_t LDRMaxWaarde;
-  JsonObject field4 = fields.createNestedObject();
-  field4["fieldName"] = "LDRMaxWaarde";
-  field4["fieldPrompt"] = "LDR Max. Waarde";
-  field4["fieldValue"] = deviceSettings.LDRMaxWaarde;
-  field4["fieldType"] = "n";
-  field4["fieldMin"] = deviceAttributes.LDRMaxWaardeMin;
-  field4["fieldMax"] = deviceAttributes.LDRMaxWaardeMax;
-  field4["fieldStep"] = 1;
-
-  //-- uint8_t maxIntensiteitLeds;
-  JsonObject field5 = fields.createNestedObject();
-  field5["fieldName"] = "maxIntensiteitLeds";
-  field5["fieldPrompt"] = "Max. Intensiteit LEDS";
-  field5["fieldValue"] = deviceSettings.maxIntensiteitLeds;
-  field5["fieldType"] = "n";
-  field5["fieldMin"] = deviceAttributes.maxIntensiteitLedsMin;
-  field5["fieldMax"] = deviceAttributes.maxIntensiteitLedsMax;
-  field5["fieldStep"] = 1;
-
-  //-- std::string skipItems;
-  JsonObject field6 = fields.createNestedObject();
-  field6["fieldName"] = "skipItems";
-  field6["fieldPrompt"] = "Words to skip Items";
-  field6["fieldValue"] = deviceSettings.skipItems.c_str();
-  field6["fieldType"] = "s";
-  field6["fieldLen"] = deviceAttributes.skipItemsLen;
-
-  //-- uint8_t tickerSpeed;
-  JsonObject field7 = fields.createNestedObject();
-  field7["fieldName"] = "tickerSpeed";
-  field7["fieldPrompt"] = "Ticker Scroll Speed";
-  field7["fieldValue"] = deviceSettings.tickerSpeed;
-  field7["fieldType"] = "n";
-  field7["fieldMin"] = deviceAttributes.tickerSpeedMin;
-  field7["fieldMax"] = deviceAttributes.tickerSpeedMax;
-  field7["fieldStep"] = 1;
-    
-
-  // Serialize to a string and return it
-  std::string jsonString;
-  serializeJson(doc, jsonString);
-  debug->printf("buildDeviceFieldsJson(): JSON string: %s\n", jsonString.c_str());
-  // Return the JSON string
-  return jsonString;
-
-} // buildDeviceFieldsJson()
-
-
-std::string SettingsClass::buildParolaFieldsJson()
-{
-  // Estimate the size (you can also use the ArduinoJson Assistant online)
-  //-- to big for the stack: StaticJsonDocument<4096> doc;
-  //-- move to the heap
-  DynamicJsonDocument doc(4096);
-
-  // Set the root-level keys
-  doc["type"] = "update";
-  doc["target"] = "parolaSettings";
-  doc["settingsName"] = "Parola Settings";
-
-  JsonArray fields = doc.createNestedArray("fields");
-
-  //-- std::string parola hardwareType;
-  JsonObject field1 = fields.createNestedObject();
-  field1["fieldName"] = "hardwareType";
-  field1["fieldPrompt"] = "Type (1=PAROLA_HW, 2=FC16_HW, 3=GENERIC_HW)";
-  field1["fieldValue"] = parolaSettings.hardwareType;
-  field1["fieldType"] = "n";
-  field1["fieldMin"] = parolaAttributes.hardwareTypeMin;
-  field1["fieldMax"] = parolaAttributes.hardwareTypeMax;
-  field1["fieldStep"] = 1;
-
-  //-- std::string parola numDevices;
-  JsonObject field2 = fields.createNestedObject();
-  field2["fieldName"] = "numDevices";
-  field2["fieldPrompt"] = "Aantal segmenten";
-  field2["fieldValue"] = parolaSettings.numDevices;
-  field2["fieldType"] = "n";
-  field2["fieldMin"] = parolaAttributes.numDevicesMin;
-  field2["fieldMax"] = parolaAttributes.numDevicesMax;
-  field2["fieldStep"] = 1;
-
-  //-- std::string parola numZones;
-  JsonObject field3 = fields.createNestedObject();
-  field3["fieldName"] = "numZones";
-  field3["fieldPrompt"] = "Aantal rijen (Zones)";
-  field3["fieldValue"] = parolaSettings.numZones;
-  field3["fieldType"] = "n";
-  field3["fieldMin"] = parolaAttributes.numZonesMin;
-  field3["fieldMax"] = parolaAttributes.numZonesMax;
-  field3["fieldStep"] = 1;
-
-  //-- std::string parola scroll speed;
-  //JsonObject field4 = fields.createNestedObject();
-  //field4["fieldName"] = "speed";
-  //field4["fieldPrompt"] = "Scroll Speed";
-  //field4["fieldValue"] = parolaSettings.speed;
-  //field4["fieldType"] = "n";
-  //field4["fieldMin"] = parolaAttributes.speedMin;
-  //field4["fieldMax"] = parolaAttributes.speedMax;
-  //field4["fieldStep"] = 1;    
-
-  // Serialize to a string and return it
-  std::string jsonString;
-  serializeJson(doc, jsonString);
-  debug->printf("buildParolaFieldsJson(): JSON string: %s\n", jsonString.c_str());
-  // Return the JSON string
-  return jsonString;
-
-} // buildParolaFieldsJson()
-
-
-std::string SettingsClass::buildWeerliveFieldsJson()
-{
-  // Estimate the size (you can also use the ArduinoJson Assistant online)
-  //-- to big for the stack: StaticJsonDocument<4096> doc;
-  //-- move to the heap
-  DynamicJsonDocument doc(4096);
-
-  // Set the root-level keys
-  doc["type"] = "update";
-  doc["target"] = "weerliveSettings";
-  doc["settingsName"] = "Weerlive Settings";
-
-  // Add the "fields" array - CHANGE FROM "devFields" to "fields"
-  JsonArray fields = doc.createNestedArray("fields");
-
-  //-- std::string weerliveAuthToken;
-  JsonObject field1 = fields.createNestedObject();
-  field1["fieldName"] = "authToken";
-  field1["fieldPrompt"] = "weerlive Auth. Tokend";
-  field1["fieldValue"] = weerliveSettings.authToken.c_str();
-  field1["fieldType"] = "s";
-  field1["fieldLen"] = weerliveAttributes.authTokenLen;
-
-  //-- std::string weerlivePlaats;
-  JsonObject field2 = fields.createNestedObject();
-  field2["fieldName"] = "plaats";
-  field2["fieldPrompt"] = "Plaats";
-  field2["fieldValue"] = weerliveSettings.plaats;
-  field2["fieldType"] = "s";
-  field2["fieldLen"] = weerliveAttributes.plaatsLen;
-
-
-  //-- uint8_t requestInterval;
-  JsonObject field3 = fields.createNestedObject();
-  field3["fieldName"] = "requestInterval";
-  field3["fieldPrompt"] = "Request Interval (minuten)";
-  field3["fieldValue"] = weerliveSettings.requestInterval;
-  field3["fieldType"] = "n";
-  field3["fieldMin"] = weerliveAttributes.requestIntervalMin;
-  field3["fieldMax"] = weerliveAttributes.requestIntervalMax;
-  field3["fieldStep"] = 1;
-    
-  // Serialize to a string and return it
-  std::string jsonString;
-  serializeJson(doc, jsonString);
-  debug->printf("buildDeviceFieldsJson(): JSON string: %s\n", jsonString.c_str());
-  // Return the JSON string
-  return jsonString;
-
-} // buildWeerliveFieldsJson()
-
-std::string SettingsClass::buildMediastackFieldsJson()
-{
-  // Estimate the size (you can also use the ArduinoJson Assistant online)
-  //-- to big for the stack: StaticJsonDocument<4096> doc;
-  //-- move to the heap
-  DynamicJsonDocument doc(4096);
-
-  // Set the root-level keys
-  doc["type"] = "update";
-  doc["target"] = "mediastackSettings";
-  doc["settingsName"] = "Mediastack Settings";
-
-  // Add the "fields" array - CHANGE FROM "devFields" to "fields"
-  JsonArray fields = doc.createNestedArray("fields");
-
-  //-- std::string MediastackAuthToken;
-  JsonObject field1 = fields.createNestedObject();
-  field1["fieldName"] = "authToken";
-  field1["fieldPrompt"] = "mediastack Auth. Tokend";
-  field1["fieldValue"] = mediastackSettings.authToken.c_str();
-  field1["fieldType"] = "s";
-  field1["fieldLen"] = mediastackAttributes.authTokenLen;
-
-  //-- uint8_t requestInterval;
-  JsonObject field2 = fields.createNestedObject();
-  field2["fieldName"] = "requestInterval";
-  field2["fieldPrompt"] = "Request Interval (minuten)";
-  field2["fieldValue"] = mediastackSettings.requestInterval;
-  field2["fieldType"] = "n";
-  field2["fieldMin"] = mediastackAttributes.requestIntervalMin;
-  field2["fieldMax"] = mediastackAttributes.requestIntervalMax;
-  field2["fieldStep"] = 1;
-
-  //-- uint8_t maxMessages;
-  JsonObject field3 = fields.createNestedObject();
-  field3["fieldName"] = "maxMessages";
-  field3["fieldPrompt"] = "Max. Messages to save";
-  field3["fieldValue"] = mediastackSettings.maxMessages;
-  field3["fieldType"] = "n";
-  field3["fieldMin"] = mediastackAttributes.maxMessagesMin;
-  field3["fieldMax"] = mediastackAttributes.maxMessagesMax;
-  field3["fieldStep"] = 1;
-
-  //-- uint8_t onlyDuringDay;
-  JsonObject field4 = fields.createNestedObject();
-  field4["fieldName"] = "onlyDuringDay";
-  field4["fieldPrompt"] = "Update alleen tussen 08:00 en 18:00";
-  field4["fieldValue"] = mediastackSettings.onlyDuringDay;
-  field4["fieldType"] = "n";
-  field4["fieldMin"] = mediastackAttributes.onlyDuringDayMin;
-  field4["fieldMax"] = mediastackAttributes.onlyDuringDayMax;
-  field4["fieldStep"] = 1;
-    
-  // Serialize to a string and return it
-  std::string jsonString;
-  serializeJson(doc, jsonString);
-  debug->printf("buildMediastackFieldsJson(): JSON string: %s\n", jsonString.c_str());
-  // Return the JSON string
-  return jsonString;
-
-} // buildMediastackFieldsJson()
-
-
-void SettingsClass::readDeviceSettings() 
-{
-    File file = LittleFS.open("/settings.ini", "r");
-
-    if (!file) {
-        debug->println("readDeviceSettings(): Failed to open settings.ini file for reading");
-        return;
-    }
-
-    String line;
-    while (file.available()) 
-    {
-        line = file.readStringUntil('\n');
-
-        // Read and parse settings from each line
-        debug->printf("readDeviceSettings(): line: [%s]\n", line.c_str());
-
-        if (line.startsWith("hostname=")) {
-          deviceSettings.hostname = std::string(line.substring(9).c_str());
-        }
-        else if (line.startsWith("scrollSnelheid=")) {
-          deviceSettings.scrollSnelheid = line.substring(15).toInt();
-        }
-        else if (line.startsWith("LDRMinWaarde=")) {
-          deviceSettings.LDRMinWaarde = line.substring(13).toInt();
-        }
-        else if (line.startsWith("LDRMaxWaarde=")) {
-          deviceSettings.LDRMaxWaarde = line.substring(13).toInt();
-        }
-        else if (line.startsWith("maxIntensiteitLeds=")) {
-          deviceSettings.maxIntensiteitLeds = line.substring(19).toInt();
-        }
-        else if (line.startsWith("skipItems=")) {
-          deviceSettings.skipItems = std::string(line.substring(10).c_str());
-        }
-        else if (line.startsWith("tickerSpeed=")) {
-          deviceSettings.tickerSpeed = line.substring(12).toInt();
-        }
-    }
-
-    file.close();
-    debug->println("readDeviceSettings(): read successfully");
-
-} // readDeviceSettings()
-
-
-void SettingsClass::writeDeviceSettings() 
-{
-    File file = LittleFS.open("/settings.ini", "w");
-
-    if (!file) {
-        debug->println("writeDeviceSettings(): Failed to open settings.ini file for writing");
-        return;
-    }
-
-    // Validate and write hostname
-    if (deviceSettings.hostname.length() > deviceAttributes.hostnameLen) {
-        debug->println("Error: Hostname exceeds maximum length, truncating");
-        deviceSettings.hostname = deviceSettings.hostname.substr(0, deviceAttributes.hostnameLen);
-    }
-    debug->printf("writeDeviceSettings(): hostname=%s\n", deviceSettings.hostname.c_str());
-    file.printf("hostname=%s\n", deviceSettings.hostname.c_str());
-
-    // Validate and write scrollSnelheid
-    if (deviceSettings.scrollSnelheid > 255) {
-        debug->println("Error: Scroll Snelheid is above maximum (255), setting to 255");
-        deviceSettings.scrollSnelheid = 255;
-    }
-    debug->printf("writeDeviceSettings(): scrollSnelheid=%d\n", deviceSettings.scrollSnelheid);
-    file.printf("scrollSnelheid=%d\n", deviceSettings.scrollSnelheid);
-
-    // Validate and write LDRMinWaarde
-    if (deviceSettings.LDRMinWaarde < deviceAttributes.LDRMinWaardeMin) {
-        debug->println("Error: LDRMinWaarde below minimum, setting to minimum");
-        deviceSettings.LDRMinWaarde = deviceAttributes.LDRMinWaardeMin;
-    } else if (deviceSettings.LDRMinWaarde > deviceAttributes.LDRMinWaardeMax) {
-        debug->println("Error: LDRMinWaarde above maximum, setting to maximum");
-        deviceSettings.LDRMinWaarde = deviceAttributes.LDRMinWaardeMax;
-    }
-    debug->printf("writeDeviceSettings(): LDRMinWaarde=%d\n", deviceSettings.LDRMinWaarde);
-    file.printf("LDRMinWaarde=%d\n", deviceSettings.LDRMinWaarde);
-
-    // Validate and write LDRMaxWaarde
-    if (deviceSettings.LDRMaxWaarde < deviceAttributes.LDRMaxWaardeMin) {
-        debug->println("Error: LDRMaxWaarde below minimum, setting to minimum");
-        deviceSettings.LDRMaxWaarde = deviceAttributes.LDRMaxWaardeMin;
-    } else if (deviceSettings.LDRMaxWaarde > deviceAttributes.LDRMaxWaardeMax) {
-        debug->println("Error: LDRMaxWaarde above maximum, setting to maximum");
-        deviceSettings.LDRMaxWaarde = deviceAttributes.LDRMaxWaardeMax;
-    }
-    debug->printf("writeDeviceSettings(): LDRMaxWaarde=%d\n", deviceSettings.LDRMaxWaarde);
-    file.printf("LDRMaxWaarde=%d\n", deviceSettings.LDRMaxWaarde);
-
-    // Validate and write maxIntensiteitLeds
-    if (deviceSettings.maxIntensiteitLeds < deviceAttributes.maxIntensiteitLedsMin) {
-        debug->println("Error: maxIntensiteitLeds below minimum, setting to minimum");
-        deviceSettings.maxIntensiteitLeds = deviceAttributes.maxIntensiteitLedsMin;
-    } else if (deviceSettings.maxIntensiteitLeds > deviceAttributes.maxIntensiteitLedsMax) {
-        debug->println("Error: maxIntensiteitLeds above maximum, setting to maximum");
-        deviceSettings.maxIntensiteitLeds = deviceAttributes.maxIntensiteitLedsMax;
-    }
-    debug->printf("writeDeviceSettings(): maxIntensiteitLeds=%d\n", deviceSettings.maxIntensiteitLeds);
-    file.printf("maxIntensiteitLeds=%d\n", deviceSettings.maxIntensiteitLeds);
-
-    // Validate and write skipItems
-    if (deviceSettings.skipItems.length() > deviceAttributes.skipItemsLen) {
-        debug->println("Error: SkipItems exceeds maximum length, truncating");
-        deviceSettings.skipItems = deviceSettings.skipItems.substr(0, deviceAttributes.skipItemsLen);
-    }
-    debug->printf("writeDeviceSettings(): skipItems=%s\n", deviceSettings.skipItems.c_str());
-    file.printf("skipItems=%s\n", deviceSettings.skipItems.c_str());
-
-    // Validate and write tickerSpeed
-    if (deviceSettings.tickerSpeed < deviceAttributes.tickerSpeedMin) {
-      debug->println("Error: tickerSpeed below minimum, setting to minimum");
-      deviceSettings.tickerSpeed = deviceAttributes.tickerSpeedMin;
-  } else if (deviceSettings.tickerSpeed > deviceAttributes.tickerSpeedMax) {
-      debug->println("Error: tickerSpeed above maximum, setting to maximum");
-      deviceSettings.tickerSpeed = deviceAttributes.tickerSpeedMax;
-  }
-  debug->printf("writeDeviceSettings(): tickerSpeed=%d\n", deviceSettings.tickerSpeed);
-  file.printf("tickerSpeed=%d\n", deviceSettings.tickerSpeed);
-
-    file.close();
-    debug->println("writeDeviceSettings(): Settings saved successfully");
-
-} // writeDeviceSettings()
-
-
-void SettingsClass::readParolaSettings() 
-{
-    File file = LittleFS.open("/parola.ini", "r");
-
-    if (!file) {
-        debug->println("readParolaSettings(): Failed to open parola.ini file for reading");
-        return;
-    }
-
-    String line;
-    while (file.available()) 
-    {
-        line = file.readStringUntil('\n');
-
-        // Read and parse settings from each line
-        debug->printf("readParolaSettings(): line: [%s]\n", line.c_str());
-
-        if (line.startsWith("hardwareType=")) {
-          parolaSettings.hardwareType = line.substring(13).toInt();
-        }
-        else if (line.startsWith("numDevices=")) {
-          parolaSettings.numDevices = line.substring(11).toInt();
-        }
-        else if (line.startsWith("numZones=")) {
-          parolaSettings.numZones = line.substring(9).toInt();
-        }
-//       else if (line.startsWith("speed=")) {
-//        parolaSettings.speed = line.substring(6).toInt();
-//      }
-    }
-
-    file.close();
-    debug->println("readParolaSettings(): read successfully");
-
-} // readParolaSettings()
-
-
-void SettingsClass::writeParolaSettings() 
-{
-    File file = LittleFS.open("/parola.ini", "w");
-
-    if (!file) {
-        debug->println("writeParolaSettings(): Failed to open parola.ini file for writing");
-        return;
-    }
-
-    // Validate and write hardwareType
-    if (parolaSettings.hardwareType < parolaAttributes.hardwareTypeMin) {
-      debug->println("Error: hardwareType is below minimum, setting to minumum");
-      parolaSettings.hardwareType = parolaAttributes.hardwareTypeMin;
-    } else if (parolaSettings.hardwareType > parolaAttributes.hardwareTypeMax) {
-        debug->println("Error: hardwareType is above maximum, setting to maximum");
-        parolaSettings.hardwareType = parolaAttributes.hardwareTypeMax;
-    }
-    debug->printf("writeParolaSettings(): hardwareType=%d\n", parolaSettings.hardwareType);
-    file.printf("hardwareType=%d\n", parolaSettings.hardwareType);
-
-    // Validate and write numDevices
-    if (parolaSettings.numDevices < parolaAttributes.numDevicesMin) {
-        debug->println("Error: numDevices below minimum, setting to minimum");
-        parolaSettings.numDevices = parolaAttributes.numDevicesMin;
-    } else if (parolaSettings.numDevices > parolaAttributes.numDevicesMax) {
-        debug->println("Error: numDevices above maximum, setting to maximum");
-        parolaSettings.numDevices = parolaAttributes.numDevicesMax;
-    }
-    debug->printf("writeParolaSettings(): numDevices=%d\n", parolaSettings.numDevices);
-    file.printf("numDevices=%d\n", parolaSettings.numDevices);
-
-    // Validate and write numZones
-    if (parolaSettings.numZones < parolaAttributes.numZonesMin) {
-      debug->println("Error: numZones below minimum, setting to minimum");
-      parolaSettings.numZones = parolaAttributes.numZonesMin;
-    } else if (parolaSettings.numZones > parolaAttributes.numZonesMax) {
-        debug->println("Error: numZones above maximum, setting to maximum");
-        parolaSettings.numZones = parolaAttributes.numZonesMax;
-    }
-    debug->printf("writeParolaSettings(): numZones=%d\n", parolaSettings.numZones);
-    file.printf("numZones=%d\n", parolaSettings.numZones);
-    file.close();
-    debug->println("writeParolaSettings(): Settings saved successfully");
-
-} // writeParolaSettings()
-
-
-void SettingsClass::readWeerliveSettings() 
-{
-    File file = LittleFS.open("/weerlive.ini", "r");
-
-    if (!file) {
-        debug->println("readWeerliveSettings(): Failed to open weerlive.ini file for reading");
-        return;
-    }
-
-    String line;
-    while (file.available()) 
-    {
-        line = file.readStringUntil('\n');
-
-        // Read and parse settings from each line
-        debug->printf("readWeerliveSettings(): line: [%s]\n", line.c_str());
-
-        if (line.startsWith("authToken=")) {
-          weerliveSettings.authToken = std::string(line.substring(10).c_str());
-        }
-        else if (line.startsWith("plaats=")) {
-          weerliveSettings.plaats = std::string(line.substring(7).c_str());
-        }
-        else if (line.startsWith("requestInterval=")) {
-          weerliveSettings.requestInterval = line.substring(16).toInt();
-        }
-    }
-
-    file.close();
-    debug->println("readWeerliveSettings(): read successfully");
-
-} // readWeerliveSettings()
-
-
-void SettingsClass::writeWeerliveSettings() 
-{
-    File file = LittleFS.open("/weerlive.ini", "w");
-
-    if (!file) {
-        debug->println("writeWeerliveSettings(): Failed to open weerlive.ini file for writing");
-        return;
-    }
-
-    // Validate and write authToken
-    if (weerliveSettings.authToken.length() > weerliveAttributes.authTokenLen) {
-        debug->println("Error: authToken exceeds maximum length, truncating");
-        weerliveSettings.authToken = weerliveSettings.authToken.substr(0, weerliveAttributes.authTokenLen);
-    }
-    debug->printf("writeWeerliveSettings(): authToken=%s\n", weerliveSettings.authToken.c_str());
-    file.printf("authToken=%s\n", weerliveSettings.authToken.c_str());
-
-    // Validate and write plaats
-    if (weerliveSettings.plaats.length() > weerliveAttributes.plaatsLen) {
-        debug->println("Error: plaats exceeds maximum length, truncating");
-        weerliveSettings.plaats = weerliveSettings.plaats.substr(0, weerliveAttributes.plaatsLen);
-    }
-    debug->printf("writeWeerliveSetting(): plaats=%s\n", weerliveSettings.plaats.c_str());
-    file.printf("plaats=%s\n", weerliveSettings.plaats.c_str());
-
-    // Validate and write requestInterval
-    if (weerliveSettings.requestInterval < weerliveAttributes.requestIntervalMin) {
-        debug->println("Error: requestInterval below minimum, setting to minimum");
-        weerliveSettings.requestInterval = weerliveAttributes.requestIntervalMin;
-    } else if (weerliveSettings.requestInterval > weerliveAttributes.requestIntervalMax) {
-        debug->println("Error: requestInterval above maximum, setting to maximum");
-        weerliveSettings.requestInterval = weerliveAttributes.requestIntervalMax;
-    }
-    debug->printf("writeWeerliveSetting(): requestInterval=%d\n", weerliveSettings.requestInterval);
-    file.printf("requestInterval=%d\n", weerliveSettings.requestInterval);
-
-    file.close();
-    debug->println("weerliveSettings saved successfully");
-
-} // writeWeerliveSettings()
-
-
-void SettingsClass::readMediastackSettings() 
-{
-    File file = LittleFS.open("/Mediastack.ini", "r");
-
-    if (!file) {
-        debug->println("readMediastackSettings(): Failed to open Mediastack.ini file for reading");
-        return;
-    }
-
-    String line;
-    while (file.available()) 
-    {
-        line = file.readStringUntil('\n');
-
-        // Read and parse settings from each line
-        debug->printf("readMediastackSettings(): line: [%s]\n", line.c_str());
-
-        if (line.startsWith("authToken=")) {
-          mediastackSettings.authToken = std::string(line.substring(10).c_str());
-        }
-        else if (line.startsWith("requestInterval=")) {
-          mediastackSettings.requestInterval = line.substring(16).toInt();
-        }
-        else if (line.startsWith("maxMessages=")) {
-          mediastackSettings.maxMessages = line.substring(12).toInt();
-        }
-        else if (line.startsWith("onlyDuringDay=")) {
-          mediastackSettings.onlyDuringDay = line.substring(14).toInt();
-        }
-    }
-
-    file.close();
-    debug->println("readMediastackSettings(): read successfully");
-
-} // readMediastackSettings()
-
-void SettingsClass::writeMediastackSettings() 
-{
-    File file = LittleFS.open("/Mediastack.ini", "w");
-
-    if (!file) {
-        debug->println("MediastackliveSettings(): Failed to open Mediastack.ini file for writing");
-        return;
-    }
-
-    // Validate and write authToken
-    if (mediastackSettings.authToken.length() > mediastackAttributes.authTokenLen) {
-        debug->println("Error: authToken exceeds maximum length, truncating");
-        mediastackSettings.authToken = mediastackSettings.authToken.substr(0, mediastackAttributes.authTokenLen);
-    }
-    debug->printf("mediastackliveSettings(): authToken=%s\n", mediastackSettings.authToken.c_str());
-    file.printf("authToken=%s\n", mediastackSettings.authToken.c_str());
-
-    // Validate and write requestInterval
-    if (mediastackSettings.requestInterval < mediastackAttributes.requestIntervalMin) {
-        debug->println("Error: requestInterval below minimum, setting to minimum");
-        mediastackSettings.requestInterval = mediastackAttributes.requestIntervalMin;
-    } else if (mediastackSettings.requestInterval > mediastackAttributes.requestIntervalMax) {
-        debug->println("Error: requestInterval above maximum, setting to maximum");
-        mediastackSettings.requestInterval = mediastackAttributes.requestIntervalMax;
-    }
-    debug->printf("mediastackSetting(): requestInterval=%d\n", mediastackSettings.requestInterval);
-    file.printf("requestInterval=%d\n", mediastackSettings.requestInterval);
-
-    // Validate and write maxMessages
-    if (mediastackSettings.maxMessages < mediastackAttributes.maxMessagesMin) {
-      debug->println("Error: maxMessages below minimum, setting to minimum");
-      mediastackSettings.maxMessages = mediastackAttributes.maxMessagesMin;
-    } else if (mediastackSettings.maxMessages > mediastackAttributes.maxMessagesMax) {
-        debug->println("Error: maxMessages above maximum, setting to maximum");
-        mediastackSettings.maxMessages = mediastackAttributes.maxMessagesMax;
-    }
-    debug->printf("mediastackSetting(): maxMessages=%d\n", mediastackSettings.maxMessages);
-    file.printf("maxMessages=%d\n", mediastackSettings.maxMessages);
-
-    // Validate and write onlyDuringDay
-    if (mediastackSettings.onlyDuringDay < mediastackAttributes.onlyDuringDayMin) {
-        debug->println("Error: onlyDuringDay below minimum, setting to minimum");
-        mediastackSettings.onlyDuringDay = mediastackAttributes.onlyDuringDayMin;
-    } else if (mediastackSettings.onlyDuringDay > mediastackAttributes.onlyDuringDayMax) {
-        debug->println("Error: onlyDuringDay above maximum, setting to maximum");
-        mediastackSettings.onlyDuringDay = mediastackAttributes.onlyDuringDayMax;
-    }
-    debug->printf("mediastackSetting(): onlyDuringDay=%d\n", mediastackSettings.onlyDuringDay);
-    file.printf("onlyDuringDay=%d\n", mediastackSettings.onlyDuringDay);
-
-    file.close();
-    debug->println("MediastackSettings saved successfully");
-
-} // writeMediastackSettings()
-
-
-void SettingsClass::saveSettings(const std::string& target)
-{
-  debug->printf("saveSettings(): Saving settings for target: %s\n", target.c_str());
+  // Device settings
+  SettingsContainer deviceContainer("Device Settings", "/settings.ini", "deviceSettings");
+  deviceContainer.addField({"hostname", "hostname", "s", 32, 0, 0, 0, &hostname});
+  deviceContainer.addField({"scrollSnelheid", "Scroll Snelheid", "n", 0, 5, 255, 1, &scrollSnelheid});
+  deviceContainer.addField({"LDRMinWaarde", "LDR Min. Waarde", "n", 0, 10, 100, 1, &LDRMinWaarde});
+  deviceContainer.addField({"LDRMaxWaarde", "LDR Max. Waarde", "n", 0, 11, 101, 1, &LDRMaxWaarde});
+  deviceContainer.addField({"maxIntensiteitLeds", "Max. Intensiteit LEDS", "n", 0, 10, 55, 1, &maxIntensiteitLeds});
+  deviceContainer.addField({"skipItems", "Words to skip", "s", 256, 0, 0, 0, &skipItems});
+  deviceContainer.addField({"tickerSpeed", "Ticker Scroll Speed", "n", 0, 10, 120, 1, &tickerSpeed});
+  settingsContainers["deviceSettings"] = deviceContainer;
   
-  if (target == "deviceSettings") {
-    writeDeviceSettings();
-  } 
-  else if (target == "parolaSettings") {
-    writeParolaSettings();
+  // Weerlive settings
+  SettingsContainer weerliveContainer("Weerlive Settings", "/weerlive.ini", "weerliveSettings");
+  weerliveContainer.addField({"authToken", "weerlive Auth. Token", "s", 16, 0, 0, 0, &weerliveAuthToken});
+  weerliveContainer.addField({"plaats", "Plaats", "s", 32, 0, 0, 0, &weerlivePlaats});
+  weerliveContainer.addField({"requestInterval", "Request Interval (minuten)", "n", 0, 10, 120, 1, &weerliveRequestInterval});
+  settingsContainers["weerliveSettings"] = weerliveContainer;
+  
+  // Mediastack settings
+  SettingsContainer mediastackContainer("Mediastack Settings", "/Mediastack.ini", "mediastackSettings");
+  mediastackContainer.addField({"authToken", "mediastack Auth. Token", "s", 32, 0, 0, 0, &mediastackAuthToken});
+  mediastackContainer.addField({"maxMessages", "Max. Messages to save", "n", 0, 0, 50, 1, &mediastackMaxMessages});
+  mediastackContainer.addField({"requestInterval", "Request Interval (minuten)", "n", 0, 60, 240, 1, &mediastackRequestInterval});
+  mediastackContainer.addField({"onlyDuringDay", "Update alleen tussen 08:00 en 18:00", "n", 0, 0, 1, 1, &mediastackOnlyDuringDay});
+  settingsContainers["mediastackSettings"] = mediastackContainer;
+  
+  // Parola settings
+  SettingsContainer parolaContainer("Parola Settings", "/parola.ini", "parolaSettings");
+  parolaContainer.addField({"hardwareType", "Type (1=PAROLA_HW, 2=FC16_HW, 3=GENERIC_HW)", "n", 0, 1, 3, 1, &parolaHardwareType});
+  parolaContainer.addField({"numDevices", "Aantal segmenten", "n", 0, 1, 22, 1, &parolaNumDevices});
+  parolaContainer.addField({"numZones", "Aantal rijen (Zones)", "n", 0, 1, 2, 1, &parolaNumZones});
+  settingsContainers["parolaSettings"] = parolaContainer;
+}
+
+std::string SettingsClass::buildJsonFieldsString(const std::string& settingsType) 
+{
+  if (settingsContainers.find(settingsType) == settingsContainers.end()) 
+  {
+    if (debug && doDebug) debug->printf("buildJsonFieldsString(): Unknown settings type: %s\n", settingsType.c_str());
+    return "";
   }
-  else if (target == "weerliveSettings") {
-    writeWeerliveSettings();
+  
+  const SettingsContainer& container = settingsContainers[settingsType];
+  DynamicJsonDocument doc(4096);
+  
+  // Set the root-level keys
+  doc["type"] = "update";
+  doc["target"] = container.getTarget();
+  doc["settingsName"] = container.getName();
+  
+  // Add the fields array
+  JsonArray fields = doc.createNestedArray("fields");
+  
+  // Add each field
+  for (const auto& field : container.getFields()) 
+  {
+    JsonObject jsonField = fields.createNestedObject();
+    jsonField["fieldName"] = field.fieldName;
+    jsonField["fieldPrompt"] = field.fieldPrompt;
+    
+    if (field.fieldType == "s") 
+    {
+      // Get the string value and verify it
+      std::string value = getStringValue(field.fieldValue);
+      
+      if (debug && doDebug) 
+      {
+        debug->printf("buildJsonFieldsString(): Field [%s], value: [%s], length: %d\n", 
+                     field.fieldName.c_str(), value.c_str(), value.length());
+      }
+      
+      // String field - use the value directly
+      jsonField["fieldValue"] = value;
+      jsonField["fieldType"] = "s";
+      jsonField["fieldLen"] = field.fieldLen;
+    } 
+    else if (field.fieldType == "n") 
+    {
+      // Numeric field
+      int value = getNumericValue(field.fieldValue);
+      
+      if (debug && doDebug) 
+      {
+        debug->printf("buildJsonFieldsString(): Field [%s], value: %d\n", 
+                     field.fieldName.c_str(), value);
+      }
+      
+      jsonField["fieldValue"] = value;
+      jsonField["fieldType"] = "n";
+      jsonField["fieldMin"] = field.fieldMin;
+      jsonField["fieldMax"] = field.fieldMax;
+      jsonField["fieldStep"] = field.fieldStep;
+    }
   }
-  else if (target == "mediastackSettings") {
-    writeMediastackSettings();
+  
+  // Serialize to a string and return it
+  std::string jsonString;
+  serializeJson(doc, jsonString);
+  if (debug && doDebug) debug->printf("buildJsonFieldsString(): [%s], JSON string: %s\n", settingsType.c_str(), jsonString.c_str());
+  return jsonString;
+
+} // buildJsonFieldsString()
+
+void SettingsClass::readSettingFields(const std::string& settingsType) 
+{
+  if (settingsContainers.find(settingsType) == settingsContainers.end()) 
+  {
+    if (debug && doDebug) debug->printf("readSettingFields(): Unknown settings type: [%s]\n", settingsType.c_str());
+    return;
   }
-  else {
-    debug->printf("saveSettings(): Unknown target: %s\n", target.c_str());
+  
+  const SettingsContainer& container = settingsContainers[settingsType];
+  File file = LittleFS.open(container.getFile().c_str(), "r");
+  
+  if (!file) 
+  {
+    if (debug && doDebug) debug->printf("readSettingFields(): Failed to open [%s] file for reading\n", container.getFile().c_str());
+    return;
   }
-} // saveSettings()
+  
+  String line;
+  while (file.available()) 
+  {
+    line = file.readStringUntil('\n');
+    
+    // Trim any trailing newline or carriage return characters
+    line.trim();
+    
+    if (debug && doDebug) debug->printf("readSettingFields(): line: [%s]\n", line.c_str());
+    
+    // Parse each line
+    for (const auto& field : container.getFields()) 
+    {
+      String fieldNameStr = String(field.fieldName.c_str());
+      String prefix = fieldNameStr + "=";
+      
+      if (line.startsWith(prefix)) 
+      {
+        // Get the value part (everything after the '=')
+        String value = line.substring(prefix.length());
+        
+        // Trim any whitespace or control characters
+        value.trim();
+        
+        // Debug the exact string being extracted
+        if (debug && doDebug) {
+          debug->printf("readSettingFields(): Found field [%s], raw value: [%s], length: %d\n", 
+                       field.fieldName.c_str(), value.c_str(), value.length());
+        }
+        
+        if (field.fieldType == "s") 
+        {
+          // Create a new string from the value to ensure proper handling
+          std::string stdValue(value.c_str(), value.length());
+          if (debug && doDebug) {
+            debug->printf("readSettingFields(): Converting to std::string, length: %d\n", stdValue.length());
+          }
+          
+          // Set the value and verify it was set correctly
+          setStringValue(field.fieldValue, stdValue);
+          
+          // Double-check the stored value
+          std::string storedValue = getStringValue(field.fieldValue);
+          if (debug && doDebug) {
+            debug->printf("readSettingFields(): Verified stored value: [%s], length: %d\n", 
+                         storedValue.c_str(), storedValue.length());
+          }
+        } 
+        else if (field.fieldType == "n") 
+        {
+          int numValue = value.toInt();
+          if (debug && doDebug) {
+            debug->printf("readSettingFields(): Converting to int: %d\n", numValue);
+          }
+          setNumericValue(field.fieldValue, numValue);
+        }
+        break;
+      }
+    }
+  }
+  
+  file.close();
+  if (debug && doDebug) debug->printf("readSettingFields(): [%s] read successfully\n", container.getFile().c_str());
+
+} //  readSettingFields()
+
+void SettingsClass::writeSettingFields(const std::string& settingsType) 
+{
+  if (settingsContainers.find(settingsType) == settingsContainers.end()) 
+  {
+    if (debug) debug->printf("writeSettingFields(): Unknown settings type: [%s]\n", settingsType.c_str());
+    return;
+  }
+  
+  const SettingsContainer& container = settingsContainers[settingsType];
+  File file = LittleFS.open(container.getFile().c_str(), "w");
+  
+  if (!file) 
+  {
+    if (debug) debug->printf("writeSettingFields(): Failed to open [%s] file for writing\n", container.getFile().c_str());
+    return;
+  }
+  
+  // Write each field
+  for (const auto& field : container.getFields()) 
+  {
+    if (field.fieldType == "s") 
+    {
+      // Get the string value and verify it
+      std::string value = getStringValue(field.fieldValue);
+      
+      // Validate string length
+      if (value.length() > field.fieldLen) 
+      {
+        if (debug && doDebug) debug->printf("writeSettingFields(): Error: [%s] exceeds maximum length, truncating\n", field.fieldName.c_str());
+        value = value.substr(0, field.fieldLen);
+        setStringValue(field.fieldValue, value);
+      }
+      
+      if (debug && doDebug) {
+        debug->printf("writeSettingFields(): Writing field [%s], value: [%s], length: %d\n", 
+                     field.fieldName.c_str(), value.c_str(), value.length());
+      }
+      
+      // Use a more explicit approach to write the field
+      file.print(field.fieldName.c_str());
+      file.print("=");
+      file.println(value.c_str());
+    } 
+    else if (field.fieldType == "n") 
+    {
+      int value = getNumericValue(field.fieldValue);
+      // Validate numeric range
+      if (value < field.fieldMin) 
+      {
+        if (debug && doDebug) debug->printf("writeSettingFields(): Error: [%s] below minimum, setting to minimum\n", field.fieldName.c_str());
+        value = field.fieldMin;
+        setNumericValue(field.fieldValue, value);
+      } 
+      else if (value > field.fieldMax) 
+      {
+        if (debug && doDebug) debug->printf("writeSettingFields(): Error: [%s] above maximum, setting to maximum\n", field.fieldName.c_str());
+        value = field.fieldMax;
+        setNumericValue(field.fieldValue, value);
+      }
+      
+      if (debug && doDebug) debug->printf("writeSettingFields(): Writing field [%s], value: %d\n", field.fieldName.c_str(), value);
+      
+      // Use a more explicit approach to write the field
+      file.print(field.fieldName.c_str());
+      file.print("=");
+      file.println(value);
+    }
+  }
+  
+  file.close();
+  if (debug && doDebug) debug->printf("writeSettingFields(): [%s] saved successfully\n", container.getFile().c_str());
+
+} // writeSettingFields()
+
+void SettingsClass::saveSettings(const std::string& target) 
+{
+  if (debug && doDebug) debug->printf("saveSettings(): Saving settings for target: [%s]\n", target.c_str());
+  writeSettingFields(target);
+}

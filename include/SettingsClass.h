@@ -2,126 +2,150 @@
 #define SETTINGS_CLASS_H
 
 #include <string>
+#include <vector>
+#include <map>
 #include "LittleFS.h"
 #include "Arduino.h"
 #include <ArduinoJson.h>
 
-struct DeviceSettings {
-    std::string hostname;
-    uint8_t scrollSnelheid;
-    uint8_t LDRMinWaarde;
-    uint8_t LDRMaxWaarde;
-    uint8_t maxIntensiteitLeds;
-    std::string skipItems;
-    uint8_t tickerSpeed;
-    
-};
-
-struct DeviceAttributes {
-    size_t hostnameLen = 32;
-    uint8_t scrollSnelheidMin = 5;
-    uint8_t scrollSnelheidMax = 255;
-    uint8_t LDRMinWaardeMin = 10;
-    uint8_t LDRMinWaardeMax = 100;
-    uint8_t LDRMaxWaardeMin = 11;
-    uint8_t LDRMaxWaardeMax = 101;
-    uint8_t maxIntensiteitLedsMin = 10;
-    uint8_t maxIntensiteitLedsMax = 55;
-    size_t skipItemsLen = 256;
-    uint8_t tickerSpeedMin = 10;
-    uint8_t tickerSpeedMax = 120;
-  };
-
-struct ParolaSettings {
-  uint8_t hardwareType;
-  uint8_t numDevices;
-  uint8_t numZones;
-//uint8_t speed;
+// Field descriptor structure
+struct FieldDescriptor 
+{
+  std::string fieldName;      // Name of the field in the settings struct
+  std::string fieldPrompt;    // Display name for the field
+  std::string fieldType;      // "s" for string, "n" for numeric
   
+  // For string fields
+  size_t fieldLen;            // Maximum length for string fields (only used if fieldType is "s")
+  
+  // For numeric fields (only used if fieldType is "n")
+  int fieldMin;               // Minimum value
+  int fieldMax;               // Maximum value
+  float fieldStep;            // Step value
+  
+  // Pointer to the actual data
+  void* fieldValue;           // Pointer to the actual field value
 };
 
-struct ParolaAttributes {
-  uint8_t hardwareTypeMin = 1;
-  uint8_t hardwareTypeMax = 3;
-  uint8_t numDevicesMin = 1;
-  uint8_t numDevicesMax = 22;
-  uint8_t numZonesMin = 1;
-  uint8_t numZonesMax = 2;
-//uint8_t speedMin = 1;
-//uint8_t speedMax = 100;
-};
-
-struct WeerliveSettings {
-  std::string authToken;
-  std::string plaats;
-  uint8_t requestInterval;
-};
-
-struct WeerliveAttributes {
-  size_t authTokenLen = 16;
-  size_t plaatsLen = 32;
-  uint8_t requestIntervalMin = 10;
-  uint8_t requestIntervalMax = 120;
-};
-
-struct MediastackSettings {
-  std::string authToken;
-  uint8_t maxMessages;
-  uint8_t requestInterval;
-  uint8_t onlyDuringDay;
-};
-
-struct MediastackAttributes {
-  size_t authTokenLen = 32;
-  uint8_t requestIntervalMin = 60;
-  uint8_t requestIntervalMax = 240;
-  uint8_t maxMessagesMin = 0;
-  uint8_t maxMessagesMax = 50;
-  uint8_t onlyDuringDayMin = 0;
-  uint8_t onlyDuringDayMax = 1;
-};
-
-class SettingsClass {
+// Settings container class
+class SettingsContainer 
+{
 private:
-    DeviceSettings deviceSettings;
-    WeerliveSettings weerliveSettings;
-    MediastackSettings mediastackSettings;
-    ParolaSettings parolaSettings;
-    Stream* debug = nullptr; // Optional, default to nullptr
-    DeviceAttributes deviceAttributes;
-    WeerliveAttributes weerliveAttributes;
-    MediastackAttributes mediastackAttributes;
-    ParolaAttributes parolaAttributes;
+  std::string settingsName;
+  std::string settingsFile;
+  std::string settingsTarget;
+  std::vector<FieldDescriptor> fields;
 
 public:
-    SettingsClass();
-    void setDebug(Stream* debugPort);
+  SettingsContainer() {}
+  
+  SettingsContainer(const std::string& name, const std::string& file, const std::string& target)
+    : settingsName(name), settingsFile(file), settingsTarget(target) {}
+    
+  void addField(const FieldDescriptor& field) 
+  {
+    fields.push_back(field);
+  }
+  
+  const std::string& getName() const { return settingsName; }
+  const std::string& getFile() const { return settingsFile; }
+  const std::string& getTarget() const { return settingsTarget; }
+  const std::vector<FieldDescriptor>& getFields() const { return fields; }
+};
 
-    // Getters
-    DeviceSettings& getDeviceSettings();
-    const DeviceAttributes& getDeviceAttributes();
-    WeerliveSettings& getWeerliveSettings();
-    MediastackSettings& getMediastackSettings();
-    const WeerliveAttributes& getWeerliveAttributes();
-    const MediastackAttributes& getMediastackAttributes();
-    ParolaSettings& getParolaSettings();
-    const ParolaAttributes& getParolaAttributes();
-    std::string buildDeviceFieldsJson();
-    std::string buildWeerliveFieldsJson();
-    std::string buildMediastackFieldsJson();
-    std::string buildParolaFieldsJson();
-    // Methods for reading and writing settings
-    void readDeviceSettings();
-    void writeDeviceSettings();
-    void readWeerliveSettings();
-    void writeWeerliveSettings();
-    void readMediastackSettings();
-    void writeMediastackSettings();
-    void readParolaSettings();
-    void writeParolaSettings();
-    // Generic method to save settings based on target
-    void saveSettings(const std::string& target);
+class SettingsClass 
+{
+private:
+  // Settings containers
+  std::map<std::string, SettingsContainer> settingsContainers;
+  Stream* debug = nullptr;
+  
+  // Helper method to get a string value from a void pointer
+  std::string getStringValue(void* ptr) 
+  {
+    std::string* strPtr = static_cast<std::string*>(ptr);
+    std::string value = *strPtr;
+    
+    // Verify the string was retrieved correctly
+    if (debug && doDebug) 
+    {
+      debug->printf("getStringValue(): Retrieved value: [%s], length: %d\n", 
+                  value.c_str(), value.length());
+    }
+    
+    return value;
+  }
+  
+  // Helper method to get a numeric value from a void pointer
+  int getNumericValue(void* ptr) 
+  {
+    return *static_cast<uint8_t*>(ptr);
+  }
+  
+  // Helper method to set a string value
+  void setStringValue(void* ptr, const std::string& value) 
+  {
+    std::string* strPtr = static_cast<std::string*>(ptr);
+    *strPtr = value;
+    
+    // Verify the string was set correctly
+    if (debug && doDebug) 
+    {
+      debug->printf("setStringValue(): Set value: [%s], actual stored: [%s]\n", 
+                  value.c_str(), strPtr->c_str());
+    }
+}
+  
+  // Helper method to set a numeric value
+  void setNumericValue(void* ptr, int value) 
+  {
+    *static_cast<uint8_t*>(ptr) = static_cast<uint8_t>(value);
+  }
 
+public:
+  // Device settings data
+  std::string hostname;
+  uint8_t scrollSnelheid;
+  uint8_t LDRMinWaarde;
+  uint8_t LDRMaxWaarde;
+  uint8_t maxIntensiteitLeds;
+  std::string skipItems;
+  uint8_t tickerSpeed;
+  
+  // Weerlive settings data
+  std::string weerliveAuthToken;
+  std::string weerlivePlaats;
+  uint8_t weerliveRequestInterval;
+  
+  // Mediastack settings data
+  std::string mediastackAuthToken;
+  uint8_t mediastackMaxMessages;
+  uint8_t mediastackRequestInterval;
+  uint8_t mediastackOnlyDuringDay;
+  
+  // Parola settings data
+  uint8_t parolaHardwareType;
+  uint8_t parolaNumDevices;
+  uint8_t parolaNumZones;
+  
+  SettingsClass();
+  void setDebug(Stream* debugPort);
+  
+  // Initialize all settings containers
+  void initializeSettingsContainers();
+  
+  // Generic methods
+  std::string buildJsonFieldsString(const std::string& settingsType);
+  void readSettingFields(const std::string& settingsType);
+  void writeSettingFields(const std::string& settingsType);
+  
+  // Generic method to save settings based on target
+  void saveSettings(const std::string& target);
+#ifdef SETTINGS_DEBUG
+  bool doDebug = true;
+#else
+  bool doDebug = false;
+#endif
 };
 
 #endif // SETTINGS_CLASS_H
