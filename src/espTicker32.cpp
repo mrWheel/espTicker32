@@ -283,27 +283,29 @@ void sendLocalMessagesToClient()
 } // sendLocalMessagesToClient()
 
 
-// Function to send the JSON string to the client when devSettingsPage is activated
-void sendDevFieldsToClient()
+
+
+// Generic function to send settings fields to the client
+void sendSettingFieldToClient(const std::string& settingsType)
 {
-  std::string jsonData = settings.buildJsonFieldsString("deviceSettings");
-  debug->printf("sendDevFieldsToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
+  std::string jsonData = settings.buildJsonFieldsString(settingsType);
+  debug->printf("sendSettingFieldToClient(): Sending JSON data for %s to client: %s\n", settingsType.c_str(), jsonData.c_str());
   
-  // First, send the HTML content for the device settings fields
+  // First, send the HTML content for the settings fields
   DynamicJsonDocument doc(4096);
   doc["type"] = "update";
   doc["target"] = "settingsTableBody";
   
-  // Create the HTML content for the device settings fields
+  // Create the HTML content for the settings fields
   std::string htmlContent = "";
   
   // Parse the JSON
-  DynamicJsonDocument devSettings(4096);
-  DeserializationError error = deserializeJson(devSettings, jsonData);
+  DynamicJsonDocument settingsDoc(4096);
+  DeserializationError error = deserializeJson(settingsDoc, jsonData);
   
   if (!error) {
-    if (devSettings.containsKey("fields") && devSettings["fields"].is<JsonArray>()) {
-      JsonArray fields = devSettings["fields"].as<JsonArray>();
+    if (settingsDoc.containsKey("fields") && settingsDoc["fields"].is<JsonArray>()) {
+      JsonArray fields = settingsDoc["fields"].as<JsonArray>();
       
       for (size_t i = 0; i < fields.size(); i++) {
         JsonObject field = fields[i];
@@ -322,7 +324,23 @@ void sendDevFieldsToClient()
           htmlContent += field["fieldLen"].as<String>().c_str();
           htmlContent += "' data-field-name='";
           htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='s' oninput='updateDevSetting(this)'>";
+          htmlContent += "' data-field-type='s' oninput='update";
+          
+          // Determine the appropriate update function based on settings type
+          if (settingsType == "deviceSettings") {
+            htmlContent += "DevSetting";
+          } else if (settingsType == "parolaSettings") {
+            htmlContent += "ParolaSettings";
+          } else if (settingsType == "weerliveSettings") {
+            htmlContent += "WeerliveSettings";
+          } else if (settingsType == "mediastackSettings") {
+            htmlContent += "MediastackSettings";
+          } else {
+            // Generic fallback
+            htmlContent += "Setting";
+          }
+          
+          htmlContent += "(this)'>";
         } else if (field["fieldType"] == "n") {
           // Numeric input
           htmlContent += "<input type='number' value='";
@@ -335,14 +353,45 @@ void sendDevFieldsToClient()
           htmlContent += field["fieldStep"].as<String>().c_str();
           htmlContent += "' data-field-name='";
           htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='n' oninput='updateDevSetting(this)'>";
+          htmlContent += "' data-field-type='n' oninput='update";
+          
+          // Determine the appropriate update function based on settings type
+          if (settingsType == "deviceSettings") {
+            htmlContent += "DevSetting";
+          } else if (settingsType == "parolaSettings") {
+            htmlContent += "ParolaSettings";
+          } else if (settingsType == "weerliveSettings") {
+            htmlContent += "WeerliveSettings";
+          } else if (settingsType == "mediastackSettings") {
+            htmlContent += "MediastackSettings";
+          } else {
+            // Generic fallback
+            htmlContent += "Setting";
+          }
+          
+          htmlContent += "(this)'>";
         }
         
         htmlContent += "</td></tr>";
       }
     }
+    
+    // Update the settings name in the page if available
+    if (settingsDoc.containsKey("settingsName")) {
+      DynamicJsonDocument nameDoc(512);
+      nameDoc["type"] = "update";
+      nameDoc["target"] = "settingsName";
+      nameDoc["content"] = settingsDoc["settingsName"].as<String>().c_str();
+      
+      std::string nameMessage;
+      serializeJson(nameDoc, nameMessage);
+      
+      // Send the name update message via WebSocket
+      spa.ws.broadcastTXT(nameMessage.c_str(), nameMessage.length());
+    }
   }
   
+  // Set the content in the document
   doc["content"] = htmlContent.c_str();
   
   // Serialize the message
@@ -355,7 +404,21 @@ void sendDevFieldsToClient()
   // Now send the raw JSON data in a format that SPAmanager can understand
   DynamicJsonDocument jsonDoc(4096);
   jsonDoc["type"] = "custom";
-  jsonDoc["action"] = "devSettingsData";
+  
+  // Use the exact same action name format as the original functions
+  if (settingsType == "deviceSettings") {
+    jsonDoc["action"] = "devSettingsData";
+  } else if (settingsType == "parolaSettings") {
+    jsonDoc["action"] = "parolaSettingsData";
+  } else if (settingsType == "weerliveSettings") {
+    jsonDoc["action"] = "weerliveSettingsData";
+  } else if (settingsType == "mediastackSettings") {
+    jsonDoc["action"] = "mediastackSettingsData";
+  } else {
+    // Generic fallback
+    jsonDoc["action"] = settingsType + "Data";
+  }
+  
   jsonDoc["data"] = jsonData;
   
   std::string jsonMessage;
@@ -363,299 +426,39 @@ void sendDevFieldsToClient()
   
   // Send the JSON message via WebSocket
   spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
-} // sendDevFieldsToClient()
+  
+  // Call any specific JavaScript initialization functions if needed
+  if (settingsType == "deviceSettings") {
+    // If there's a specific initialization function for device settings
+    // spa.callJsFunction("initializeDevSettings", jsonData.c_str());
+  }
+  
+} // sendSettingFieldToClient()
 
+
+// Function to send the JSON string to the client when devSettingsPage is activated
+void sendDevFieldsToClient()
+{
+  sendSettingFieldToClient("deviceSettings");
+}
 
 // Function to send the JSON string to the client when weerliveSettingsPage is activated
 void sendWeerliveFieldsToClient()
 {
-  std::string jsonData = settings.buildJsonFieldsString("weerliveSettings");
-  debug->printf("sendWeerliveFieldsToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
-  
-  // First, send the HTML content for the weerlive settings fields
-  DynamicJsonDocument doc(4096);
-  doc["type"] = "update";
-  doc["target"] = "settingsTableBody";
-  
-  // Create the HTML content for the weerlive settings fields
-  std::string htmlContent = "";
-  
-  // Parse the JSON
-  DynamicJsonDocument weerliveSettings(4096);
-  DeserializationError error = deserializeJson(weerliveSettings, jsonData);
-  
-  if (!error) {
-    if (weerliveSettings.containsKey("fields") && weerliveSettings["fields"].is<JsonArray>()) {
-      JsonArray fields = weerliveSettings["fields"].as<JsonArray>();
-      
-      for (size_t i = 0; i < fields.size(); i++) {
-        JsonObject field = fields[i];
-        
-        // Create a table row for each field
-        htmlContent += "<tr><td style='padding: 8px;'>";
-        htmlContent += field["fieldPrompt"].as<String>().c_str();
-        htmlContent += "</td><td style='padding: 8px;'>";
-        
-        // Create the appropriate input element based on fieldType
-        if (field["fieldType"] == "s") {
-          // String input
-          htmlContent += "<input type='text' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' maxlength='";
-          htmlContent += field["fieldLen"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='s' oninput='updateWeerliveSettings(this)'>";
-        } else if (field["fieldType"] == "n") {
-          // Numeric input
-          htmlContent += "<input type='number' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' min='";
-          htmlContent += field["fieldMin"].as<String>().c_str();
-          htmlContent += "' max='";
-          htmlContent += field["fieldMax"].as<String>().c_str();
-          htmlContent += "' step='";
-          htmlContent += field["fieldStep"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='n' oninput='updateWeerliveSettings(this)'>";
-        }
-        
-        htmlContent += "</td></tr>";
-      }
-    }
-    
-    // Update the settings name in the page
-    if (weerliveSettings.containsKey("settingsName")) {
-      DynamicJsonDocument nameDoc(512);
-      nameDoc["type"] = "update";
-      nameDoc["target"] = "settingsName";
-      nameDoc["content"] = weerliveSettings["settingsName"].as<String>().c_str();
-      
-      std::string nameMessage;
-      serializeJson(nameDoc, nameMessage);
-      
-      // Send the name update message via WebSocket
-      spa.ws.broadcastTXT(nameMessage.c_str(), nameMessage.length());
-    }
-  }
-
-  doc["content"] = htmlContent.c_str();
-  
-  // Serialize the message
-  std::string message;
-  serializeJson(doc, message);
-  
-  // Send the structured message via WebSocket
-  spa.ws.broadcastTXT(message.c_str(), message.length());
-  
-  // Now send the raw JSON data in a format that SPAmanager can understand
-  DynamicJsonDocument jsonDoc(4096);
-  jsonDoc["type"] = "custom";
-  jsonDoc["action"] = "weerliveSettingsData";
-  jsonDoc["data"] = jsonData;
-  
-  std::string jsonMessage;
-  serializeJson(jsonDoc, jsonMessage);
-  
-  // Send the JSON message via WebSocket
-  spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
-
-} // sendWeerliveFieldsToClient()
+  sendSettingFieldToClient("weerliveSettings");
+}
 
 // Function to send the JSON string to the client when mediastackSettingsPage is activated
 void sendMediastackFieldsToClient()
 {
-  std::string jsonData = settings.buildJsonFieldsString("mediastackSettings");
-  debug->printf("sendMediastackFieldsToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
-  
-  // First, send the HTML content for the mediastack settings fields
-  DynamicJsonDocument doc(4096);
-  doc["type"] = "update";
-  doc["target"] = "settingsTableBody";
-  
-  // Create the HTML content for the mediastack settings fields
-  std::string htmlContent = "";
-  
-  // Parse the JSON
-  DynamicJsonDocument mediastackSettings(4096);
-  DeserializationError error = deserializeJson(mediastackSettings, jsonData);
-  
-  if (!error) {
-    if (mediastackSettings.containsKey("fields") && mediastackSettings["fields"].is<JsonArray>()) {
-      JsonArray fields = mediastackSettings["fields"].as<JsonArray>();
-      
-      for (size_t i = 0; i < fields.size(); i++) {
-        JsonObject field = fields[i];
-        
-        // Create a table row for each field
-        htmlContent += "<tr><td style='padding: 8px;'>";
-        htmlContent += field["fieldPrompt"].as<String>().c_str();
-        htmlContent += "</td><td style='padding: 8px;'>";
-        
-        // Create the appropriate input element based on fieldType
-        if (field["fieldType"] == "s") {
-          // String input
-          htmlContent += "<input type='text' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' maxlength='";
-          htmlContent += field["fieldLen"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='s' oninput='updateMediastackSettings(this)'>";
-        } else if (field["fieldType"] == "n") {
-          // Numeric input
-          htmlContent += "<input type='number' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' min='";
-          htmlContent += field["fieldMin"].as<String>().c_str();
-          htmlContent += "' max='";
-          htmlContent += field["fieldMax"].as<String>().c_str();
-          htmlContent += "' step='";
-          htmlContent += field["fieldStep"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='n' oninput='updateMediastackSettings(this)'>";
-        }
-        
-        htmlContent += "</td></tr>";
-      }
-    }
-    
-    // Update the settings name in the page
-    if (mediastackSettings.containsKey("settingsName")) {
-      DynamicJsonDocument nameDoc(512);
-      nameDoc["type"] = "update";
-      nameDoc["target"] = "settingsName";
-      nameDoc["content"] = mediastackSettings["settingsName"].as<String>().c_str();
-      
-      std::string nameMessage;
-      serializeJson(nameDoc, nameMessage);
-      
-      // Send the name update message via WebSocket
-      spa.ws.broadcastTXT(nameMessage.c_str(), nameMessage.length());
-    }
-  }
-  
-  doc["content"] = htmlContent.c_str();
-  
-  // Serialize the message
-  std::string message;
-  serializeJson(doc, message);
-  
-  // Send the structured message via WebSocket
-  spa.ws.broadcastTXT(message.c_str(), message.length());
-  
-  // Now send the raw JSON data in a format that SPAmanager can understand
-  DynamicJsonDocument jsonDoc(4096);
-  jsonDoc["type"] = "custom";
-  jsonDoc["action"] = "mediastackSettingsData";
-  jsonDoc["data"] = jsonData;
-  
-  std::string jsonMessage;
-  serializeJson(jsonDoc, jsonMessage);
-  
-  // Send the JSON message via WebSocket
-  spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
+  sendSettingFieldToClient("mediastackSettings");
+}
 
-} // sendMediastackFieldsToClient()
-
-// Function to send the JSON string to the client when weerliveSettingsPage is activated
+// Function to send the JSON string to the client when parolaSettingsPage is activated
 void sendParolaFieldsToClient()
 {
-  std::string jsonData = settings.buildJsonFieldsString("parolaSettings");
-  debug->printf("sendParolaFieldsToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
-  
-  // First, send the HTML content for the weerlive settings fields
-  DynamicJsonDocument doc(4096);
-  doc["type"] = "update";
-  doc["target"] = "settingsTableBody";
-  
-  // Create the HTML content for the weerlive settings fields
-  std::string htmlContent = "";
-  
-  // Parse the JSON
-  DynamicJsonDocument parolaSettings(4096);
-  DeserializationError error = deserializeJson(parolaSettings, jsonData);
-  
-  if (!error) {
-    if (parolaSettings.containsKey("fields") && parolaSettings["fields"].is<JsonArray>()) {
-      JsonArray fields = parolaSettings["fields"].as<JsonArray>();
-      
-      for (size_t i = 0; i < fields.size(); i++) {
-        JsonObject field = fields[i];
-        
-        // Create a table row for each field
-        htmlContent += "<tr><td style='padding: 8px;'>";
-        htmlContent += field["fieldPrompt"].as<String>().c_str();
-        htmlContent += "</td><td style='padding: 8px;'>";
-        
-        // Create the appropriate input element based on fieldType
-        if (field["fieldType"] == "s") {
-          // String input
-          htmlContent += "<input type='text' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' maxlength='";
-          htmlContent += field["fieldLen"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='s' oninput='updateParolaSettings(this)'>";
-        } else if (field["fieldType"] == "n") {
-          // Numeric input
-          htmlContent += "<input type='number' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' min='";
-          htmlContent += field["fieldMin"].as<String>().c_str();
-          htmlContent += "' max='";
-          htmlContent += field["fieldMax"].as<String>().c_str();
-          htmlContent += "' step='";
-          htmlContent += field["fieldStep"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='n' oninput='updateParolaSettings(this)'>";
-        }
-        
-        htmlContent += "</td></tr>";
-      }
-    }
-    
-    // Update the settings name in the page
-    if (parolaSettings.containsKey("settingsName")) {
-      DynamicJsonDocument nameDoc(512);
-      nameDoc["type"] = "update";
-      nameDoc["target"] = "settingsName";
-      nameDoc["content"] = parolaSettings["settingsName"].as<String>().c_str();
-      
-      std::string nameMessage;
-      serializeJson(nameDoc, nameMessage);
-      
-      // Send the name update message via WebSocket
-      spa.ws.broadcastTXT(nameMessage.c_str(), nameMessage.length());
-    }
-  }
-  
-  doc["content"] = htmlContent.c_str();
-  
-  // Serialize the message
-  std::string message;
-  serializeJson(doc, message);
-  
-  // Send the structured message via WebSocket
-  spa.ws.broadcastTXT(message.c_str(), message.length());
-  
-  // Now send the raw JSON data in a format that SPAmanager can understand
-  DynamicJsonDocument jsonDoc(4096);
-  jsonDoc["type"] = "custom";
-  jsonDoc["action"] = "parolaSettingsData";
-  jsonDoc["data"] = jsonData;
-  
-  std::string jsonMessage;
-  serializeJson(jsonDoc, jsonMessage);
-  
-  // Send the JSON message via WebSocket
-  spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
-
-} // sendParolaFieldsToClient()
+  sendSettingFieldToClient("parolaSettings");
+}
 
 
 // Function to process the received input fields from the client
