@@ -102,17 +102,29 @@ String getMediastackMessage()
 
 String getRSSfeedMessage()
 {
-  static uint8_t msgNr = 0;
-  char rssFeedMessage[2000] = {};
+  uint8_t feedIndex = 0;
+  size_t itemIndex = 0;
+  char rssFeedMessage[1000] = {};
 
-  snprintf(rssFeedMessage, sizeof(rssFeedMessage), "%s", rssReader.readRssFeed(msgNr).c_str());
-  if (strlen(rssFeedMessage) == 0) 
+  // Get the next feed item indices
+  if (rssReader.getNextFeedItem(feedIndex, itemIndex))
   {
-    msgNr = 0;
-    snprintf(rssFeedMessage, sizeof(rssFeedMessage), "%s", rssReader.readRssFeed(msgNr).c_str());
-  } 
-  debug->printf("getRSSfeedMessage(): msgNr = [%d] rssFeedMessage = [%s]\n", msgNr, rssFeedMessage);
-  msgNr++;
+    snprintf(rssFeedMessage, sizeof(rssFeedMessage), "[%d][%d] %s"
+                                            , feedIndex, itemIndex
+                                            , rssReader.readRssFeed(feedIndex, itemIndex).c_str());
+    
+    // If we get an empty message, try again with the next indices
+    if (strlen(rssFeedMessage) == 0 && rssReader.getNextFeedItem(feedIndex, itemIndex))
+    {
+      snprintf(rssFeedMessage, sizeof(rssFeedMessage), "[%d][%d] %s"
+                                                  , feedIndex, itemIndex
+                                                  , rssReader.readRssFeed(feedIndex, itemIndex).c_str());
+    }
+  }
+  
+  debug->printf("getRSSfeedMessage(): feedNr[%d], msgNr[%d] rssFeedMessage[%s]\n" 
+                                  , feedIndex, itemIndex, rssFeedMessage);
+  
   return rssFeedMessage;
 
 } // getRSSfeedMessage()
@@ -1976,9 +1988,15 @@ void setup()
                                                            , debug);
     //mediastack.setInterval(gMediastackSettings->requestInterval);
 
-    //rssReader.setup("https://feeds.nos.nl/nosnieuwsalgemeen", "/RSS1.txt", 10, (5 * 60 * 1000), debug);
-    rssReader.setup("https://feeds.nos.nl/nosnieuwsopmerkelijk", "/RSS1.txt", 10, (5 * 60 * 1000), debug);
+    rssReader.setDebug(debug);
     
+    rssReader.addRSSfeed("https://feeds.nos.nl/nosnieuwsopmerkelijk", 10);
+    rssReader.addRSSfeed("https://feeds.nos.nl/nosnieuwsalgemeen", 5);
+    rssReader.addRSSfeed("https://www.nrc.nl/rss/", 10);
+    rssReader.addRSSfeed("https://feeds.nos.nl/nosnieuwsbuitenland", 5);
+    rssReader.addRSSfeed("https://www.volkskrant.nl/voorpagina/rss.xml", 10);
+    
+    rssReader.setRequestInterval(11 * 60 * 1000); // 11 minutes
 
     spa.activatePage("Main");
 
