@@ -407,7 +407,7 @@ void sendSettingFieldToClient(const std::string& settingsType)
   
   // Use the exact same action name format as the original functions
   if (settingsType == "deviceSettings") {
-    jsonDoc["action"] = "devSettingsData";
+    jsonDoc["action"] = "deviceSettingsData";
   } else if (settingsType == "parolaSettings") {
     jsonDoc["action"] = "parolaSettingsData";
   } else if (settingsType == "weerliveSettings") {
@@ -432,11 +432,11 @@ void sendSettingFieldToClient(const std::string& settingsType)
     // If there's a specific initialization function for device settings
     // spa.callJsFunction("initializeDevSettings", jsonData.c_str());
   }
-  
+
 } // sendSettingFieldToClient()
 
 
-// Function to send the JSON string to the client when devSettingsPage is activated
+// Function to send the JSON string to the client when deviceSettingsPage is activated
 void sendDevFieldsToClient()
 {
   sendSettingFieldToClient("deviceSettings");
@@ -1131,18 +1131,18 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
       {
         debug->println("handleLocalWebSocketEvent(): Handling saveDevSettings message");
         
-        // Check if inputValues exists and contains devSettingsData
-        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("devSettingsData")) 
+        // Check if inputValues exists and contains deviceSettingsData
+        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("deviceSettingsData")) 
         {
-          // Get the devSettingsData as a string
-          const char* devSettingsData = doc["inputValues"]["devSettingsData"];
+          // Get the deviceSettingsData as a string
+          const char* deviceSettingsData = doc["inputValues"]["deviceSettingsData"];
           debug->println("handleLocalWebSocketEvent(): Received device settings data:");
-          debug->println(devSettingsData);
+          debug->println(deviceSettingsData);
           
           // Process the device settings data
-          processDevSettings(devSettingsData);
+          processDevSettings(deviceSettingsData);
         } else {
-          debug->println("handleLocalWebSocketEvent(): No devSettingsData found in the message");
+          debug->println("handleLocalWebSocketEvent(): No deviceSettingsData found in the message");
         }
       }
       // Check if this is a saveParolaSettings message
@@ -1238,7 +1238,7 @@ void pageIsLoadedCallback()
     debug->println("Main page activated");
   }
   // Check if the device settings page was just activated
-  else if (activePage == "devSettingsPage") {
+  else if (activePage == "deviceSettingsPage") {
     debug->println("Device settings page activated");
     sendDevFieldsToClient();
   }
@@ -1271,7 +1271,7 @@ void localMessagesCallback()
 void mainCallbackDevSettings()
 {
   spa.setErrorMessage("Main Menu \"Dev Settings\" clicked!", 5);
-  spa.activatePage("devSettingsPage");
+  spa.activatePage("deviceSettingsPage");
   
   // Call the JavaScript function to set up event handlers
   spa.callJsFunction("isEspTicker32Loaded");
@@ -1541,10 +1541,10 @@ void setupSettingsPage()
     )HTML";
   
   debug->println("\nsetupSettingsPage(): Adding settings page");
-  spa.addPage("devSettingsPage", settingsPage);
-  spa.setPageTitle("devSettingsPage", "Device Settings");
-  spa.addMenu("devSettingsPage", "Device Settings");
-  spa.addMenuItem("devSettingsPage", "Device Settings", "Exit", handleMenuItem, "SET-UP");
+  spa.addPage("deviceSettingsPage", settingsPage);
+  spa.setPageTitle("deviceSettingsPage", "Device Settings");
+  spa.addMenu("deviceSettingsPage", "Device Settings");
+  spa.addMenuItem("deviceSettingsPage", "Device Settings", "Exit", handleMenuItem, "SET-UP");
   
   spa.addPage("parolaSettingsPage", settingsPage);
   spa.setPageTitle("parolaSettingsPage", "Parola Settings");

@@ -1,4 +1,12 @@
 //----- espTicker32.js -----
+
+let isRequestingParolaSettings = false;
+let isRequestingWeerliveSettings = false;
+let isRequestingMediastackSettings = false;
+let isRequestingDeviceSettings = false;
+let renderDebounceTimer = null;
+let lastReceivedData = null;
+
 // Array to store input field values
 let LocalMessages = [];
 
@@ -195,7 +203,8 @@ function isEspTicker32Loaded()
   console.log("isEspTicker32Loaded called");
   
   // Check if we already have a WebSocket connection
-  if (!window.ws || window.ws.readyState !== WebSocket.OPEN) {
+  if (!window.ws || window.ws.readyState !== WebSocket.OPEN) 
+  {
     console.log("WebSocket not available or not open, checking global ws variable");
     
     // Try to use the global ws variable from SPAmanager.js
@@ -226,10 +235,88 @@ function isEspTicker32Loaded()
         // Initialize with the data
         initializeLocalMessages(data.data);
       }
+      // Check if this is our custom deviceSettingsData message
+      else if (data.type === 'custom' && data.action === 'deviceSettingsData') {
+        console.log('Received device settings data');
+        
+        // Reset the request flag
+        isRequestingDeviceSettings = false;
+        
+        // Store the data and debounce the rendering
+        lastReceivedData = {
+          type: 'deviceSettings',
+          data: data.data
+        };
+        
+        // Debounce the rendering
+        clearTimeout(renderDebounceTimer);
+        renderDebounceTimer = setTimeout(() => {
+          // Initialize with the data
+          initializeDevSettings(lastReceivedData.data);
+        }, 100);
+      }
+      // Check if this is our custom parolaSettingsData message
+      else if (data.type === 'custom' && data.action === 'parolaSettingsData') {
+        console.log('Received parola settings data');
+        
+        // Reset the request flag
+        isRequestingParolaSettings = false;
+        
+        // Store the data and debounce the rendering
+        lastReceivedData = {
+          type: 'parolaSettings',
+          data: data.data
+        };
+        
+        // Debounce the rendering
+        clearTimeout(renderDebounceTimer);
+        renderDebounceTimer = setTimeout(() => {
+          // Initialize with the data
+          initializeParolaSettings(lastReceivedData.data);
+        }, 100);
+      }
+      // Check if this is our custom weerliveSettingsData message
+      else if (data.type === 'custom' && data.action === 'weerliveSettingsData') {
+        console.log('Received weerlive settings data');
+        
+        // Reset the request flag
+        isRequestingWeerliveSettings = false;
+        
+        // Store the data and debounce the rendering
+        lastReceivedData = {
+          type: 'weerliveSettings',
+          data: data.data
+        };
+        
+        // Debounce the rendering
+        clearTimeout(renderDebounceTimer);
+        renderDebounceTimer = setTimeout(() => {
+          // Initialize with the data
+          initializeWeerliveSettings(lastReceivedData.data);
+        }, 100);
+      }
+      else if (data.type === 'custom' && data.action === 'mediastackSettingsData') {
+        console.log('Received mediastack settings data');
+        
+        // Reset the request flag
+        isRequestingMediastackSettings = false;
+        
+        // Store the data and debounce the rendering
+        lastReceivedData = {
+          type: 'mediastackSettings',
+          data: data.data
+        };
+        
+        // Debounce the rendering
+        clearTimeout(renderDebounceTimer);
+        renderDebounceTimer = setTimeout(() => {
+          // Initialize with the data
+          initializeMediastackSettings(lastReceivedData.data);
+        }, 100);
+      }
       // Also check for direct JSON arrays for backward compatibility
       else if (event.data.startsWith('[') && event.data.endsWith(']')) {
         console.log('Received direct input fields data');
-        
         // Try to initialize immediately
         initializeLocalMessages(event.data);
       }
@@ -246,33 +333,57 @@ function isEspTicker32Loaded()
     }
   });
   
-  // Check if the page is ready for input fields
-  if (isPageReadyForLocalMessages()) {
-    // Request input fields data from the server
-    console.log("Page is ready, requesting input fields data from server");
+  // Get the current page title to determine which page we're on
+  const pageTitle = document.getElementById('title').textContent;
+  console.log("Current page title:", pageTitle);
+  
+  // Check if this is the main page with the scrolling monitor
+  if (pageTitle.includes("Main") && isPageReadyForScrollingMonitor()) 
+  {
+    console.log("Main page is ready with scrolling monitor");
+    // If there are any queued messages, process them
+    if (messageQueue.length > 0 && !isDisplayingMessage) {
+      processNextMessage();
+    }
+  }
+
+  // Check if the page is ready for input fields (only for Messages page)
+  if (pageTitle.includes("Messages") && isPageReadyForLocalMessages()) 
+  {
+    console.log("Page is ready for input fields, requesting data from server");
     requestLocalMessages();
-  } else {
-    // Page is not ready yet, wait and check again
-    console.log("Page is not ready yet, waiting...");
-    
-    // Use a limited number of retries instead of an infinite interval
-    let retryCount = 0;
-    const maxRetries = 10;
-    const checkInterval = setInterval(() => {
-      retryCount++;
-      if (isPageReadyForLocalMessages()) {
-        console.log("Page is now ready, requesting input fields data from server");
-        requestLocalMessages();
-        clearInterval(checkInterval);
-      } else if (retryCount >= maxRetries) {
-        console.error("Max retries reached, page still not ready");
-        clearInterval(checkInterval);
-      } else {
-        console.log(`Page still not ready, retry ${retryCount}/${maxRetries}`);
-      }
-    }, 500);
   }
   
+  // Check if the page is ready for device settings (only for Device Settings page)
+  if (pageTitle.includes("Device Settings") && isPageReadyForDeviceSettings() && !isRequestingDeviceSettings) 
+  {
+    console.log("Page is ready for device settings, requesting data from server");
+    isRequestingDeviceSettings = true;
+    requestDeviceSettings();
+  }
+
+  // Check if the page is ready for parola settings (only for Parola Settings page)
+  if (pageTitle.includes("Parola Settings") && isPageReadyForParolaSettings() && !isRequestingParolaSettings) 
+  {
+    console.log("Page is ready for parola settings, requesting data from server");
+    isRequestingParolaSettings = true;
+    requestParolaSettings();
+  }
+  
+  // Check if the page is ready for weerlive settings (only for Weerlive Settings page)
+  if (pageTitle.includes("Weerlive Settings") && isPageReadyForWeerliveSettings() && !isRequestingWeerliveSettings) 
+  {
+    console.log("Page is ready for weerlive settings, requesting data from server");
+    isRequestingWeerliveSettings = true;
+    requestWeerliveSettings();
+  }
+  // Check if the page is ready for mediastack settings (only for Mediastack Settings page)
+  if (pageTitle.includes("Mediastack Settings") && isPageReadyForMediastackSettings() && !isRequestingMediastackSettings) 
+  {
+    console.log("Page is ready for mediastack settings, requesting data from server");
+    isRequestingMediastackSettings = true;
+    requestMediastackSettings();
+  }  
   return true;
 
 } // isEspTicker32Loaded()
@@ -594,7 +705,7 @@ function initializeParolaSettings(jsonString)
   console.log('initializeParolaSettings called with:', jsonString);
   try {
     parolaSettings = JSON.parse(jsonString) || { fields: [] };
-    renderparolaSettings();
+    renderParolaSettings();
   } catch (e) {
     console.error('Error parsing JSON:', e);
     parolaSettings = { fields: [] };
@@ -604,9 +715,9 @@ function initializeParolaSettings(jsonString)
 
 
 // Function to render the parola settings in the table
-function renderparolaSettings() 
+function renderParolaSettings() 
 {
-  console.log('renderparolaSettings called');
+  console.log('renderParolaSettings called');
   
   // Check if the page is ready
   if (!isPageReadyForParolaSettings()) {
@@ -615,6 +726,8 @@ function renderparolaSettings()
   }
   
   const tableBody = document.getElementById('settingsTableBody');
+  
+  // Clear the table body
   tableBody.innerHTML = '';
   
   if (parolaSettings && parolaSettings.fields) {
@@ -646,9 +759,9 @@ function renderparolaSettings()
         input.max = field.fieldMax;
         input.step = field.fieldStep;
         
-        input.dataset.fieldName = field.fieldName;  // ADD THIS LINE
-        input.dataset.fieldType = field.fieldType;  // ADD THIS LINE
-        input.addEventListener('input', updateparolaSettings);  // ADD THIS LINE
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('input', updateParolaSettings);
 
         // Create a container for the input and range text
         const container = document.createElement('div');
@@ -679,7 +792,7 @@ function renderparolaSettings()
       input.style.width = '100%';
       input.dataset.fieldName = field.fieldName;
       input.dataset.fieldType = field.fieldType;
-      input.addEventListener('input', updateparolaSettings);
+      input.addEventListener('input', updateParolaSettings);
       
       valueCell.appendChild(input);
       row.appendChild(promptCell);
@@ -693,11 +806,10 @@ function renderparolaSettings()
   if (settingsNameElement) {
     settingsNameElement.textContent = 'Parola Settings';
   }
-
-} // renderparolaSettings()
+} // renderParolaSettings()
 
 // Function to update a parola setting
-function updateparolaSettings(event) 
+function updateParolaSettings(event) 
 {
   const input = event.target || this;
   const fieldName = input.dataset.fieldName;
@@ -713,7 +825,7 @@ function updateparolaSettings(event)
       field.fieldValue = value;
     }
   }
-} // updateparolaSettings()
+} // updateParolaSettings()
 
 
 // Function to request parola settings data from the server
@@ -727,30 +839,30 @@ function requestParolaSettings()
 } // requestParolaSettings()
 
 // Device Settings variables and functions
-let devSettings = null;
+let deviceSettings = null;
 let parolaSettings = null;
 let weerliveSettings = null;
 let mediasstackSettings = null;
 
 //===========[Device Settings]=========================================================
 // Function to check if the page is ready for device settings
-function isPageReadyForDevSettings() 
+function isPageReadyForDeviceSettings() 
 {
   // Check if the settingsTableBody element exists
   const tableBody = document.getElementById('settingsTableBody');
   return !!tableBody;
-} // isPageReadyForDevSettings()
+} // isPageReadyForDeviceSettings()
 
 // Function to initialize the device settings from JSON
 function initializeDevSettings(jsonString) 
 {
   console.log('initializeDevSettings called with:', jsonString);
   try {
-    devSettings = JSON.parse(jsonString) || { fields: [] };
+    deviceSettings = JSON.parse(jsonString) || { fields: [] };
     renderDevSettings();
   } catch (e) {
     console.error('Error parsing JSON:', e);
-    devSettings = { fields: [] };
+    deviceSettings = { fields: [] };
   }
 
 } //  initializeDevSettings()
@@ -761,7 +873,7 @@ function renderDevSettings()
   console.log('renderDevSettings called');
   
   // Check if the page is ready
-  if (!isPageReadyForDevSettings()) {
+  if (!isPageReadyForDeviceSettings()) {
     console.error('Device settings table body not found in DOM, page not ready yet');
     return;
   }
@@ -769,8 +881,8 @@ function renderDevSettings()
   const tableBody = document.getElementById('settingsTableBody');
   tableBody.innerHTML = '';
   
-  if (devSettings && devSettings.fields) {
-    devSettings.fields.forEach((field) => {
+  if (deviceSettings && deviceSettings.fields) {
+    deviceSettings.fields.forEach((field) => {
       const row = document.createElement('tr');
       
       // Field prompt cell
@@ -857,9 +969,9 @@ function updateDevSetting(event)
   
   console.log(`Updating device setting: ${fieldName} = ${value}`);
   
-  // Find and update the field in the devSettings object
-  if (devSettings && devSettings.fields) {
-    const field = devSettings.fields.find(f => f.fieldName === fieldName);
+  // Find and update the field in the deviceSettings object
+  if (deviceSettings && deviceSettings.fields) {
+    const field = deviceSettings.fields.find(f => f.fieldName === fieldName);
     if (field) {
       field.fieldValue = value;
     }
@@ -868,13 +980,13 @@ function updateDevSetting(event)
 } //  updateDevSetting()
 
 // Function to request device settings data from the server
-function requestDevSettings() 
+function requestDeviceSettings() 
 {
   console.log("Requesting device settings data from server");
   window.ws.send(JSON.stringify({
     type: 'requestDevSettings'
   }));
-} //  requestDevSettings()
+} //  requestDeviceSettings()
 
 // Function to set the correct save function based on the settings page
 function saveSettings() 
@@ -889,9 +1001,9 @@ function saveSettings()
   let dataKey = '';
   
   if (settingsName === 'Device Settings') {
-    settingsObj = devSettings;
+    settingsObj = deviceSettings;
     processType = 'saveDevSettings';
-    dataKey = 'devSettingsData';
+    dataKey = 'deviceSettingsData';
   } else if (settingsName === 'Parola Settings') {
     settingsObj = parolaSettings;
     processType = 'saveParolaSettings';
@@ -1163,8 +1275,8 @@ function isEspTicker32Loaded()
         // Initialize with the data
         initializeLocalMessages(data.data);
       }
-      // Check if this is our custom devSettingsData message
-      else if (data.type === 'custom' && data.action === 'devSettingsData') {
+      // Check if this is our custom deviceSettingsData message
+      else if (data.type === 'custom' && data.action === 'deviceSettingsData') {
         console.log('Received device settings data');
         
         // Initialize with the data
@@ -1228,10 +1340,10 @@ function isEspTicker32Loaded()
   }
   
   // Check if the page is ready for device settings (only for Device Settings page)
-  if (pageTitle.includes("Device Settings") && isPageReadyForDevSettings()) 
+  if (pageTitle.includes("Device Settings") && isPageReadyForDeviceSettings()) 
   {
     console.log("Page is ready for device settings, requesting data from server");
-    requestDevSettings();
+    requestDeviceSettings();
   }
 
   // Check if the page is ready for parola settings (only for Parola Settings page)
