@@ -102,8 +102,8 @@ String getMediastackMessage()
 
 String getRSSfeedMessage()
 {
-  static uint8_t feedIndex = 0;
-  static size_t itemIndex = 0;
+  uint8_t feedIndex = 0;
+  size_t itemIndex = 0;
   char rssFeedMessage[1000] = {};
 
   // Get the next feed item indices
@@ -1990,11 +1990,11 @@ void setup()
 
     rssReader.setDebug(debug);
     
-    rssReader.addRSSfeed("https://feeds.nos.nl/nosnieuwsopmerkelijk", 5);
-    rssReader.addRSSfeed("https://feeds.nos.nl/nosnieuwsalgemeen", 3);
-    rssReader.addRSSfeed("https://www.nrc.nl/rss/", 5);
-    rssReader.addRSSfeed("https://feeds.nos.nl/nosnieuwsbuitenland", 3);
-    rssReader.addRSSfeed("https://www.volkskrant.nl/voorpagina/rss.xml", 5);
+    rssReader.addRSSfeed("https://feeds.nos.nl/nosnieuwsopmerkelijk", 10);
+    rssReader.addRSSfeed("https://feeds.nos.nl/nosnieuwsalgemeen", 5);
+    rssReader.addRSSfeed("https://www.nrc.nl/rss/", 10);
+    rssReader.addRSSfeed("https://feeds.nos.nl/nosnieuwsbuitenland", 5);
+    rssReader.addRSSfeed("https://www.volkskrant.nl/voorpagina/rss.xml", 10);
     
     rssReader.setRequestInterval(11 * 60 * 1000); // 11 minutes
 

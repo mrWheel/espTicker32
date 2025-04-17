@@ -17,21 +17,15 @@ bool RSSreaderClass::addRSSfeed(const char* url, size_t maxFeeds)
     return false;
   }
   
-  if (_activeFeedCount >= 10)
-  {
-    if (debug) debug->println("RSSreaderClass::addRSSfeed(): Maximum number of feeds reached");
-    return false;
-  }
-  
   uint8_t feedIndex = _activeFeedCount;
   _urls[feedIndex] = url;
   _filePaths[feedIndex] = "/RSSfeed" + String(feedIndex) + ".txt";
-  _maxFeedsPerFile = maxFeeds;
+  _maxFeedsPerFile[feedIndex] = maxFeeds;
   _totalMaxFeeds += maxFeeds; // Update total max feeds
   _lastCheck = 0;
 
-  if (debug) debug->printf("RSSreaderClass::addRSSfeed(): URL: [%s], File: [%s], Max Feeds: [%d], Index: [%d]\n", 
-                          _urls[feedIndex].c_str(), _filePaths[feedIndex].c_str(), _maxFeedsPerFile, feedIndex);
+  if (debug && doDebug) debug->printf("RSSreaderClass::addRSSfeed(): URL:[%s], File:[%s], Max Feeds:[%d], Index: [%d]\n", 
+                          _urls[feedIndex].c_str(), _filePaths[feedIndex].c_str(), _maxFeedsPerFile[feedIndex], feedIndex);
 
   LittleFS.begin();
   if (!LittleFS.exists(_filePaths[feedIndex])) 
@@ -41,17 +35,17 @@ bool RSSreaderClass::addRSSfeed(const char* url, size_t maxFeeds)
     if (file) 
     {
       file.close();
-      if (debug) debug->println("RSSreaderClass::addRSSfeed(): Bestand aangemaakt.");
+      if (debug && doDebug) debug->printf("RSSreaderClass::addRSSfeed(): Bestand [%s]aangemaakt.\n", _filePaths[feedIndex].c_str());
     } 
     else 
     {
-      if (debug) debug->println("RSSreaderClass::addRSSfeed(): Kan bestand niet aanmaken.");
+      if (debug) debug->printf("RSSreaderClass::addRSSfeed(): Kan bestand [%s] niet aanmaken.\n", _filePaths[feedIndex].c_str()); 
       return false;
     }
   } 
   else 
   {
-    if (debug) debug->println("RSSreaderClass::addRSSfeed(): Bestand bestaat al.");
+    if (debug && doDebug) debug->println("RSSreaderClass::addRSSfeed(): Bestand bestaat al.");
   }
   
   _activeFeedCount++;  // Increment FIRST
@@ -72,7 +66,7 @@ void RSSreaderClass::loop(struct tm timeNow)
     _feedCheckState = 0;
     _lastFeedCheck = 0; // Force immediate check of first feed
     
-    if (debug) debug->println("RSSreaderClass::loop(): Starting feed check cycle");
+    if (debug && doDebug) debug->println("RSSreaderClass::loop(): Starting feed check cycle");
   }
   
   // If we're in the process of checking feeds, check one feed at a time
@@ -81,7 +75,7 @@ void RSSreaderClass::loop(struct tm timeNow)
     if (_feedCheckState < _activeFeedCount) 
     {
       // Check the current feed
-      if (debug) debug->printf("RSSreaderClass::loop(): Checking feed %d of %d\n", 
+      if (debug && doDebug) debug->printf("RSSreaderClass::loop(): Checking feed[%d] of [%d]\n", 
                               _feedCheckState + 1, _activeFeedCount);
       
       checkFeed(_feedCheckState);
@@ -91,7 +85,7 @@ void RSSreaderClass::loop(struct tm timeNow)
     else 
     {
       // All feeds checked, end the cycle
-      if (debug) debug->println("RSSreaderClass::loop(): Feed check cycle complete");
+      if (debug && doDebug) debug->println("RSSreaderClass::loop(): Feed check cycle complete");
       _checkingFeeds = false;
       _lastCheck = millis(); // Reset the main interval timer
     }
@@ -116,7 +110,7 @@ String RSSreaderClass::fetchFeed(const char* url)
   String host = urlStr.substring(0, slashIndex);
   String path = urlStr.substring(slashIndex); // inclusief de '/'
 
-  if (debug) debug->printf("RSSreaderClass::fetchFeed(): host[%s], path[%s]\n", host.c_str(), path.c_str());
+  if (debug && doDebug) debug->printf("RSSreaderClass::fetchFeed(): host[%s], path[%s]\n", host.c_str(), path.c_str());
 
   WiFiClientSecure client;
   client.setInsecure();  // Voor testdoeleinden
@@ -124,7 +118,7 @@ String RSSreaderClass::fetchFeed(const char* url)
 
   if (!client.connect(host.c_str(), 443)) 
   {
-    if (debug) debug->println("RSSreaderClass::fetchFeed(): Verbinding mislukt!");
+    if (debug && doDebug) debug->println("RSSreaderClass::fetchFeed(): Verbinding mislukt!");
     return "Fout: Kon geen TLS verbinding maken";
   }
 
@@ -134,7 +128,7 @@ String RSSreaderClass::fetchFeed(const char* url)
   client.println("Connection: close");
   client.println();
 
-  if (debug) debug->println("RSSreaderClass::fetchFeed(): Verzoek verzonden, wacht op antwoord...");
+  if (debug && doDebug) debug->println("RSSreaderClass::fetchFeed(): Verzoek verzonden, wacht op antwoord...");
 
   // Antwoord inlezen (met totale timeout)
   String response;
@@ -153,25 +147,30 @@ String RSSreaderClass::fetchFeed(const char* url)
   }
 
   client.stop();
-  if (debug) debug->println("RSSreaderClass::fetchFeed(): Verbinding gesloten");
+  if (debug && doDebug) debug->println("RSSreaderClass::fetchFeed(): Verbinding gesloten");
 
   // Strip headers
   int bodyIndex = response.indexOf("\r\n\r\n");
   if (bodyIndex == -1) 
   {
-    if (debug) debug->println("RSSreaderClass::fetchFeed(): Kon body niet vinden in antwoord");
+    if (debug && doDebug) debug->println("RSSreaderClass::fetchFeed(): Kon body niet vinden in antwoord");
     return "Fout: HTTP headers niet correct";
   }
 
   String xmlPayload = response.substring(bodyIndex + 4);
-  if (debug) 
+  if (debug && xmlPayload.length() == 0) 
+  {
+    debug->printf("RSSreaderClass::fetchFeed(): Payload length: %d\n", xmlPayload.length());
+    //debug->println(xmlPayload.substring(0, 300));
+  }
+  if (debug && doDebug) 
   {
     debug->printf("RSSreaderClass::fetchFeed(): Payload length: %d\n", xmlPayload.length());
     //debug->println(xmlPayload.substring(0, 300));
   }
 
   return xmlPayload;
-  
+
 } // fetchFeed()
 
 
@@ -231,14 +230,14 @@ void RSSreaderClass::saveTitles(const std::vector<String>& titles, uint8_t feedI
   File file = LittleFS.open(_filePaths[feedIndex], "a");
   if (!file) 
   {
-    if (debug) debug->println("RSSreaderClass::saveTitles(): Kan bestand niet openen voor schrijven");
+    if (debug && doDebug) debug->println("RSSreaderClass::saveTitles(): Kan bestand niet openen voor schrijven");
     return;
   }
 
   for (const String& title : titles) 
   {
     time_t now = time(nullptr);
-    if (debug) debug->printf("RSSreaderClass::saveTitles(): Titel: %s\n", title.c_str());
+    if (debug && doDebug) debug->printf("RSSreaderClass::saveTitles(): Titel: %s\n", title.c_str());
     file.print(now);
     file.print("|");
     file.println(title);
@@ -267,18 +266,18 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
 {
   if (feedIndex >= _activeFeedCount)
   {
-    if (debug) debug->printf("RSSreaderClass::checkFeed(): Invalid feed index: %d\n", feedIndex);
+    if (debug && doDebug) debug->printf("RSSreaderClass::checkFeed(): Invalid feed index: %d\n", feedIndex);
     return;
   }
   
-  if (debug) debug->printf("RSSreaderClass::checkFeed(): Checking feed %d: %s\n", 
+  if (debug && doDebug) debug->printf("RSSreaderClass::checkFeed(): Checking feed %d: %s\n", 
                           feedIndex, _urls[feedIndex].c_str());
                           
   String feed = fetchFeed(_urls[feedIndex].c_str());
 
   if (feed.startsWith("Fout:")) 
   {
-    if (debug) debug->println(feed);
+    if (debug) debug->printf("RSSreaderClass::checkFeed(): Fout bij ophalen RSS-feed: [%s]\n", feed);
     return;
   }
 
@@ -291,7 +290,7 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
   {
     if (!titleExists(title, existing)) 
     {
-      if (debug) debug->printf("RSSreaderClass::checkFeed(): Nieuwe titel gevonden: %s\n", title.c_str());
+      if (debug && doDebug) debug->printf("RSSreaderClass::checkFeed(): Nieuwe titel gevonden: %s\n", title.c_str());
       time_t now = time(nullptr);
       updated.push_back(String(now) + "|" + title);
       changed = true;
@@ -299,7 +298,7 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
   }
 
   // FIFO: maximaal _maxFeedsPerFile titels
-  while (updated.size() > _maxFeedsPerFile) 
+  while (updated.size() > _maxFeedsPerFile[feedIndex]) 
   {
     updated.erase(updated.begin());
   }
@@ -315,7 +314,8 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
         file.println(line);
       }
       file.close();
-      if (debug) debug->println("RSSreaderClass::checkFeed(): Nieuwe feeds toegevoegd.");
+      if (debug && doDebug) debug->println("RSSreaderClass::checkFeed(): Nieuwe feeds toegevoegd.");
+      if (debug) debug->printf("RSSreaderClass::checkFeed(): Feed[%d] now has [%d] items\n", feedIndex, updated.size());
     } 
     else 
     {
@@ -324,25 +324,25 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
   } 
   else 
   {
-    if (debug) debug->println("RSSreaderClass::checkFeed(): Geen nieuwe titels.");
+    if (debug && doDebug) debug->println("RSSreaderClass::checkFeed(): Geen nieuwe titels.");
   }
 } // checkFeed()
 
 
 void RSSreaderClass::checkForNewFeedItems() 
 {
-  if (debug) debug->println("RSSreaderClass::checkForNewFeedItems(): Checken op nieuwe RSS-items...");
+  if (debug && doDebug) debug->println("RSSreaderClass::checkForNewFeedItems(): Checken op nieuwe RSS-items...");
   
   for (uint8_t feedIndex = 0; feedIndex < _activeFeedCount; feedIndex++)
   {
-    if (debug) debug->printf("RSSreaderClass::checkForNewFeedItems(): Checking feed %d: %s\n", 
+    if (debug && doDebug) debug->printf("RSSreaderClass::checkForNewFeedItems(): Checking feed %d: %s\n", 
                             feedIndex, _urls[feedIndex].c_str());
                             
     String feed = fetchFeed(_urls[feedIndex].c_str());
 
     if (feed.startsWith("Fout:")) 
     {
-      if (debug) debug->println(feed);
+      if (debug) debug->printf("RSSreaderClass::checkForNewFeedItems(): Fout bij ophalen RSS-feed: [%s]\n", feed);
       continue;
     }
 
@@ -355,7 +355,7 @@ void RSSreaderClass::checkForNewFeedItems()
     {
       if (!titleExists(title, existing)) 
       {
-        if (debug) debug->printf("RSSreaderClass::checkForNewFeedItems(): Nieuwe titel gevonden: %s\n", title.c_str());
+        if (debug && doDebug) debug->printf("RSSreaderClass::checkForNewFeedItems(): Nieuwe titel gevonden: %s\n", title.c_str());
         time_t now = time(nullptr);
         updated.push_back(String(now) + "|" + title);
         changed = true;
@@ -363,7 +363,7 @@ void RSSreaderClass::checkForNewFeedItems()
     }
 
     // FIFO: maximaal _maxFeedsPerFile titels
-    while (updated.size() > _maxFeedsPerFile) 
+    while (updated.size() > _maxFeedsPerFile[feedIndex]) 
     {
       updated.erase(updated.begin());
     }
@@ -379,7 +379,8 @@ void RSSreaderClass::checkForNewFeedItems()
           file.println(line);
         }
         file.close();
-        if (debug) debug->println("RSSreaderClass::checkForNewFeedItems(): Nieuwe feeds toegevoegd.");
+        if (debug && doDebug) debug->println("RSSreaderClass::checkForNewFeedItems(): Nieuwe feeds toegevoegd.");
+        if (debug) debug->printf("RSSreaderClass::checkForNewFeedItems(): Feed[%d] now has [%d] items\n", feedIndex, updated.size());
       } 
       else 
       {
@@ -388,7 +389,7 @@ void RSSreaderClass::checkForNewFeedItems()
     } 
     else 
     {
-      if (debug) debug->println("RSSreaderClass::checkForNewFeedItems(): Geen nieuwe titels.");
+      if (debug && doDebug) debug->println("RSSreaderClass::checkForNewFeedItems(): Geen nieuwe titels.");
     }
   }
 
@@ -396,13 +397,13 @@ void RSSreaderClass::checkForNewFeedItems()
 
 void RSSreaderClass::deleteFeedsOlderThan(struct tm timeNow) 
 {
-  if (debug) debug->println("RSSreaderClass::deleteFeedsOlderThan(): Verwijderen van oude feeds...");
+  if (debug && doDebug) debug->println("RSSreaderClass::deleteFeedsOlderThan(): Verwijderen van oude feeds...");
 
   // Calculate timestamp for 24 hours ago
   time_t now = time(nullptr);
   time_t twentyFourHoursAgo = now - (24 * 60 * 60); // 24 hours in seconds
 
-  if (debug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Current time: %ld, 24 hours ago: %ld\n", 
+  if (debug && doDebug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Current time: %ld, 24 hours ago: %ld\n", 
                           now, twentyFourHoursAgo);
 
   for (uint8_t feedIndex = 0; feedIndex < _activeFeedCount; feedIndex++)
@@ -420,7 +421,7 @@ void RSSreaderClass::deleteFeedsOlderThan(struct tm timeNow)
         {
           filtered.push_back(line);
         }
-        else if (debug)
+        else if (debug && doDebug)
         {
           debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Removing old item: %s (timestamp: %ld)\n", 
                         line.c_str(), ts);
@@ -439,7 +440,7 @@ void RSSreaderClass::deleteFeedsOlderThan(struct tm timeNow)
       file.close();
     }
 
-    if (debug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Feed %d: Feeds behouden: %d / verwijderd: %d\n", 
+    if (debug && doDebug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Feed[%d], Feeds behouden[%d] / verwijderd[%d]\n", 
                             feedIndex, filtered.size(), lines.size() - filtered.size());
   }
 } // deleteFeedsOlderThan()
@@ -453,51 +454,74 @@ bool RSSreaderClass::getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex)
     return false;
   }
   
-  // Return current indices
+  // Return current feed and item indices
   feedIndex = _currentFeedIndex;
-  itemIndex = _currentItemIndex;
+  itemIndex = _currentItemIndices[_currentFeedIndex];
   
-  // Calculate the next indices for the next call
-  _currentItemIndex++;
+  // Increment the item index for this feed
+  _currentItemIndices[_currentFeedIndex]++;
   
   // Check if we've reached the end of the current feed
   std::vector<String> lines = getStoredLines(_currentFeedIndex);
-  if (_currentItemIndex >= lines.size() || lines.size() == 0)
+  if (_currentItemIndices[_currentFeedIndex] >= lines.size())
   {
-    // Reset item index and increment feed counter
-    _currentItemIndex = 0;
-    _feedReadCounts[_currentFeedIndex]++;
-    
-    // Determine if we should switch to the next feed
-    bool shouldSwitchFeed = false;
-    
-    // If we have multiple feeds, check if we've read enough from this feed
-    if (_activeFeedCount > 1)
+    // Reset to beginning of this feed
+    _currentItemIndices[_currentFeedIndex] = 0;
+  }
+  
+  // Increment read counter for current feed
+  _feedReadCounts[_currentFeedIndex]++;
+  
+  // Determine which feed to read from next using deficit round-robin
+  if (_activeFeedCount > 1)
+  {
+    // Calculate ideal read ratios for each feed
+    float totalItems = 0;
+    for (uint8_t i = 0; i < _activeFeedCount; i++)
     {
-      // Calculate the ratio based on maxFeeds values
-      float currentFeedRatio = (float)_maxFeedsPerFile / (float)_totalMaxFeeds;
-      float readRatio = (float)_feedReadCounts[_currentFeedIndex] / 
-                        (float)(1 + _feedReadCounts[0] + _feedReadCounts[1]); // Add 1 to avoid division by zero
-      
-      if (readRatio >= currentFeedRatio)
+      totalItems += _maxFeedsPerFile[i];
+    }
+    
+    // Find feed with largest deficit between ideal and actual reads
+    float maxDeficit = -1.0;
+    uint8_t nextFeed = (_currentFeedIndex + 1) % _activeFeedCount; // Default to next feed
+    
+    uint32_t totalReads = 0;
+    for (uint8_t i = 0; i < _activeFeedCount; i++)
+    {
+      totalReads += _feedReadCounts[i];
+    }
+    
+    if (totalReads > 0) // Avoid division by zero
+    {
+      for (uint8_t i = 0; i < _activeFeedCount; i++)
       {
-        shouldSwitchFeed = true;
+        float idealRatio = _maxFeedsPerFile[i] / totalItems;
+        float actualRatio = (float)_feedReadCounts[i] / (float)totalReads;
+        float deficit = idealRatio - actualRatio;
+        
+        if (deficit > maxDeficit)
+        {
+          maxDeficit = deficit;
+          nextFeed = i;
+        }
       }
     }
     
-    if (shouldSwitchFeed)
+    _currentFeedIndex = nextFeed;
+  }
+  else
+  {
+    // Only one feed, stay on it
+    _currentFeedIndex = 0;
+  }
+  
+  // Reset counters if we've read a lot of items to prevent overflow
+  if (_feedReadCounts[0] > 1000) // Arbitrary large number
+  {
+    for (uint8_t i = 0; i < _activeFeedCount; i++)
     {
-      // Move to the next feed
-      _currentFeedIndex = (_currentFeedIndex + 1) % _activeFeedCount;
-      
-      // If we've cycled through all feeds, reset the read counters
-      if (_currentFeedIndex == 0)
-      {
-        for (uint8_t i = 0; i < _activeFeedCount; i++)
-        {
-          _feedReadCounts[i] = 0;
-        }
-      }
+      _feedReadCounts[i] = _feedReadCounts[i] / 2; // Reduce all proportionally
     }
   }
   
@@ -510,16 +534,16 @@ String RSSreaderClass::readRssFeed(uint8_t feedIndex, size_t itemIndex)
 {
   if (feedIndex >= _activeFeedCount)
   {
-    if (debug) debug->printf("RSSreaderClass::readRssFeed(): Invalid feed index: %d\n", feedIndex);
+    if (debug) debug->printf("RSSreaderClass::readRssFeed(): Invalid feed index[%d]\n", feedIndex);
     return "";
   }
   
-  if (debug) debug->printf("RSSreaderClass::readRssFeed(): FeedIndex: %d, ItemIndex: %d\n", feedIndex, itemIndex);
+  if (debug && doDebug) debug->printf("RSSreaderClass::readRssFeed(): FeedIndex[%d], ItemIndex[%d]\n", feedIndex, itemIndex);
   std::vector<String> lines = getStoredLines(feedIndex);
   
   if (itemIndex >= lines.size()) 
   {
-    if (debug) debug->printf("RSSreaderClass::readRssFeed(): Geen RSS-feed gevonden voor nummer %d in feed %d\n", 
+    if (debug) debug->printf("RSSreaderClass::readRssFeed(): Geen RSS-feed gevonden voor nummer [%d] in feed[%d]\n", 
                             itemIndex, feedIndex);
     return "";
   }
@@ -527,7 +551,7 @@ String RSSreaderClass::readRssFeed(uint8_t feedIndex, size_t itemIndex)
   int sep = lines[itemIndex].indexOf('|');
   if (sep != -1) 
   {
-    if (debug) debug->printf("RSSreaderClass::readRssFeed(): Feed %d, Item %d: %s\n", 
+    if (debug && doDebug) debug->printf("RSSreaderClass::readRssFeed(): Feed[%d], Item[%d] - [%s]\n", 
                             feedIndex, itemIndex, lines[itemIndex].c_str());
     return lines[itemIndex].substring(sep + 1);
   }

@@ -22,7 +22,7 @@ private:
   String _urls[10];
   String _filePaths[10];
   uint8_t _activeFeedCount = 0;
-  size_t _maxFeedsPerFile = 10;
+  size_t _maxFeedsPerFile[10] = {0};
   unsigned long _interval = 12000000; // standaard 20 min
   unsigned long _lastCheck = 0;
 
@@ -32,6 +32,7 @@ private:
   bool _checkingFeeds = false;          // Flag to indicate we're in the middle of checking feeds
   uint8_t _currentFeedIndex = 0;
   uint8_t _currentItemIndex = 0;
+  size_t _currentItemIndices[10] = {0}; // Track current item index for each feed
   uint8_t _feedReadCounts[10] = {0}; // Track how many items we've read from each feed
   uint16_t _totalMaxFeeds = 0;       // Sum of all maxFeeds values
   
@@ -44,6 +45,13 @@ private:
   void checkFeed(uint8_t feedIndex);
   void deleteFeedsOlderThan(struct tm timeNow);
   Stream* debug = nullptr; // Optional, default to nullptr
+
+  #ifdef RSSREADER_DEBUG
+    bool doDebug = true;
+  #else
+    bool doDebug = false;
+  #endif
+
 };
 
 #endif
