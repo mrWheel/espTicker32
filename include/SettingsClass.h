@@ -46,7 +46,7 @@ public:
   {
     fields.push_back(field);
   }
-  
+
   const std::string& getName() const { return settingsName; }
   const std::string& getFile() const { return settingsFile; }
   const std::string& getTarget() const { return settingsTarget; }
@@ -127,12 +127,16 @@ public:
   uint8_t parolaHardwareType;
   uint8_t parolaNumDevices;
   uint8_t parolaNumZones;
+  uint8_t parolaPinDIN;
+  uint8_t parolaPinCS;
+  uint8_t parolaPinCLK;
   
   SettingsClass();
   void setDebug(Stream* debugPort);
   
   // Initialize all settings containers
   void initializeSettingsContainers();
+  const SettingsContainer* getSettingsContainer(const std::string& settingsType) const;
   
   // Generic methods
   std::string buildJsonFieldsString(const std::string& settingsType);

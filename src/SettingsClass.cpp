@@ -16,12 +16,11 @@ void SettingsClass::initializeSettingsContainers()
   // Device settings
   SettingsContainer deviceContainer("Device Settings", "/settings.ini", "deviceSettings");
   deviceContainer.addField({"hostname", "hostname", "s", 32, 0, 0, 0, &hostname});
-  deviceContainer.addField({"scrollSnelheid", "Scroll Snelheid", "n", 0, 5, 255, 1, &scrollSnelheid});
+  deviceContainer.addField({"tickerSpeed", "Ticker Scroll Speed", "n", 0, 10, 120, 1, &tickerSpeed});
   deviceContainer.addField({"LDRMinWaarde", "LDR Min. Waarde", "n", 0, 10, 100, 1, &LDRMinWaarde});
   deviceContainer.addField({"LDRMaxWaarde", "LDR Max. Waarde", "n", 0, 11, 101, 1, &LDRMaxWaarde});
   deviceContainer.addField({"maxIntensiteitLeds", "Max. Intensiteit LEDS", "n", 0, 10, 55, 1, &maxIntensiteitLeds});
   deviceContainer.addField({"skipItems", "Words to skip", "s", 256, 0, 0, 0, &skipItems});
-  deviceContainer.addField({"tickerSpeed", "Ticker Scroll Speed", "n", 0, 10, 120, 1, &tickerSpeed});
   settingsContainers["deviceSettings"] = deviceContainer;
   
   // Weerlive settings
@@ -44,6 +43,9 @@ void SettingsClass::initializeSettingsContainers()
   parolaContainer.addField({"hardwareType", "Type (1=PAROLA_HW, 2=FC16_HW, 3=GENERIC_HW)", "n", 0, 1, 3, 1, &parolaHardwareType});
   parolaContainer.addField({"numDevices", "Aantal segmenten", "n", 0, 1, 22, 1, &parolaNumDevices});
   parolaContainer.addField({"numZones", "Aantal rijen (Zones)", "n", 0, 1, 2, 1, &parolaNumZones});
+  parolaContainer.addField({"pinDIN", "DIN/MOSI GPIO pin (0 = default)", "n", 0, 0, 15, 1, &parolaPinDIN});
+  parolaContainer.addField({"pinCS", "CS/SS GPIO pin (default 5)", "n",     0, 1, 15, 1, &parolaPinCS});
+  parolaContainer.addField({"pinCLK", "CLK/SCK GPIO pin (0 = default )", "n",  0, 0, 15, 1, &parolaPinCLK});
   settingsContainers["parolaSettings"] = parolaContainer;
 }
 
@@ -277,4 +279,14 @@ void SettingsClass::saveSettings(const std::string& target)
 {
   if (debug && doDebug) debug->printf("saveSettings(): Saving settings for target: [%s]\n", target.c_str());
   writeSettingFields(target);
+}
+
+const SettingsContainer* SettingsClass::getSettingsContainer(const std::string& settingsType) const 
+{
+  auto it = settingsContainers.find(settingsType);
+  if (it != settingsContainers.end()) 
+  {
+    return &(it->second);
+  }
+  return nullptr;
 }
