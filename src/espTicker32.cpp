@@ -402,6 +402,8 @@ void sendSettingFieldToClient(const std::string& settingsType)
             htmlContent += "WeerliveSettings";
           } else if (settingsType == "mediastackSettings") {
             htmlContent += "MediastackSettings";
+          } else if (settingsType == "rssfeedSettings") {
+            htmlContent += "RSSfeedSettings";
           } else {
             // Generic fallback
             htmlContent += "Setting";
@@ -490,6 +492,11 @@ void sendWeerliveFieldsToClient()
 void sendMediastackFieldsToClient()
 {
   sendSettingFieldToClient("mediastackSettings");
+}
+// Function to send the JSON string to the client when rssfeedSettingsPage is activated
+void sendRssfeedFieldsToClient()
+{
+  sendSettingFieldToClient("rssfeedSettings");
 }
 
 // Function to send the JSON string to the client when parolaSettingsPage is activated
@@ -695,6 +702,12 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
       sendMediastackFieldsToClient();
       return;
     }    
+    // Check if this is a requestRssfeedSettings message
+    if (doc["type"] == "requestRssfeedSettings") {
+      debug->println("handleLocalWebSocketEvent(): Handling requestRssfeedSettings message");
+      sendRssfeedFieldsToClient();
+      return;
+    }    
     // Check if this is a process message
     if (doc["type"] == "process") 
     {
@@ -721,7 +734,7 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
         } else {
           debug->println("handleLocalWebSocketEvent(): No LocalMessagesData found in the message");
         }
-      } 
+      } // saveLocalMessages 
       // Handle settings processing generically
       else if (strcmp(processType, "saveDeviceSettings") == 0) 
       {
@@ -740,7 +753,7 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
         } else {
           debug->println("handleLocalWebSocketEvent(): No deviceSettingsData found in the message");
         }
-      }
+      } // saveDeviceSettings
       else if (strcmp(processType, "saveParolaSettings") == 0) 
       {
         debug->println("handleLocalWebSocketEvent(): Handling saveParolaSettings message");
@@ -758,7 +771,7 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
         } else {
           debug->println("handleLocalWebSocketEvent(): No parolaSettingsData found in the message");
         }
-      }
+      } // saveParolaSettings
       else if (strcmp(processType, "saveWeerliveSettings") == 0) 
       {
         debug->println("handleLocalWebSocketEvent(): Handling saveWeerliveSettings message");
@@ -776,7 +789,7 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
         } else {
           debug->println("handleLocalWebSocketEvent(): No weerliveSettingsData found in the message");
         }
-      }
+      } // saveWeerliveSettings
       else if (strcmp(processType, "saveMediastackSettings") == 0) 
       {
         debug->println("handleLocalWebSocketEvent(): Handling saveMediastackSettings message");
@@ -794,11 +807,29 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
         } else {
           debug->println("handleLocalWebSocketEvent(): No mediastackSettingsData found in the message");
         }
+      } // saveMediastackSettings
+      else if (strcmp(processType, "saveRssfeedSettings") == 0) 
+      {
+        debug->println("handleLocalWebSocketEvent(): Handling saveRssfeedSettings message");
+        
+        // Check if inputValues exists and contains rssfeedSettingsData
+        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("rssfeedSettingsData")) 
+        {
+          // Get the rssfeedSettingsData as a string
+          const char* rssfeedSettingsData = doc["inputValues"]["rssfeedSettingsData"];
+          debug->println("handleLocalWebSocketEvent(): Received rssfeed settings data:");
+          debug->println(rssfeedSettingsData);
+          
+          // Process the rssfeed settings data using the generic function
+          processSettings(rssfeedSettingsData, "rssfeedSettings");
+        } else {
+          debug->println("handleLocalWebSocketEvent(): No rssfeedSettingsData found in the message");
+        }
       } else {
         debug->printf("handleLocalWebSocketEvent(): Unknown process type: %s\n", processType);
-      }
-    }
+      } // saveRssfeedSettings
 
+    } // processType
   }
   else if (type == WStype_BIN) {
     // Handle binary data
@@ -849,7 +880,7 @@ void localMessagesCallback(std::string itemName)
     
 void mainCallbackDeviceSettings()
 {
-  spa.setErrorMessage("Main Menu \"Dev Settings\" clicked!", 5);
+  spa.setMessage("Main Menu [Dev Settings] clicked!", 0);
   spa.activatePage("deviceSettingsPage");
   
   // Call the JavaScript function to set up event handlers
@@ -863,7 +894,7 @@ void mainCallbackDeviceSettings()
 
 void mainCallbackParolaSettings()
 {
-  spa.setErrorMessage("Main Menu \"Parola Settings\" clicked!", 5);
+  spa.setMessage("Main Menu Parola Settings] clicked!", 0);
   spa.activatePage("parolaSettingsPage");
   
   // Call the JavaScript function to set up event handlers
@@ -877,7 +908,7 @@ void mainCallbackParolaSettings()
 
 void mainCallbackWeerliveSettings()
 {
-  spa.setErrorMessage("Main Menu \"Weerlive Settings\" clicked!", 5);
+  spa.setMessage("Main Menu [Weerlive Settings] clicked!", 0);
   spa.activatePage("weerliveSettingsPage");
   
   // Call the JavaScript function to set up event handlers
@@ -891,7 +922,7 @@ void mainCallbackWeerliveSettings()
 
 void mainCallbackMediastackSettings()
 {
-  spa.setMessage("Main Menu \"Mediastack Settings\" clicked!", 5);
+  spa.setMessage("Main Menu [Mediastack Settings] clicked!", 0);
   spa.activatePage("mediastackSettingsPage");
   
   // Call the JavaScript function to set up event handlers
@@ -902,16 +933,30 @@ void mainCallbackMediastackSettings()
 
 } // mainCallbackMediastackSettings()
 
+void mainCallbackRssfeedSettings()
+{
+  spa.setMessage("Main Menu [RSSfeed Settings] clicked!", 5);
+  spa.activatePage("rssfeedSettingsPage");
+  
+  // Call the JavaScript function to set up event handlers
+  spa.callJsFunction("isEspTicker32Loaded");
+  
+  // Send the mediastack settings to the client
+  sendRssfeedFieldsToClient();
+
+} // mainCallbackRssfeedettings()
+
     
 void mainCallbackSettings()
 {
   debug->println("\nmainCallbackSettings(): Settings menu item clicked");
-  spa.setErrorMessage("Main Menu \"Settings\" clicked!", 5);
+  spa.setMessage("Main Menu [Settings] clicked!", 0);
   spa.activatePage("mainSettingsPage");
 
 } // mainCallbackSettings()    
 
 
+/***
 void mainCallbackFSmanager()
 {
     spa.setMessage("Main Menu \"FSmanager\" clicked!", 5);
@@ -919,7 +964,19 @@ void mainCallbackFSmanager()
     spa.callJsFunction("loadFileList");
 
 } // mainCallbackFSmanager()
+***/
 
+void mainCallbackFSmanager()
+{
+    // Check if the FSmanagerPage exists before trying to activate it
+    if (spa.pageExists("FSmanagerPage")) {
+        spa.setMessage("Main Menu [FSmanager] clicked!", 5);
+        spa.activatePage("FSmanagerPage");
+        spa.callJsFunction("loadFileList");
+    } else {
+        spa.setErrorMessage("FSmanager is not available due to memory constraints. Please restart the device.", 0);
+    }
+} // mainCallbackFSmanager()
 
 
 void processUploadFileCallback()
@@ -969,7 +1026,7 @@ void handleMenuItem(std::string itemName)
     debug->printf("handleMenuItem(): Menu item clicked: %s\n", itemName.c_str());
     
     if (itemName == "FSM-1") {
-        spa.setMessage("FS Manager: \"List LittleFS\" clicked!", 5);
+        spa.setMessage("FS Manager: [List LittleFS] clicked!", 5);
         spa.activatePage("FSmanagerPage");
         spa.callJsFunction("loadFileList");
     } else if (itemName == "FSM-EXIT") {
@@ -1079,48 +1136,59 @@ void setupLocalMessagesPage()
   
 } // setupLocalMessagesPage()
 
+
 void setupFSmanagerPage()
 {
-  const char *fsManagerPage = R"HTML(
-    <div id="fsm_fileList" style="display: block;">
-    </div>
-    <div id="fsm_spaceInfo" class="FSM_space-info" style="display: block;">
-      <!-- Space information will be displayed here -->
-    </div>    
-  )HTML";
+  debug->printf("setupFSmanagerPage(): Available heap memory: %u bytes\n", ESP.getFreeHeap());
   
-  spa.addPage("FSmanagerPage", fsManagerPage);
-
-  const char *popupUploadFile = R"HTML(
-    <div id="popUpUploadFile">Upload File</div>
-    <div id="fsm_fileUpload">
-      <input type="file" id="fsm_fileInput">
-      <div id="selectedFileName" style="margin-top: 5px; font-style: italic;"></div>
-    </div>
-    <div style="margin-top: 10px;">
-      <button type="button" onClick="closePopup('popup_FS_Manager_Upload_File')">Cancel</button>
-      <button type="button" id="uploadButton" onClick="uploadSelectedFile()" disabled>Upload File</button>
+  // Instead of trying to add the FSmanagerPage, create a simple error page
+  const char *errorPage = R"HTML(
+    <div style="text-align: center; padding: 20px;">
+      <h2>File System Manager</h2>
+      <p>Unable to load File System Manager due to memory constraints.</p>
+      <p>Please free up memory by restarting the device or reducing other functionality.</p>
     </div>
   )HTML";
   
-  const char *popupNewFolder = R"HTML(
-    <div id="popupCreateFolder">Create Folder</div>
-    <label for="folderNameInput">Folder Name:</label>
-    <input type="text" id="folderNameInput" placeholder="Enter folder name">
-    <br>
-    <button type="button" onClick="closePopup('popup_FS_Manager_New_Folder')">Cancel</button>
-    <button type="button" onClick="createFolderFromInput()">Create Folder</button>
-  )HTML";
-
-  spa.setPageTitle("FSmanagerPage", "FileSystem Manager");
-  //-- Add FSmanager menu
-  spa.addMenu("FSmanagerPage", "FS Manager");
-  //spa.addMenuItem("FSmanagerPage", "FS Manager", "List LittleFS", handleMenuItem, "FSM-1");
-  spa.addMenuItemPopup("FSmanagerPage", "FS Manager", "Upload File", popupUploadFile);
-  spa.addMenuItemPopup("FSmanagerPage", "FS Manager", "Create Folder", popupNewFolder);
-  spa.addMenuItem("FSmanagerPage", "FS Manager", "Exit", handleMenuItem, "FSM-EXIT");
-
+  // Single attempt to add the error page
+  bool pageAdded = false;
+  try {
+    spa.addPage("FSmanagerPage", errorPage);
+    pageAdded = true;
+    debug->println("setupFSmanagerPage(): Added simplified error page successfully");
+  } catch (const std::exception& e) {
+    debug->printf("setupFSmanagerPage(): Failed to add error page: %s\n", e.what());
+    // Don't try again - we'll handle this case below
+  }
+  
+  // Only add menu items if the page was successfully added
+  if (pageAdded) {
+    spa.setPageTitle("FSmanagerPage", "FileSystem Manager");
+    spa.addMenu("FSmanagerPage", "FS Manager");
+    
+    // Only add the Exit menu item - no popups or other functionality
+    spa.addMenuItem("FSmanagerPage", "FS Manager", "Exit", handleMenuItem, "FSM-EXIT");
+  } else {
+    // If we couldn't even add the error page, modify the main menu to disable FSmanager
+    debug->println("setupFSmanagerPage(): Disabling FSmanager functionality in main menu");
+    
+    // Find and modify the FSmanager menu item in the main menu
+    // This depends on how your menu system works, but here's a conceptual approach:
+    
+    // Option 1: If you can modify existing menu items:
+    // spa.updateMenuItem("Main", "Main Menu", "FSmanager", mainCallbackDisabled);
+    
+    // Option 2: If you can't modify existing items, you might need to remove and re-add:
+    // spa.removeMenuItem("Main", "Main Menu", "FSmanager");
+    // spa.addMenuItem("Main", "Main Menu", "FSmanager (Disabled)", mainCallbackDisabledMessage);
+  }
 }
+
+// Add this function to handle the disabled FSmanager case
+void mainCallbackDisabledMessage()
+{
+  spa.setErrorMessage("FSmanager is disabled due to memory constraints. Please restart the device.", 0);
+} // mainCallbackDisabledMessage()
 
 
 void setupSettingsPage()
@@ -1168,6 +1236,10 @@ void setupSettingsPage()
   spa.addMenu("mediastackSettingsPage", "Mediastack Settings");
   spa.addMenuItem("mediastackSettingsPage", "Mediastack Settings", "Exit", handleMenuItem, "SET-UP");
 
+  spa.addPage("rssfeedSettingsPage", settingsPage);
+  spa.setPageTitle("rssfeedSettingsPage", "RSSfeed Settings");
+  spa.addMenu("rssfeedSettingsPage", "RSSfeed Settings");
+  spa.addMenuItem("rssfeedSettingsPage", "RSSfeed Settings", "Exit", handleMenuItem, "SET-UP");
   
 } // setupSettingsPage()
 
@@ -1183,6 +1255,7 @@ void setupMainSettingsPage()
     <li>Parola settings</li>
     <li>Weerlive settings</li>
     <li>Mediastack settings</li>
+    <li>RSS feed settings</li>
     </ul> 
     )HTML";
   
@@ -1195,6 +1268,7 @@ void setupMainSettingsPage()
   spa.addMenuItem("mainSettingsPage", "Settings", "Parola Settings", mainCallbackParolaSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Weerlive Settings", mainCallbackWeerliveSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Mediastack Settings", mainCallbackMediastackSettings);
+  spa.addMenuItem("mainSettingsPage", "Settings", "RSS feed Settings", mainCallbackRssfeedSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Exit", handleMenuItem, "SET-EXIT");
 
 } //  setupMainSettingsPage()
@@ -1301,6 +1375,8 @@ void setup()
     settings.readSettingFields("weerliveSettings");
     debug->println("setup(): readSettingFields(mediastackSettings)");
     settings.readSettingFields("mediastackSettings");
+    debug->println("setup(): readSettingFields(rssfeedSettings)");
+    settings.readSettingFields("rssfeedSettings");
 
     if (settings.hostname.empty()) 
     {
@@ -1368,13 +1444,26 @@ void setup()
 
     rssReader.setDebug(debug);
     
-    rssReader.addRSSfeed("https://feeds.nos.nl/nosnieuwsopmerkelijk", 10);
-    rssReader.addRSSfeed("https://feeds.nos.nl/nosnieuwsalgemeen", 5);
-    rssReader.addRSSfeed("https://www.nrc.nl/rss/", 10);
-    rssReader.addRSSfeed("https://feeds.nos.nl/nosnieuwsbuitenland", 5);
-    rssReader.addRSSfeed("https://www.volkskrant.nl/voorpagina/rss.xml", 10);
-    
-    rssReader.setRequestInterval(11 * 60 * 1000); // 11 minutes
+    if (!settings.domain0.empty() && !settings.path0.empty() && settings.maxFeeds0 > 0) 
+              rssReader.addRSSfeed(settings.domain0.c_str(), settings.path0.c_str(), settings.maxFeeds0);
+    if (!settings.domain1.empty() && !settings.path1.empty() && settings.maxFeeds1 > 0)
+              rssReader.addRSSfeed(settings.domain1.c_str(), settings.path1.c_str(), settings.maxFeeds1);
+    if (!settings.domain2.empty() && !settings.path2.empty() && settings.maxFeeds2 > 0)
+              rssReader.addRSSfeed(settings.domain2.c_str(), settings.path2.c_str(), settings.maxFeeds2);
+    if (!settings.domain3.empty() && !settings.path3.empty() && settings.maxFeeds3 > 0)
+              rssReader.addRSSfeed(settings.domain3.c_str(), settings.path3.c_str(), settings.maxFeeds3);
+    if (!settings.domain4.empty() && !settings.path4.empty() && settings.maxFeeds4 > 0)
+              rssReader.addRSSfeed(settings.domain4.c_str(), settings.path4.c_str(), settings.maxFeeds4);
+    /****** if you need them ******** 
+    if (!settings.domain5.empty() && !settings.path5.empty() && settings.maxFeeds5 > 0) 
+              rssReader.addRSSfeed(settings.domain5.c_str(), settings.path5.c_str(), settings.maxFeeds5);
+    if (!settings.domain6.empty() && !settings.path6.empty() && settings.maxFeeds6 > 0) 
+              rssReader.addRSSfeed(settings.domain6.c_str(), settings.path6.c_str(), settings.maxFeeds6);
+    if (!settings.domain7.empty() && !settings.path7.empty() && settings.maxFeeds7 > 0) 
+              rssReader.addRSSfeed(settings.domain7.c_str(), settings.path7.c_str(), settings.maxFeeds7);
+    ******* if you want them *********/
+   
+    rssReader.setRequestInterval(settings.requestInterval); // in minutes
 
     spa.activatePage("Main");
 
@@ -1414,7 +1503,7 @@ void loop()
   }
   
   static uint32_t lastDisplay = 0;
-  if (millis() - lastDisplay >= 60000)
+  if (millis() - lastDisplay >= 2000)
   {
     parola.loop();
     lastDisplay = millis();

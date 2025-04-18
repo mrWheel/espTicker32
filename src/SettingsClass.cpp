@@ -47,8 +47,40 @@ void SettingsClass::initializeSettingsContainers()
   parolaContainer.addField({"pinCS", "CS/SS GPIO pin (default 5)", "n",     0, 1, 15, 1, &parolaPinCS});
   parolaContainer.addField({"pinCLK", "CLK/SCK GPIO pin (0 = default )", "n",  0, 0, 15, 1, &parolaPinCLK});
   settingsContainers["parolaSettings"] = parolaContainer;
-}
 
+  // rssfeed settings
+  SettingsContainer rssfeedContainer("RSSfeed Settings", "/rssFeeds.ini", "rssfeedSettings");
+  rssfeedContainer.addField({"requestInterval", "Request Interval (minuten)", "n", 0, 10, 120, 1, &requestInterval});
+  rssfeedContainer.addField({"domain0", "Domain 1", "s", 32, 0, 0, 0, &domain0});
+  rssfeedContainer.addField({"path0", "Path 1", "s", 64, 0, 0, 0, &path0});
+  rssfeedContainer.addField({"maxFeeds0", "Max. aantal berichten", "n", 0, 1, 254, 1, &maxFeeds0});
+  rssfeedContainer.addField({"domain1", "Domain 2", "s", 32, 0, 0, 0, &domain1});
+  rssfeedContainer.addField({"path1", "Path 2", "s", 64, 0, 0, 0, &path1});
+  rssfeedContainer.addField({"maxFeeds1", "Max. aantal berichten", "n", 0, 1, 254, 1, &maxFeeds1});
+  rssfeedContainer.addField({"domain2", "Domain 3", "s", 32, 0, 0, 0, &domain2});
+  rssfeedContainer.addField({"path2", "Path 3", "s", 64, 0, 0, 0, &path2});
+  rssfeedContainer.addField({"maxFeeds2", "Max. aantal berichten", "n", 0, 1, 254, 1, &maxFeeds2});
+  rssfeedContainer.addField({"domain3", "Domain 4", "s", 32, 0, 0, 0, &domain3});
+  rssfeedContainer.addField({"path3", "Path 4", "s", 64, 0, 0, 0, &path3});
+  rssfeedContainer.addField({"maxFeeds3", "Max. aantal berichten", "n", 0, 1, 254, 1, &maxFeeds3});
+  rssfeedContainer.addField({"domain4", "Domain 5", "s", 32, 0, 0, 0, &domain4});
+  rssfeedContainer.addField({"path4", "Path 5", "s", 64, 0, 0, 0, &path4});
+  rssfeedContainer.addField({"maxFeeds4", "Max. aantal berichten", "n", 0, 1, 254, 1, &maxFeeds4});
+  /****** if yoy need them ********
+  rssfeedContainer.addField({"domain5", "Domain 6", "s", 32, 0, 0, 0, &domain5});
+  rssfeedContainer.addField({"path5", "Path 6", "s", 64, 0, 0, 0, &path5});
+  rssfeedContainer.addField({"maxFeeds5", "Max. aantal berichten", "n", 0, 1, 254, 1, &maxFeeds5});
+  rssfeedContainer.addField({"domain6", "Domain 7", "s", 32, 0, 0, 0, &domain6});
+  rssfeedContainer.addField({"path6", "Path 7", "s", 64, 0, 0, 0, &path6});
+  rssfeedContainer.addField({"maxFeeds6", "Max. aantal berichten", "n", 0, 1, 254, 1, &maxFeeds6});
+  rssfeedContainer.addField({"domain7", "Domain 8", "s", 32, 0, 0, 0, &domain7});
+  rssfeedContainer.addField({"path7", "Path 8", "s", 64, 0, 0, 0, &path7});
+  rssfeedContainer.addField({"maxFeeds7", "Max. aantal berichten", "n", 0, 1, 254, 1, &maxFeeds7});
+  ************* if you want them *********/
+  settingsContainers["rssfeedSettings"] = rssfeedContainer;
+
+} // initializeSettingsContainers()
+  
 std::string SettingsClass::buildJsonFieldsString(const std::string& settingsType) 
 {
   if (settingsContainers.find(settingsType) == settingsContainers.end()) 

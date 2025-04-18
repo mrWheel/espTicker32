@@ -9,7 +9,7 @@ RSSreaderClass::RSSreaderClass()
 
 } // RSSreaderClass()
 
-bool RSSreaderClass::addRSSfeed(const char* url, size_t maxFeeds) 
+bool RSSreaderClass::addRSSfeed(const char* url, const char* path, size_t maxFeeds) 
 {
   if (_activeFeedCount >= 10)
   {
@@ -19,13 +19,17 @@ bool RSSreaderClass::addRSSfeed(const char* url, size_t maxFeeds)
   
   uint8_t feedIndex = _activeFeedCount;
   _urls[feedIndex] = url;
+  _paths[feedIndex] = path;
   _filePaths[feedIndex] = "/RSSfeed" + String(feedIndex) + ".txt";
   _maxFeedsPerFile[feedIndex] = maxFeeds;
   _totalMaxFeeds += maxFeeds; // Update total max feeds
   _lastCheck = 0;
 
-  if (debug && doDebug) debug->printf("RSSreaderClass::addRSSfeed(): URL:[%s], File:[%s], Max Feeds:[%d], Index: [%d]\n", 
-                          _urls[feedIndex].c_str(), _filePaths[feedIndex].c_str(), _maxFeedsPerFile[feedIndex], feedIndex);
+  if (debug && doDebug) debug->printf("RSSreaderClass::addRSSfeed(): URL:[%s], Path:[%s], File:[%s], Max Feeds:[%d], Index: [%d]\n" 
+                                                                  , _urls[feedIndex].c_str()
+                                                                  , _paths[feedIndex].c_str()
+                                                                  , _filePaths[feedIndex].c_str()
+                                                                  , _maxFeedsPerFile[feedIndex], feedIndex);
 
   LittleFS.begin();
   if (!LittleFS.exists(_filePaths[feedIndex])) 
@@ -94,36 +98,24 @@ void RSSreaderClass::loop(struct tm timeNow)
 } // loop()
 
 
-String RSSreaderClass::fetchFeed(const char* url) 
+String RSSreaderClass::fetchFeed(const char* host, const char* path) 
 {
-  if (debug) debug->printf("RSSreaderClass::fetchFeed(): URL: [%s]\n", url);
+  if (debug) debug->printf("RSSreaderClass::fetchFeed(): URL[%s], PATH[%s]\n", host, path);
 
-  // Parse URL: verwacht iets als "https://feeds.nos.nl/nosnieuwsopmerkelijk"
-  String urlStr = String(url);
-  if (!urlStr.startsWith("https://")) 
-  {
-    return "Fout: Alleen https:// URL's ondersteund";
-  }
-
-  urlStr.remove(0, 8); // Strip "https://"
-  int slashIndex = urlStr.indexOf('/');
-  String host = urlStr.substring(0, slashIndex);
-  String path = urlStr.substring(slashIndex); // inclusief de '/'
-
-  if (debug && doDebug) debug->printf("RSSreaderClass::fetchFeed(): host[%s], path[%s]\n", host.c_str(), path.c_str());
+//if (debug && doDebug) debug->printf("RSSreaderClass::fetchFeed(): host[%s], path[%s]\n", host.c_str(), path.c_str());
 
   WiFiClientSecure client;
   client.setInsecure();  // Voor testdoeleinden
   client.setTimeout(5000); // 5s timeout
 
-  if (!client.connect(host.c_str(), 443)) 
+  if (!client.connect(host, 443)) 
   {
     if (debug && doDebug) debug->println("RSSreaderClass::fetchFeed(): Verbinding mislukt!");
     return "Fout: Kon geen TLS verbinding maken";
   }
 
-  client.println("GET " + path + " HTTP/1.1");
-  client.println("Host: " + host);
+  client.println("GET /" + String(path) + " HTTP/1.1");
+  client.println("Host: " + String(host));
   client.println("User-Agent: ESP32RSSReader/1.0");
   client.println("Connection: close");
   client.println();
@@ -273,7 +265,7 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
   if (debug && doDebug) debug->printf("RSSreaderClass::checkFeed(): Checking feed %d: %s\n", 
                           feedIndex, _urls[feedIndex].c_str());
                           
-  String feed = fetchFeed(_urls[feedIndex].c_str());
+  String feed = fetchFeed(_urls[feedIndex].c_str(), _paths[feedIndex].c_str());
 
   if (feed.startsWith("Fout:")) 
   {
@@ -338,7 +330,7 @@ void RSSreaderClass::checkForNewFeedItems()
     if (debug && doDebug) debug->printf("RSSreaderClass::checkForNewFeedItems(): Checking feed %d: %s\n", 
                             feedIndex, _urls[feedIndex].c_str());
                             
-    String feed = fetchFeed(_urls[feedIndex].c_str());
+    String feed = fetchFeed(_urls[feedIndex].c_str(), _paths[feedIndex].c_str());
 
     if (feed.startsWith("Fout:")) 
     {

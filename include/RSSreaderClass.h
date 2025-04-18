@@ -12,14 +12,15 @@ public:
 
   void loop(struct tm timeNow); 
   void setDebug(Stream* debugPort) { debug = debugPort; }
-  void setRequestInterval(uint32_t interval) { _interval = interval; }
-  bool addRSSfeed(const char* url, size_t maxFeeds);
+  void setRequestInterval(uint32_t interval) { _interval = interval * 60 * 1000; }
+  bool addRSSfeed(const char* url, const char* path, size_t maxFeeds);
   bool getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex);
   String readRssFeed(uint8_t feedIndex, size_t itemIndex);
 
 private:
   WiFiClientSecure secureClient;
   String _urls[10];
+  String _paths[10];
   String _filePaths[10];
   uint8_t _activeFeedCount = 0;
   size_t _maxFeedsPerFile[10] = {0};
@@ -36,7 +37,7 @@ private:
   uint8_t _feedReadCounts[10] = {0}; // Track how many items we've read from each feed
   uint16_t _totalMaxFeeds = 0;       // Sum of all maxFeeds values
   
-  String fetchFeed(const char* url);
+  String fetchFeed(const char* host, const char* path);
   std::vector<String> extractTitles(const String& feed);
   std::vector<String> getStoredLines(uint8_t feedIndex);
   void saveTitles(const std::vector<String>& titles, uint8_t feedIndex);
