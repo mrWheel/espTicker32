@@ -1,5 +1,6 @@
 //----- espTicker32.js -----
 
+let isRequestingRssfeedSettings = false;
 let isRequestingParolaSettings = false;
 let isRequestingWeerliveSettings = false;
 let isRequestingMediastackSettings = false;
@@ -295,7 +296,8 @@ function isEspTicker32Loaded()
           initializeWeerliveSettings(lastReceivedData.data);
         }, 100);
       }
-      else if (data.type === 'custom' && data.action === 'mediastackSettingsData') {
+      else if (data.type === 'custom' && data.action === 'mediastackSettingsData') 
+      {
         console.log('Received mediastack settings data');
         
         // Reset the request flag
@@ -313,6 +315,26 @@ function isEspTicker32Loaded()
           // Initialize with the data
           initializeMediastackSettings(lastReceivedData.data);
         }, 100);
+      }
+      else if (data.type === 'custom' && data.action === 'rssfeedSettingsData') 
+      {
+          console.log('Received rssfeed settings data');
+          
+          // Reset the request flag
+          isRequestingRssfeedSettings = false;
+          
+          // Store the data and debounce the rendering
+          lastReceivedData = {
+            type: 'rssfeedSettings',
+            data: data.data
+          };
+          
+          // Debounce the rendering
+          clearTimeout(renderDebounceTimer);
+          renderDebounceTimer = setTimeout(() => {
+            // Initialize with the data
+            initializeRssfeedSettings(lastReceivedData.data);
+          }, 100);
       }
       // Also check for direct JSON arrays for backward compatibility
       else if (event.data.startsWith('[') && event.data.endsWith(']')) {
@@ -384,7 +406,14 @@ function isEspTicker32Loaded()
     isRequestingMediastackSettings = true;
     requestMediastackSettings();
   }  
-  return true;
+  // Check if the page is ready for mediastack settings (only for RSSfeed Settings page)
+  if (pageTitle.includes("RSSfeed Settings") && isPageReadyForRssfeedSettings() && !isRequestingRssfeedSettings) 
+    {
+      console.log("Page is ready for rssfeed settings, requesting data from server");
+      isRequestingRssfeedSettings = true;
+      requestRssfeedSettings();
+    }  
+    return true;
 
 } // isEspTicker32Loaded()
 
@@ -688,6 +717,150 @@ function requestMediastackSettings()
     type: 'requestMediastackSettings'
   }));
 }
+
+//===========[Rssfeed]==================================================================
+
+// Function to check if the page is ready for rssfeed settings
+function isPageReadyForRssfeedSettings() 
+{
+  // Check if the settingsTableBody element exists
+  const tableBody = document.getElementById('settingsTableBody');
+  return !!tableBody;
+}
+
+// Function to initialize the rssfeed settings from JSON
+function initializeRssfeedSettings(jsonString) 
+{
+  console.log('initializeRssfeedSettings called with:', jsonString);
+  try {
+    rssfeedSettings = JSON.parse(jsonString) || { fields: [] };
+    renderRssfeedSettings();
+  } catch (e) {
+    console.error('Error parsing JSON:', e);
+    rssfeedSettings = { fields: [] };
+  }
+}
+
+// Function to render the rssfeed settings in the table
+function renderRssfeedSettings() 
+{
+  console.log('renderRssfeedSettings called');
+  
+  // Check if the page is ready
+  if (!isPageReadyForRssfeedSettings()) {
+    console.error('Rssfeed settings table body not found in DOM, page not ready yet');
+    return;
+  }
+  
+  const tableBody = document.getElementById('settingsTableBody');
+  tableBody.innerHTML = '';
+  
+  if (rssfeedSettings && rssfeedSettings.fields) {
+    rssfeedSettings.fields.forEach((field) => {
+      const row = document.createElement('tr');
+      
+      // Field prompt cell
+      const promptCell = document.createElement('td');
+      promptCell.style.padding = '8px';
+      promptCell.style.textAlign = 'right'; 
+      promptCell.textContent = field.fieldPrompt;
+      
+      // Field value cell
+      const valueCell = document.createElement('td');
+      valueCell.style.padding = '8px';
+      
+      // Create input element based on field type
+      const input = document.createElement('input');
+      if (field.fieldType === 's') {
+        // String input
+        input.type = 'text';
+        input.value = field.fieldValue;
+        input.maxLength = field.fieldLen;
+      } else if (field.fieldType === 'n') {
+        // Numeric input
+        input.type = 'number';
+        input.value = field.fieldValue;
+        input.min = field.fieldMin;
+        input.max = field.fieldMax;
+        input.step = field.fieldStep;
+        
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('input', updateRssfeedSettings);
+
+        // Create a container for the input and range text
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        
+        // Add the input to the container
+        container.appendChild(input);
+        
+        // Add the range text
+        const rangeText = document.createElement('span');
+        rangeText.textContent = ` (${field.fieldMin} .. ${field.fieldMax})`;
+        rangeText.style.marginLeft = '8px';
+        rangeText.style.fontSize = '0.9em';
+        rangeText.style.color = '#666';
+        container.appendChild(rangeText);
+        
+        // Add the container to the cell instead of just the input
+        valueCell.appendChild(container);
+        row.appendChild(promptCell);
+        row.appendChild(valueCell);
+        tableBody.appendChild(row);
+        
+        // Skip the rest of this iteration since we've already added everything
+        return;
+      }
+      
+      input.style.width = '100%';
+      input.dataset.fieldName = field.fieldName;
+      input.dataset.fieldType = field.fieldType;
+      input.addEventListener('input', updateRssfeedSettings);
+      
+      valueCell.appendChild(input);
+      row.appendChild(promptCell);
+      row.appendChild(valueCell);
+      tableBody.appendChild(row);
+    });
+  }
+  
+  // Update the settings name
+  const settingsNameElement = document.getElementById('settingsName');
+  if (settingsNameElement) {
+    settingsNameElement.textContent = 'RSSfeed Settings';
+  }
+}
+
+// Function to update a rssfeed setting
+function updateRssfeedSettings(event) 
+{
+  const input = event.target || this;
+  const fieldName = input.dataset.fieldName;
+  const fieldType = input.dataset.fieldType;
+  const value = fieldType === 'n' ? parseFloat(input.value) : input.value;
+  
+  console.log(`Updating rssfeed setting: ${fieldName} = ${value}`);
+  
+  // Find and update the field in the rssfeedSettings object
+  if (rssfeedSettings && rssfeedSettings.fields) {
+    const field = rssfeedSettings.fields.find(f => f.fieldName === fieldName);
+    if (field) {
+      field.fieldValue = value;
+    }
+  }
+}
+
+// Function to request rssfeed settings data from the server
+function requestRssfeedSettings() 
+{
+  console.log("Requesting rssfeed settings data from server");
+  window.ws.send(JSON.stringify({
+    type: 'requestRssfeedSettings'
+  }));
+}
+
 
 //===========[Parola]==================================================================
 // Function to check if the page is ready for parola settings
@@ -1016,6 +1189,10 @@ function saveSettings()
     settingsObj = mediastackSettings;
     processType = 'saveMediastackSettings';
     dataKey = 'mediastackSettingsData';
+  } else if (settingsName === 'RSSfeed Settings') {
+    settingsObj = rssfeedSettings;
+    processType = 'saveRssfeedSettings';
+    dataKey = 'rssfeedSettingsData';
   } else {
     console.error('Unknown settings type:', settingsName);
     return;
@@ -1299,7 +1476,12 @@ function isEspTicker32Loaded()
         // Initialize with the data
         initializeMediastackSettings(data.data);
       }
-            // Also check for direct JSON arrays for backward compatibility
+      else if (data.type === 'custom' && data.action === 'rssfeedSettingsData') {
+        console.log('Received rssfeed settings data');
+        // Initialize with the data
+        initializeRssfeedSettings(data.data);
+      }
+      // Also check for direct JSON arrays for backward compatibility
       else if (event.data.startsWith('[') && event.data.endsWith(']')) {
         console.log('Received direct input fields data');
         // Try to initialize immediately
@@ -1365,7 +1547,13 @@ function isEspTicker32Loaded()
     console.log("Page is ready for mediastack settings, requesting data from server");
     requestMediastackSettings();
   }  
-  return true;
+  // Check if the page is ready for mediastack settings (only for RSSfeed Settings page)
+  if (pageTitle.includes("RSSfeed Settings") && isPageReadyForRssfeedSettings()) 
+    {
+      console.log("Page is ready for rssfeed settings, requesting data from server");
+      requestRssfeedSettings();
+    }  
+    return true;
 
 } // isEspTicker32Loaded()
 

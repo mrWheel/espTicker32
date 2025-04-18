@@ -131,6 +131,33 @@ public:
   uint8_t parolaPinCS;
   uint8_t parolaPinCLK;
   
+  // rssfeed settings data
+  uint8_t requestInterval = 60; // Default request interval in minutes
+  std::string domain0 = {};
+  std::string path0  = {};
+  uint8_t maxFeeds0 = 0;
+  std::string domain1 = {};
+  std::string path1  = {};
+  uint8_t maxFeeds1 = 0;
+  std::string domain2 = {};
+  std::string path2  = {};
+  uint8_t maxFeeds2 = 0;
+  std::string domain3 = {};
+  std::string path3  = {};
+  uint8_t maxFeeds3 = 0;
+  std::string domain4 = {};
+  std::string path4  = {};
+  uint8_t maxFeeds4 = 0;
+  std::string domain5 = {};
+  std::string path5  = {};
+  uint8_t maxFeeds5 = 0;
+  std::string domain6 = {};
+  std::string path6  = {};
+  uint8_t maxFeeds6 = 0;
+  std::string domain7 = {};
+  std::string path7  = {};
+  uint8_t maxFeeds7 = 0;
+
   SettingsClass();
   void setDebug(Stream* debugPort);
   
