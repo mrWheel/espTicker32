@@ -30,14 +30,6 @@ Networking* network = nullptr;
 Stream* debug = nullptr;
 
 SettingsClass settings;
-DeviceSettings* gDeviceSettings = nullptr;
-const DeviceAttributes* gDeviceAttributes = nullptr;
-WeerliveSettings* gWeerliveSettings = nullptr;
-const WeerliveAttributes* gWeerliveAttributes = nullptr;
-MediastackSettings* gMediastackSettings = nullptr;
-const MediastackAttributes* gMediastackAttributes = nullptr;
-ParolaSettings* gParolaSettings = nullptr;
-const ParolaAttributes* gParolaAttributes = nullptr;
 
 LocalMessagesIO localMessages(LOCAL_MESSAGES_PATH, LOCAL_MESSAGES_RECORD_SIZE);
 
@@ -66,22 +58,11 @@ char localMessage[LOCAL_MESSAGES_RECORD_SIZE +2] = {};
 std::string currentActivePage = "";
 
 
-String getWeatherLine()
+String getWeerliveMessage()
 {
-    // Read ONE line from weather source
-    //return "Weather: Sunny 24C"; // <<< replace with real file reading
     return weerliveText;
-}
 
-String getNewsLine()
-{
-    return "This is a really long line =========================================================================================================================== and so forth and so on!"; // <<< replace with real file reading
-}
-
-String getDataFeedLine()
-{
-    return "Sensor: 45% humidity"; // <<< replace with real file reading
-}
+} // getWeerliveMessage()
 
 String getMediastackMessage()
 {
@@ -148,12 +129,14 @@ String getLocalMessage()
 std::string nextMessage()
 {
     std::string newMessage = "-";
+    std::string tmpMessage = "";
     newMessage = getLocalMessage().c_str();
+
 
     if (strcmp(newMessage.c_str(), "<weerlive>") == 0) 
     {
         debug->println("nextMessage(): weerlive message");
-        newMessage = getWeatherLine().c_str();
+        newMessage = getWeerliveMessage().c_str();
     }
     else if (strcmp(newMessage.c_str(), "<mediastack>") == 0) 
     {
@@ -291,381 +274,6 @@ void sendLocalMessagesToClient()
 } // sendLocalMessagesToClient()
 
 
-// Function to send the JSON string to the client when devSettingsPage is activated
-void sendDevFieldsToClient()
-{
-  std::string jsonData = settings.buildDeviceFieldsJson();
-  debug->printf("sendDevFieldsToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
-  
-  // First, send the HTML content for the device settings fields
-  DynamicJsonDocument doc(4096);
-  doc["type"] = "update";
-  doc["target"] = "settingsTableBody";
-  
-  // Create the HTML content for the device settings fields
-  std::string htmlContent = "";
-  
-  // Parse the JSON
-  DynamicJsonDocument devSettings(4096);
-  DeserializationError error = deserializeJson(devSettings, jsonData);
-  
-  if (!error) {
-    if (devSettings.containsKey("fields") && devSettings["fields"].is<JsonArray>()) {
-      JsonArray fields = devSettings["fields"].as<JsonArray>();
-      
-      for (size_t i = 0; i < fields.size(); i++) {
-        JsonObject field = fields[i];
-        
-        // Create a table row for each field
-        htmlContent += "<tr><td style='padding: 8px;'>";
-        htmlContent += field["fieldPrompt"].as<String>().c_str();
-        htmlContent += "</td><td style='padding: 8px;'>";
-        
-        // Create the appropriate input element based on fieldType
-        if (field["fieldType"] == "s") {
-          // String input
-          htmlContent += "<input type='text' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' maxlength='";
-          htmlContent += field["fieldLen"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='s' oninput='updateDevSetting(this)'>";
-        } else if (field["fieldType"] == "n") {
-          // Numeric input
-          htmlContent += "<input type='number' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' min='";
-          htmlContent += field["fieldMin"].as<String>().c_str();
-          htmlContent += "' max='";
-          htmlContent += field["fieldMax"].as<String>().c_str();
-          htmlContent += "' step='";
-          htmlContent += field["fieldStep"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='n' oninput='updateDevSetting(this)'>";
-        }
-        
-        htmlContent += "</td></tr>";
-      }
-    }
-  }
-  
-  doc["content"] = htmlContent.c_str();
-  
-  // Serialize the message
-  std::string message;
-  serializeJson(doc, message);
-  
-  // Send the structured message via WebSocket
-  spa.ws.broadcastTXT(message.c_str(), message.length());
-  
-  // Now send the raw JSON data in a format that SPAmanager can understand
-  DynamicJsonDocument jsonDoc(4096);
-  jsonDoc["type"] = "custom";
-  jsonDoc["action"] = "devSettingsData";
-  jsonDoc["data"] = jsonData;
-  
-  std::string jsonMessage;
-  serializeJson(jsonDoc, jsonMessage);
-  
-  // Send the JSON message via WebSocket
-  spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
-} // sendDevFieldsToClient()
-
-
-// Function to send the JSON string to the client when weerliveSettingsPage is activated
-void sendWeerliveFieldsToClient()
-{
-  std::string jsonData = settings.buildWeerliveFieldsJson();
-  debug->printf("sendWeerliveFieldsToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
-  
-  // First, send the HTML content for the weerlive settings fields
-  DynamicJsonDocument doc(4096);
-  doc["type"] = "update";
-  doc["target"] = "settingsTableBody";
-  
-  // Create the HTML content for the weerlive settings fields
-  std::string htmlContent = "";
-  
-  // Parse the JSON
-  DynamicJsonDocument weerliveSettings(4096);
-  DeserializationError error = deserializeJson(weerliveSettings, jsonData);
-  
-  if (!error) {
-    if (weerliveSettings.containsKey("fields") && weerliveSettings["fields"].is<JsonArray>()) {
-      JsonArray fields = weerliveSettings["fields"].as<JsonArray>();
-      
-      for (size_t i = 0; i < fields.size(); i++) {
-        JsonObject field = fields[i];
-        
-        // Create a table row for each field
-        htmlContent += "<tr><td style='padding: 8px;'>";
-        htmlContent += field["fieldPrompt"].as<String>().c_str();
-        htmlContent += "</td><td style='padding: 8px;'>";
-        
-        // Create the appropriate input element based on fieldType
-        if (field["fieldType"] == "s") {
-          // String input
-          htmlContent += "<input type='text' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' maxlength='";
-          htmlContent += field["fieldLen"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='s' oninput='updateWeerliveSettings(this)'>";
-        } else if (field["fieldType"] == "n") {
-          // Numeric input
-          htmlContent += "<input type='number' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' min='";
-          htmlContent += field["fieldMin"].as<String>().c_str();
-          htmlContent += "' max='";
-          htmlContent += field["fieldMax"].as<String>().c_str();
-          htmlContent += "' step='";
-          htmlContent += field["fieldStep"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='n' oninput='updateWeerliveSettings(this)'>";
-        }
-        
-        htmlContent += "</td></tr>";
-      }
-    }
-    
-    // Update the settings name in the page
-    if (weerliveSettings.containsKey("settingsName")) {
-      DynamicJsonDocument nameDoc(512);
-      nameDoc["type"] = "update";
-      nameDoc["target"] = "settingsName";
-      nameDoc["content"] = weerliveSettings["settingsName"].as<String>().c_str();
-      
-      std::string nameMessage;
-      serializeJson(nameDoc, nameMessage);
-      
-      // Send the name update message via WebSocket
-      spa.ws.broadcastTXT(nameMessage.c_str(), nameMessage.length());
-    }
-  }
-
-  doc["content"] = htmlContent.c_str();
-  
-  // Serialize the message
-  std::string message;
-  serializeJson(doc, message);
-  
-  // Send the structured message via WebSocket
-  spa.ws.broadcastTXT(message.c_str(), message.length());
-  
-  // Now send the raw JSON data in a format that SPAmanager can understand
-  DynamicJsonDocument jsonDoc(4096);
-  jsonDoc["type"] = "custom";
-  jsonDoc["action"] = "weerliveSettingsData";
-  jsonDoc["data"] = jsonData;
-  
-  std::string jsonMessage;
-  serializeJson(jsonDoc, jsonMessage);
-  
-  // Send the JSON message via WebSocket
-  spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
-
-} // sendWeerliveFieldsToClient()
-
-// Function to send the JSON string to the client when mediastackSettingsPage is activated
-void sendMediastackFieldsToClient()
-{
-  std::string jsonData = settings.buildMediastackFieldsJson();
-  debug->printf("sendMediastackFieldsToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
-  
-  // First, send the HTML content for the mediastack settings fields
-  DynamicJsonDocument doc(4096);
-  doc["type"] = "update";
-  doc["target"] = "settingsTableBody";
-  
-  // Create the HTML content for the mediastack settings fields
-  std::string htmlContent = "";
-  
-  // Parse the JSON
-  DynamicJsonDocument mediastackSettings(4096);
-  DeserializationError error = deserializeJson(mediastackSettings, jsonData);
-  
-  if (!error) {
-    if (mediastackSettings.containsKey("fields") && mediastackSettings["fields"].is<JsonArray>()) {
-      JsonArray fields = mediastackSettings["fields"].as<JsonArray>();
-      
-      for (size_t i = 0; i < fields.size(); i++) {
-        JsonObject field = fields[i];
-        
-        // Create a table row for each field
-        htmlContent += "<tr><td style='padding: 8px;'>";
-        htmlContent += field["fieldPrompt"].as<String>().c_str();
-        htmlContent += "</td><td style='padding: 8px;'>";
-        
-        // Create the appropriate input element based on fieldType
-        if (field["fieldType"] == "s") {
-          // String input
-          htmlContent += "<input type='text' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' maxlength='";
-          htmlContent += field["fieldLen"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='s' oninput='updateMediastackSettings(this)'>";
-        } else if (field["fieldType"] == "n") {
-          // Numeric input
-          htmlContent += "<input type='number' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' min='";
-          htmlContent += field["fieldMin"].as<String>().c_str();
-          htmlContent += "' max='";
-          htmlContent += field["fieldMax"].as<String>().c_str();
-          htmlContent += "' step='";
-          htmlContent += field["fieldStep"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='n' oninput='updateMediastackSettings(this)'>";
-        }
-        
-        htmlContent += "</td></tr>";
-      }
-    }
-    
-    // Update the settings name in the page
-    if (mediastackSettings.containsKey("settingsName")) {
-      DynamicJsonDocument nameDoc(512);
-      nameDoc["type"] = "update";
-      nameDoc["target"] = "settingsName";
-      nameDoc["content"] = mediastackSettings["settingsName"].as<String>().c_str();
-      
-      std::string nameMessage;
-      serializeJson(nameDoc, nameMessage);
-      
-      // Send the name update message via WebSocket
-      spa.ws.broadcastTXT(nameMessage.c_str(), nameMessage.length());
-    }
-  }
-  
-  doc["content"] = htmlContent.c_str();
-  
-  // Serialize the message
-  std::string message;
-  serializeJson(doc, message);
-  
-  // Send the structured message via WebSocket
-  spa.ws.broadcastTXT(message.c_str(), message.length());
-  
-  // Now send the raw JSON data in a format that SPAmanager can understand
-  DynamicJsonDocument jsonDoc(4096);
-  jsonDoc["type"] = "custom";
-  jsonDoc["action"] = "mediastackSettingsData";
-  jsonDoc["data"] = jsonData;
-  
-  std::string jsonMessage;
-  serializeJson(jsonDoc, jsonMessage);
-  
-  // Send the JSON message via WebSocket
-  spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
-
-} // sendMediastackFieldsToClient()
-
-// Function to send the JSON string to the client when weerliveSettingsPage is activated
-void sendParolaFieldsToClient()
-{
-  std::string jsonData = settings.buildParolaFieldsJson();
-  debug->printf("sendParolaFieldsToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
-  
-  // First, send the HTML content for the weerlive settings fields
-  DynamicJsonDocument doc(4096);
-  doc["type"] = "update";
-  doc["target"] = "settingsTableBody";
-  
-  // Create the HTML content for the weerlive settings fields
-  std::string htmlContent = "";
-  
-  // Parse the JSON
-  DynamicJsonDocument parolaSettings(4096);
-  DeserializationError error = deserializeJson(parolaSettings, jsonData);
-  
-  if (!error) {
-    if (parolaSettings.containsKey("fields") && parolaSettings["fields"].is<JsonArray>()) {
-      JsonArray fields = parolaSettings["fields"].as<JsonArray>();
-      
-      for (size_t i = 0; i < fields.size(); i++) {
-        JsonObject field = fields[i];
-        
-        // Create a table row for each field
-        htmlContent += "<tr><td style='padding: 8px;'>";
-        htmlContent += field["fieldPrompt"].as<String>().c_str();
-        htmlContent += "</td><td style='padding: 8px;'>";
-        
-        // Create the appropriate input element based on fieldType
-        if (field["fieldType"] == "s") {
-          // String input
-          htmlContent += "<input type='text' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' maxlength='";
-          htmlContent += field["fieldLen"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='s' oninput='updateParolaSettings(this)'>";
-        } else if (field["fieldType"] == "n") {
-          // Numeric input
-          htmlContent += "<input type='number' value='";
-          htmlContent += field["fieldValue"].as<String>().c_str();
-          htmlContent += "' style='width: 100%;' min='";
-          htmlContent += field["fieldMin"].as<String>().c_str();
-          htmlContent += "' max='";
-          htmlContent += field["fieldMax"].as<String>().c_str();
-          htmlContent += "' step='";
-          htmlContent += field["fieldStep"].as<String>().c_str();
-          htmlContent += "' data-field-name='";
-          htmlContent += field["fieldName"].as<String>().c_str();
-          htmlContent += "' data-field-type='n' oninput='updateParolaSettings(this)'>";
-        }
-        
-        htmlContent += "</td></tr>";
-      }
-    }
-    
-    // Update the settings name in the page
-    if (parolaSettings.containsKey("settingsName")) {
-      DynamicJsonDocument nameDoc(512);
-      nameDoc["type"] = "update";
-      nameDoc["target"] = "settingsName";
-      nameDoc["content"] = parolaSettings["settingsName"].as<String>().c_str();
-      
-      std::string nameMessage;
-      serializeJson(nameDoc, nameMessage);
-      
-      // Send the name update message via WebSocket
-      spa.ws.broadcastTXT(nameMessage.c_str(), nameMessage.length());
-    }
-  }
-  
-  doc["content"] = htmlContent.c_str();
-  
-  // Serialize the message
-  std::string message;
-  serializeJson(doc, message);
-  
-  // Send the structured message via WebSocket
-  spa.ws.broadcastTXT(message.c_str(), message.length());
-  
-  // Now send the raw JSON data in a format that SPAmanager can understand
-  DynamicJsonDocument jsonDoc(4096);
-  jsonDoc["type"] = "custom";
-  jsonDoc["action"] = "parolaSettingsData";
-  jsonDoc["data"] = jsonData;
-  
-  std::string jsonMessage;
-  serializeJson(jsonDoc, jsonMessage);
-  
-  // Send the JSON message via WebSocket
-  spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
-
-} // sendParolaFieldsToClient()
-
-
 // Function to process the received input fields from the client
 void processLocalMessages(const std::string& jsonString)
 {
@@ -714,348 +322,197 @@ void processLocalMessages(const std::string& jsonString)
 } // processLocalMessages()
 
 
-// Function to process the received device settings from the client
-void processDevSettings(const std::string& jsonString)
+
+// Generic function to send settings fields to the client
+void sendSettingFieldToClient(const std::string& settingsType)
 {
-  debug->println("processDevSettings(): Processing device settings from JSON:");
-  debug->println(jsonString.c_str());
+  std::string jsonData = settings.buildJsonFieldsString(settingsType);
+  debug->printf("sendSettingFieldToClient(): Sending JSON data for %s to client: %s\n", settingsType.c_str(), jsonData.c_str());
   
-  // Use ArduinoJson library to parse the JSON
-  DynamicJsonDocument doc(2048);
-  DeserializationError error = deserializeJson(doc, jsonString);
+  // First, send the HTML content for the settings fields
+  DynamicJsonDocument doc(4096);
+  doc["type"] = "update";
+  doc["target"] = "settingsTableBody";
   
-  if (error) 
-  {
-    debug->printf("processDevSettings(): JSON parsing error: %s\n", error.c_str());
-    return;
-  }
+  // Create the HTML content for the settings fields
+  std::string htmlContent = "";
   
-  // Check if the JSON has the expected structure
-  if (!doc.containsKey("fields") || !doc["fields"].is<JsonArray>()) 
-  {
-    debug->println("processDevSettings(): JSON does not contain fields array");
-    return;
-  }
+  // Parse the JSON
+  DynamicJsonDocument settingsDoc(4096);
+  DeserializationError error = deserializeJson(settingsDoc, jsonData);
   
-  JsonArray fields = doc["fields"].as<JsonArray>();
-  debug->printf("processDevSettings(): Processing array with %d fields\n", fields.size());
-  
-  // Process each field
-  for (JsonObject field : fields) {
-    if (!field.containsKey("fieldName") || !field.containsKey("value")) {
-      debug->println("processDevSettings(): Field missing required properties");
-      continue;
+  if (!error) {
+    if (settingsDoc.containsKey("fields") && settingsDoc["fields"].is<JsonArray>()) {
+      JsonArray fields = settingsDoc["fields"].as<JsonArray>();
+      
+      for (size_t i = 0; i < fields.size(); i++) {
+        JsonObject field = fields[i];
+        
+        // Create a table row for each field
+        htmlContent += "<tr><td style='padding: 8px;'>";
+        htmlContent += field["fieldPrompt"].as<String>().c_str();
+        htmlContent += "</td><td style='padding: 8px;'>";
+        
+        // Create the appropriate input element based on fieldType
+        if (field["fieldType"] == "s") {
+          // String input
+          htmlContent += "<input type='text' value='";
+          htmlContent += field["fieldValue"].as<String>().c_str();
+          htmlContent += "' style='width: 100%;' maxlength='";
+          htmlContent += field["fieldLen"].as<String>().c_str();
+          htmlContent += "' data-field-name='";
+          htmlContent += field["fieldName"].as<String>().c_str();
+          htmlContent += "' data-field-type='s' oninput='update";
+          
+          // Determine the appropriate update function based on settings type
+          if (settingsType == "deviceSettings") {
+            htmlContent += "DevSetting";
+          } else if (settingsType == "parolaSettings") {
+            htmlContent += "ParolaSettings";
+          } else if (settingsType == "weerliveSettings") {
+            htmlContent += "WeerliveSettings";
+          } else if (settingsType == "mediastackSettings") {
+            htmlContent += "MediastackSettings";
+          } else {
+            // Generic fallback
+            htmlContent += "Setting";
+          }
+          
+          htmlContent += "(this)'>";
+        } else if (field["fieldType"] == "n") {
+          // Numeric input
+          htmlContent += "<input type='number' value='";
+          htmlContent += field["fieldValue"].as<String>().c_str();
+          htmlContent += "' style='width: 100%;' min='";
+          htmlContent += field["fieldMin"].as<String>().c_str();
+          htmlContent += "' max='";
+          htmlContent += field["fieldMax"].as<String>().c_str();
+          htmlContent += "' step='";
+          htmlContent += field["fieldStep"].as<String>().c_str();
+          htmlContent += "' data-field-name='";
+          htmlContent += field["fieldName"].as<String>().c_str();
+          htmlContent += "' data-field-type='n' oninput='update";
+          
+          // Determine the appropriate update function based on settings type
+          if (settingsType == "deviceSettings") {
+            htmlContent += "DevSetting";
+          } else if (settingsType == "parolaSettings") {
+            htmlContent += "ParolaSettings";
+          } else if (settingsType == "weerliveSettings") {
+            htmlContent += "WeerliveSettings";
+          } else if (settingsType == "mediastackSettings") {
+            htmlContent += "MediastackSettings";
+          } else {
+            // Generic fallback
+            htmlContent += "Setting";
+          }
+          
+          htmlContent += "(this)'>";
+        }
+        
+        htmlContent += "</td></tr>";
+      }
     }
     
-    const char* fieldName = field["fieldName"];
-    
-    // Update the appropriate setting based on the field name
-    if (strcmp(fieldName, "hostname") == 0) {
-      std::string newHostname = field["value"].as<std::string>();
-      debug->printf("processDevSettings(): Setting hostname to [%s]\n", newHostname.c_str());
-      gDeviceSettings->hostname = newHostname;
-    }
-    else if (strcmp(fieldName, "scrollSnelheid") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processDevSettings(): Setting scrollSnelheid to [%d]\n", newValue);
-      gDeviceSettings->scrollSnelheid = newValue;
-    }
-    else if (strcmp(fieldName, "LDRMinWaarde") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processDevSettings(): Setting LDRMinWaarde to [%d]\n", newValue);
-      gDeviceSettings->LDRMinWaarde = newValue;
-    }
-    else if (strcmp(fieldName, "LDRMaxWaarde") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processDevSettings(): Setting LDRMaxWaarde to [%d]\n", newValue);
-      //debug->printf("processDevSettings(): Setting [%s] to [%s]\n", fieldName, newValue);
-      gDeviceSettings->LDRMaxWaarde = newValue;
-    }
-    else if (strcmp(fieldName, "maxIntensiteitLeds") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processDevSettings(): Setting [%s] to [%d]\n", fieldName, newValue);
-      gDeviceSettings->maxIntensiteitLeds = newValue;
-    }
-    else if (strcmp(fieldName, "skipItems") == 0) {
-      std::string newValue = field["value"].as<std::string>();
-      debug->printf("processDevSettings(): Setting skipItems to [%s]\n", newValue);
-      gDeviceSettings->skipItems = newValue;
-    }
-    else if (strcmp(fieldName, "tickerSpeed") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processDeviceSettings(): Setting tickerSpeed to [%d]\n", newValue);
-      gDeviceSettings->tickerSpeed = newValue;
-    }
-    else {
-      debug->printf("processDevSettings(): Unknown field: %s\n", fieldName);
+    // Update the settings name in the page if available
+    if (settingsDoc.containsKey("settingsName")) {
+      DynamicJsonDocument nameDoc(512);
+      nameDoc["type"] = "update";
+      nameDoc["target"] = "settingsName";
+      nameDoc["content"] = settingsDoc["settingsName"].as<String>().c_str();
+      
+      std::string nameMessage;
+      serializeJson(nameDoc, nameMessage);
+      
+      // Send the name update message via WebSocket
+      spa.ws.broadcastTXT(nameMessage.c_str(), nameMessage.length());
     }
   }
   
-  // Always write settings
-  debug->println("processDevSettings(): Writing settings to storage");
-  settings.writeDeviceSettings();
+  // Set the content in the document
+  doc["content"] = htmlContent.c_str();
   
-  // Send a confirmation message to the client
-  DynamicJsonDocument confirmDoc(512);
-  confirmDoc["type"] = "update";
-  confirmDoc["target"] = "message";
-  confirmDoc["content"] = "Settings saved successfully!";
+  // Serialize the message
+  std::string message;
+  serializeJson(doc, message);
   
-  std::string confirmMessage;
-  serializeJson(confirmDoc, confirmMessage);
-  spa.ws.broadcastTXT(confirmMessage.c_str(), confirmMessage.length());
+  // Send the structured message via WebSocket
+  spa.ws.broadcastTXT(message.c_str(), message.length());
   
-  // Refresh the device settings display
-  sendDevFieldsToClient();
+  // Now send the raw JSON data in a format that SPAmanager can understand
+  DynamicJsonDocument jsonDoc(4096);
+  jsonDoc["type"] = "custom";
+  
+  // Use the exact same action name format as the original functions
+  if (settingsType == "deviceSettings") {
+    jsonDoc["action"] = "deviceSettingsData";
+  } else if (settingsType == "parolaSettings") {
+    jsonDoc["action"] = "parolaSettingsData";
+  } else if (settingsType == "weerliveSettings") {
+    jsonDoc["action"] = "weerliveSettingsData";
+  } else if (settingsType == "mediastackSettings") {
+    jsonDoc["action"] = "mediastackSettingsData";
+  } else {
+    // Generic fallback
+    jsonDoc["action"] = settingsType + "Data";
+  }
+  
+  jsonDoc["data"] = jsonData;
+  
+  std::string jsonMessage;
+  serializeJson(jsonDoc, jsonMessage);
+  
+  // Send the JSON message via WebSocket
+  spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
+  
+  // Call any specific JavaScript initialization functions if needed
+  if (settingsType == "deviceSettings") {
+    // If there's a specific initialization function for device settings
+    // spa.callJsFunction("initializeDevSettings", jsonData.c_str());
+  }
 
-} // processDevSettings()
+} // sendSettingFieldToClient()
 
 
-// Function to process the received parola settings from the client
-void processParolaSettings(const std::string& jsonString)
+// Function to send the JSON string to the client when deviceSettingsPage is activated
+void sendDeviceFieldsToClient()
 {
-  debug->println("processParolaSettings(): Processing parola settings from JSON:");
-  debug->println(jsonString.c_str());
-  
-  // Use ArduinoJson library to parse the JSON
-  DynamicJsonDocument doc(2048);
-  DeserializationError error = deserializeJson(doc, jsonString);
-  
-  if (error) 
-  {
-    debug->printf("processParolaSettings(): JSON parsing error: %s\n", error.c_str());
-    return;
-  }
-  
-  // Check if the JSON has the expected structure
-  if (!doc.containsKey("fields") || !doc["fields"].is<JsonArray>()) 
-  {
-    debug->println("processParolaSettings(): JSON does not contain fields array");
-    return;
-  }
-  
-  JsonArray fields = doc["fields"].as<JsonArray>();
-  debug->printf("processParolaSettings(): Processing array with %d fields\n", fields.size());
-  
-  // Get a reference to the parola settings
-  ParolaSettings& parolaSettings = settings.getParolaSettings();
-  
-  // Process each field
-  for (JsonObject field : fields) {
-    if (!field.containsKey("fieldName") || !field.containsKey("value")) {
-      debug->println("processParolaSettings(): Field missing required properties");
-      continue;
-    }
-    
-    const char* fieldName = field["fieldName"];
-    
-    // Update the appropriate setting based on the field name
-    if (strcmp(fieldName, "hardwareType") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processParolaSettings(): Setting hardwareType to [%d]\n", newValue);
-      gParolaSettings->hardwareType = newValue;
-    }
-    else if (strcmp(fieldName, "numDevices") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processParolaSettings(): Setting numDevices to [%d]\n", newValue);
-      gParolaSettings->numDevices = newValue;
-    }
-    else if (strcmp(fieldName, "numZones") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processParolaSettings(): Setting numZones to [%d]\n", newValue);
-      gParolaSettings->numZones = newValue;
-    }
-//  else if (strcmp(fieldName, "speed") == 0) {
-//    uint8_t newValue = field["value"].as<uint8_t>();
-//    debug->printf("processParolaSettings(): Setting speed to [%d]\n", newValue);
-//    gParolaSettings.speed = newValue;
-//  }
-    else {
-      debug->printf("processParolaSettings(): Unknown field: %s\n", fieldName);
-    }
-  }
-  
-  // Always write settings
-  debug->println("processParolaSettings(): Writing settings to storage");
-  settings.writeParolaSettings();
-  
-  // Send a confirmation message to the client
-  DynamicJsonDocument confirmDoc(512);
-  confirmDoc["type"] = "update";
-  confirmDoc["target"] = "message";
-  confirmDoc["content"] = "Parola Settings saved successfully!";
-  
-  std::string confirmMessage;
-  serializeJson(confirmDoc, confirmMessage);
-  spa.ws.broadcastTXT(confirmMessage.c_str(), confirmMessage.length());
-  
-  // Refresh the parola settings display
-  sendParolaFieldsToClient();
+  sendSettingFieldToClient("deviceSettings");
+}
 
-} // processParolaSettings()
-
-
-// Function to process the received weerlive settings from the client
-void processWeerliveSettings(const std::string& jsonString)
+// Function to send the JSON string to the client when weerliveSettingsPage is activated
+void sendWeerliveFieldsToClient()
 {
-  debug->println("processWeerliveSettings(): Processing weerlive settings from JSON:");
-  debug->println(jsonString.c_str());
-  
-  // Use ArduinoJson library to parse the JSON
-  DynamicJsonDocument doc(2048);
-  DeserializationError error = deserializeJson(doc, jsonString);
-  
-  if (error) 
-  {
-    debug->printf("processWeerliveSettings(): JSON parsing error: %s\n", error.c_str());
-    return;
-  }
-  
-  // Check if the JSON has the expected structure
-  if (!doc.containsKey("fields") || !doc["fields"].is<JsonArray>()) 
-  {
-    debug->println("processWeerliveSettings(): JSON does not contain fields array");
-    return;
-  }
-  
-  JsonArray fields = doc["fields"].as<JsonArray>();
-  debug->printf("processWeerliveSettings(): Processing array with %d fields\n", fields.size());
-  
-  // Process each field
-  for (JsonObject field : fields) {
-    if (!field.containsKey("fieldName") || !field.containsKey("value")) {
-      debug->println("processWeerliveSettings(): Field missing required properties");
-      continue;
-    }
-    
-    const char* fieldName = field["fieldName"];
-    
-    // Update the appropriate setting based on the field name
-    if (strcmp(fieldName, "authToken") == 0) {
-      std::string newAuthToken = field["value"].as<std::string>();
-      debug->printf("processWeerliveSettings(): Setting authToken to [%s]\n", newAuthToken.c_str());
-      gWeerliveSettings->authToken = newAuthToken;
-    }
-    else if (strcmp(fieldName, "plaats") == 0) {
-      std::string newPlaats = field["value"].as<std::string>();
-      debug->printf("processWeerliveSettings(): Setting plaats to [%s]\n", newPlaats.c_str());
-      gWeerliveSettings->plaats = newPlaats;
-    }
-    else if (strcmp(fieldName, "requestInterval") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processWeerliveSettings(): Setting requestInterval to [%d]\n", newValue);
-      gWeerliveSettings->requestInterval = newValue;
-    }
-    else {
-      debug->printf("processWeerliveSettings(): Unknown field: %s\n", fieldName);
-    }
-  }
-  
-  // Always write settings
-  debug->println("processWeerliveSettings(): Writing settings to storage");
-  settings.writeWeerliveSettings();
-  
-  // Send a confirmation message to the client
-  DynamicJsonDocument confirmDoc(512);
-  confirmDoc["type"] = "update";
-  confirmDoc["target"] = "message";
-  confirmDoc["content"] = "Weerlive Settings saved successfully!";
-  
-  std::string confirmMessage;
-  serializeJson(confirmDoc, confirmMessage);
-  spa.ws.broadcastTXT(confirmMessage.c_str(), confirmMessage.length());
-  
-  // Refresh the weerlive settings display
-  sendWeerliveFieldsToClient();
+  sendSettingFieldToClient("weerliveSettings");
+}
 
-} // processWeerliveSettings()
-
-// Function to process the received mediastack settings from the client
-void processMediastackSettings(const std::string& jsonString)
+// Function to send the JSON string to the client when mediastackSettingsPage is activated
+void sendMediastackFieldsToClient()
 {
-  debug->println("processMediastackSettings(): Processing mediastack settings from JSON:");
-  debug->println(jsonString.c_str());
-  
-  // Use ArduinoJson library to parse the JSON
-  DynamicJsonDocument doc(2048);
-  DeserializationError error = deserializeJson(doc, jsonString);
-  
-  if (error) 
-  {
-    debug->printf("processMediastackSettings(): JSON parsing error: %s\n", error.c_str());
-    return;
-  }
-  
-  // Check if the JSON has the expected structure
-  if (!doc.containsKey("fields") || !doc["fields"].is<JsonArray>()) 
-  {
-    debug->println("processMediastackSettings(): JSON does not contain fields array");
-    return;
-  }
-  
-  JsonArray fields = doc["fields"].as<JsonArray>();
-  debug->printf("processMediastackSettings(): Processing array with %d fields\n", fields.size());
-  
-  // Process each field
-  for (JsonObject field : fields) {
-    if (!field.containsKey("fieldName") || !field.containsKey("value")) {
-      debug->println("processMediastackSettings(): Field missing required properties");
-      continue;
-    }
-    
-    const char* fieldName = field["fieldName"];
-    
-    // Update the appropriate setting based on the field name
-    if (strcmp(fieldName, "authToken") == 0) {
-      std::string newAuthToken = field["value"].as<std::string>();
-      debug->printf("processMediastackSettings(): Setting authToken to [%s]\n", newAuthToken.c_str());
-      gMediastackSettings->authToken = newAuthToken;
-    }
-    else if (strcmp(fieldName, "requestInterval") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processMediastackSettings(): Setting requestInterval to [%d]\n", newValue);
-      gMediastackSettings->requestInterval = newValue;
-    }
-    else if (strcmp(fieldName, "maxMessages") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processMediastackSettings(): Setting maxMessages to [%d]\n", newValue);
-      gMediastackSettings->maxMessages = newValue;
-    }
-    else if (strcmp(fieldName, "onlyDuringDay") == 0) {
-      uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processMediastackSettings(): Setting onlyDuringDay to [%d]\n", newValue);
-      gMediastackSettings->onlyDuringDay = newValue;
-    }
-    else {
-      debug->printf("processMediastackSettings(): Unknown field: %s\n", fieldName);
-    }
-  }
-  
-  // Always write settings
-  debug->println("processMediastackSettings(): Writing settings to storage");
-  settings.writeMediastackSettings();
-  
-  // Send a confirmation message to the client
-  DynamicJsonDocument confirmDoc(512);
-  confirmDoc["type"] = "update";
-  confirmDoc["target"] = "message";
-  confirmDoc["content"] = "Mediastack Settings saved successfully!";
-  
-  std::string confirmMessage;
-  serializeJson(confirmDoc, confirmMessage);
-  spa.ws.broadcastTXT(confirmMessage.c_str(), confirmMessage.length());
-  
-  // Refresh the mediastack settings display
-  sendMediastackFieldsToClient();
+  sendSettingFieldToClient("mediastackSettings");
+}
 
-} // processMediastackSettings()
+// Function to send the JSON string to the client when parolaSettingsPage is activated
+void sendParolaFieldsToClient()
+{
+  sendSettingFieldToClient("parolaSettings");
+}
+
+//=============================================================================
+
 
 // Generic function to process settings from the client
-void processSettings(const std::string& jsonString, const std::string& target)
+void processSettings(const std::string& jsonString, const std::string& settingsType)
 {
-  debug->println("processSettings(): Processing settings from JSON:");
+  debug->printf("processSettings(): Processing %s settings from JSON:\n", settingsType.c_str());
   debug->println(jsonString.c_str());
-  debug->printf("processSettings(): Target: %s\n", target.c_str());
+  
+  // Get the settings container for this type
+  const SettingsContainer* container = settings.getSettingsContainer(settingsType);
+  if (!container) {
+    debug->printf("processSettings(): Unknown settings type: %s\n", settingsType.c_str());
+    return;
+  }
   
   // Use ArduinoJson library to parse the JSON
   DynamicJsonDocument doc(2048);
@@ -1077,133 +534,61 @@ void processSettings(const std::string& jsonString, const std::string& target)
   JsonArray fields = doc["fields"].as<JsonArray>();
   debug->printf("processSettings(): Processing array with %d fields\n", fields.size());
   
-  if (target == "deviceSettings")
+  // Get the field descriptors for this settings type
+  const std::vector<FieldDescriptor>& fieldDescriptors = container->getFields();
+  
+  // Process each field from the JSON
+  for (JsonObject field : fields) 
   {
-    // Process each field for device settings
-    for (JsonObject field : fields) {
-      if (!field.containsKey("fieldName") || !field.containsKey("value")) {
-        debug->println("processSettings(): Field missing required properties");
-        continue;
-      }
-      
-      const char* fieldName = field["fieldName"];
-      
-      // Update the appropriate setting based on the field name
-      if (strcmp(fieldName, "hostname") == 0) {
-        std::string newHostname = field["value"].as<std::string>();
-        debug->printf("processSettings(): Setting hostname to [%s]\n", newHostname.c_str());
-        gDeviceSettings->hostname = newHostname;
-      }
-      else if (strcmp(fieldName, "scrollSnelheid") == 0) {
-        uint8_t newValue = field["value"].as<uint8_t>();
-        debug->printf("processSettings(): Setting scrollSnelheid to [%d]\n", newValue);
-        gDeviceSettings->scrollSnelheid = newValue;
-      }
-      else if (strcmp(fieldName, "LDRMinWaarde") == 0) {
-        uint8_t newValue = field["value"].as<uint8_t>();
-        debug->printf("processSettings(): Setting LDRMinWaarde to [%d]\n", newValue);
-        gDeviceSettings->LDRMinWaarde = newValue;
-      }
-      else if (strcmp(fieldName, "LDRMaxWaarde") == 0) {
-        uint8_t newValue = field["value"].as<uint8_t>();
-        debug->printf("processSettings(): Setting LDRMaxWaarde to [%d]\n", newValue);
-        gDeviceSettings->LDRMaxWaarde = newValue;
-      }
-      else if (strcmp(fieldName, "maxIntensiteitLeds") == 0) {
-        uint8_t newValue = field["value"].as<uint8_t>();
-        debug->printf("processSettings(): Setting maxIntensiteitLeds to [%d]\n", newValue);
-        gDeviceSettings->maxIntensiteitLeds = newValue;
-      }
-      else if (strcmp(fieldName, "skipItems") == 0) {
-        std::string newValue = field["value"].as<std::string>();
-        debug->printf("processSettings(): Setting skipItems to [%s]\n", newValue);
-        gDeviceSettings->skipItems = newValue;
-      }
-      else {
-        debug->printf("processSettings(): Unknown field: %s\n", fieldName);
-      }
-    }
-  }
-  else if (target == "weerliveSettings")
-  {
-    // Process each field for weerlive settings
-    for (JsonObject field : fields) {
-      if (!field.containsKey("fieldName") || !field.containsKey("value")) {
-        debug->println("processSettings(): Field missing required properties");
-        continue;
-      }
-      
-      const char* fieldName = field["fieldName"];
-      
-      // Update the appropriate setting based on the field name
-      if (strcmp(fieldName, "authToken") == 0) {
-        std::string newAuthToken = field["value"].as<std::string>();
-        debug->printf("processSettings(): Setting authToken to [%s]\n", newAuthToken.c_str());
-        gWeerliveSettings->authToken = newAuthToken;
-      }
-      else if (strcmp(fieldName, "plaats") == 0) {
-        std::string newPlaats = field["value"].as<std::string>();
-        debug->printf("processSettings(): Setting plaats to [%s]\n", newPlaats.c_str());
-        gWeerliveSettings->plaats = newPlaats;
-      }
-      else if (strcmp(fieldName, "requestIntervals") == 0) {
-        uint8_t newValue = field["value"].as<uint8_t>();
-        debug->printf("processSettings(): Setting requestInterval to [%d]\n", newValue);
-        gWeerliveSettings->requestInterval = newValue;
-      }
-      else {
-        debug->printf("processSettings(): Unknown field: %s\n", fieldName);
-      }
-    }
-  }
-  else if (target == "mediastackSettings")
-  {
-    // Process each field for mediastack settings
-    debug->println("processSettings(): Processing mediastack settings");
-    for (JsonObject field : fields) 
+    if (!field.containsKey("fieldName") || !field.containsKey("value")) 
     {
-      if (!field.containsKey("fieldName") || !field.containsKey("value")) {
-        debug->println("processSettings(): Field missing required properties");
-        continue;
-      }
-      
-      const char* fieldName = field["fieldName"];
-      
-      // Update the appropriate setting based on the field name
-      if (strcmp(fieldName, "authToken") == 0) {
-        std::string newAuthToken = field["value"].as<std::string>();
-        debug->printf("processSettings(): Setting authToken to [%s]\n", newAuthToken.c_str());
-        gMediastackSettings->authToken = newAuthToken;
-      }
-      else if (strcmp(fieldName, "requestIntervals") == 0) {
-        uint8_t newValue = field["value"].as<uint8_t>();
-        debug->printf("processSettings(): Setting requestInterval to [%d]\n", newValue);
-        gMediastackSettings->requestInterval = newValue;
-      }
-      else if (strcmp(fieldName, "onlyDuringDay") == 0) {
-        uint8_t newValue = field["value"].as<uint8_t>();
-        debug->printf("processSettings(): Setting onlyDuringDay to [%d]\n", newValue);
-        gMediastackSettings->requestInterval = newValue;
-      }
-      else if (strcmp(fieldName, "maxMessages") == 0) {
-        uint8_t newValue = field["value"].as<uint8_t>();
-        debug->printf("processSettings(): Setting maxMessages to [%d]\n", newValue);
-        gMediastackSettings->maxMessages = newValue;
-      }
-      else {
-        debug->printf("processSettings(): Unknown field: %s\n", fieldName);
-      }
+      debug->println("processSettings(): Field missing required properties");
+      continue;
     }
-  }
-  else
-  {
-    debug->printf("processSettings(): Unknown target: %s\n", target.c_str());
-    return;
+    
+    const char* fieldName = field["fieldName"];
+    
+    // Find the matching field descriptor
+    auto it = std::find_if(fieldDescriptors.begin(), fieldDescriptors.end(),
+                          [fieldName](const FieldDescriptor& fd) {
+                            return fd.fieldName == fieldName;
+                          });
+    
+    if (it != fieldDescriptors.end()) 
+    {
+      // Found the field descriptor, update the value
+      const FieldDescriptor& descriptor = *it;
+      
+      if (descriptor.fieldType == "s") 
+      {
+        // String field
+        std::string newValue = field["value"].as<std::string>();
+        debug->printf("processSettings(): Setting %s to [%s]\n", fieldName, newValue.c_str());
+        
+        // Update the value using the field pointer
+        std::string* valuePtr = static_cast<std::string*>(descriptor.fieldValue);
+        *valuePtr = newValue;
+      } 
+      else if (descriptor.fieldType == "n") 
+      {
+        // Numeric field
+        uint8_t newValue = field["value"].as<uint8_t>();
+        debug->printf("processSettings(): Setting %s to [%d]\n", fieldName, newValue);
+        
+        // Update the value using the field pointer
+        uint8_t* valuePtr = static_cast<uint8_t*>(descriptor.fieldValue);
+        *valuePtr = newValue;
+      }
+    } 
+    else 
+    {
+      debug->printf("processSettings(): Unknown field: %s\n", fieldName);
+    }
   }
   
   // Save settings using the generic method
-  debug->printf("processSettings(): Saving settings for target: %s\n", target.c_str());
-  settings.saveSettings(target);
+  debug->printf("processSettings(): Saving settings for type: %s\n", settingsType.c_str());
+  settings.writeSettingFields(settingsType);
   
   // Send a confirmation message to the client
   DynamicJsonDocument confirmDoc(512);
@@ -1216,11 +601,8 @@ void processSettings(const std::string& jsonString, const std::string& target)
   spa.ws.broadcastTXT(confirmMessage.c_str(), confirmMessage.length());
   
   // Refresh the settings display
-  if (target == "deviceSettings") {
-    sendDevFieldsToClient();
-  } else if (target == "weerliveSettings") {
-    sendWeerliveFieldsToClient();
-  }
+  sendSettingFieldToClient(settingsType);
+
 } // processSettings()
 
 
@@ -1286,10 +668,10 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
       return;
     }
     
-    // Check if this is a requestDevSettings message
-    if (doc["type"] == "requestDevSettings") {
-      debug->println("handleLocalWebSocketEvent(): Handling requestDevSettings message");
-      sendDevFieldsToClient();
+    // Check if this is a requestDeviceSettings message
+    if (doc["type"] == "requestDeviceSettings") {
+      debug->println("handleLocalWebSocketEvent(): Handling requestDeviceSettings message");
+      sendDeviceFieldsToClient();
       return;
     }
     
@@ -1337,26 +719,25 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
           debug->println("handleLocalWebSocketEvent(): No LocalMessagesData found in the message");
         }
       } 
-      // Check if this is a saveDevSettings message
-      else if (strcmp(processType, "saveDevSettings") == 0) 
+      // Handle settings processing generically
+      else if (strcmp(processType, "saveDeviceSettings") == 0) 
       {
-        debug->println("handleLocalWebSocketEvent(): Handling saveDevSettings message");
+        debug->println("handleLocalWebSocketEvent(): Handling saveDeviceSettings message");
         
-        // Check if inputValues exists and contains devSettingsData
-        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("devSettingsData")) 
+        // Check if inputValues exists and contains deviceSettingsData
+        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("deviceSettingsData")) 
         {
-          // Get the devSettingsData as a string
-          const char* devSettingsData = doc["inputValues"]["devSettingsData"];
+          // Get the deviceSettingsData as a string
+          const char* deviceSettingsData = doc["inputValues"]["deviceSettingsData"];
           debug->println("handleLocalWebSocketEvent(): Received device settings data:");
-          debug->println(devSettingsData);
+          debug->println(deviceSettingsData);
           
-          // Process the device settings data
-          processDevSettings(devSettingsData);
+          // Process the device settings data using the generic function
+          processSettings(deviceSettingsData, "deviceSettings");
         } else {
-          debug->println("handleLocalWebSocketEvent(): No devSettingsData found in the message");
+          debug->println("handleLocalWebSocketEvent(): No deviceSettingsData found in the message");
         }
       }
-      // Check if this is a saveParolaSettings message
       else if (strcmp(processType, "saveParolaSettings") == 0) 
       {
         debug->println("handleLocalWebSocketEvent(): Handling saveParolaSettings message");
@@ -1369,13 +750,12 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
           debug->println("handleLocalWebSocketEvent(): Received parola settings data:");
           debug->println(parolaSettingsData);
           
-          // Process the parola settings data
-          processParolaSettings(parolaSettingsData);
+          // Process the parola settings data using the generic function
+          processSettings(parolaSettingsData, "parolaSettings");
         } else {
           debug->println("handleLocalWebSocketEvent(): No parolaSettingsData found in the message");
         }
       }
-      // Check if this is a saveWeerliveSettings message
       else if (strcmp(processType, "saveWeerliveSettings") == 0) 
       {
         debug->println("handleLocalWebSocketEvent(): Handling saveWeerliveSettings message");
@@ -1388,13 +768,12 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
           debug->println("handleLocalWebSocketEvent(): Received weerlive settings data:");
           debug->println(weerliveSettingsData);
           
-          // Process the weerlive settings data
-          processWeerliveSettings(weerliveSettingsData);
+          // Process the weerlive settings data using the generic function
+          processSettings(weerliveSettingsData, "weerliveSettings");
         } else {
           debug->println("handleLocalWebSocketEvent(): No weerliveSettingsData found in the message");
         }
       }
-      // Check if this is a saveMediastackSettings message
       else if (strcmp(processType, "saveMediastackSettings") == 0) 
       {
         debug->println("handleLocalWebSocketEvent(): Handling saveMediastackSettings message");
@@ -1407,17 +786,16 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
           debug->println("handleLocalWebSocketEvent(): Received mediastack settings data:");
           debug->println(mediastackSettingsData);
           
-          // Process the mediastack settings data
-          processMediastackSettings(mediastackSettingsData);
+          // Process the mediastack settings data using the generic function
+          processSettings(mediastackSettingsData, "mediastackSettings");
         } else {
           debug->println("handleLocalWebSocketEvent(): No mediastackSettingsData found in the message");
         }
       } else {
         debug->printf("handleLocalWebSocketEvent(): Unknown process type: %s\n", processType);
       }
-    } else {
-      debug->printf("handleLocalWebSocketEvent(): Unknown message type: %s\n", doc["type"] | "unknown");
     }
+
   }
   else if (type == WStype_BIN) {
     // Handle binary data
@@ -1436,29 +814,11 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
   
 } // handleLocalWebSocketEvent()
 
-
 void pageIsLoadedCallback()
 {
-  debug->println("pageIsLoadedCallback(): Page is loaded callback executed");
-  
   // Get the current active page
   std::string activePage = spa.getActivePageName();
   debug->printf("pageIsLoadedCallback(): Current active page: %s\n", activePage.c_str());
-  
-  // Check if the Main page was just activated
-  if (activePage == "Main") {
-    debug->println("Main page activated");
-  }
-  // Check if the device settings page was just activated
-  else if (activePage == "devSettingsPage") {
-    debug->println("Device settings page activated");
-    sendDevFieldsToClient();
-  }
-  // Check if the weerlive settings page was just activated
-  else if (activePage == "weerliveSettingsPage") {
-    debug->println("Weerlive settings page activated");
-    sendWeerliveFieldsToClient();
-  }
   
   // Update the current active page
   currentActivePage = activePage;
@@ -1480,18 +840,18 @@ void localMessagesCallback()
 } // localMessagesCallback()
 
     
-void mainCallbackDevSettings()
+void mainCallbackDeviceSettings()
 {
   spa.setErrorMessage("Main Menu \"Dev Settings\" clicked!", 5);
-  spa.activatePage("devSettingsPage");
+  spa.activatePage("deviceSettingsPage");
   
   // Call the JavaScript function to set up event handlers
   spa.callJsFunction("isEspTicker32Loaded");
   
   // Send the device settings to the client
-  sendDevFieldsToClient();
+  sendDeviceFieldsToClient();
 
-} //  mainCallbackDevSettings()
+} //  mainCallbackDeviceSettings()
 
 
 void mainCallbackParolaSettings()
@@ -1676,10 +1036,40 @@ void setupLocalMessagesPage()
       </div>
     </div>
     )HTML";
-    
+
+    const char *popupHelpLocalMessages = R"HTML(
+    <style>
+        li {
+          display: grid;
+          grid-template-columns: 130px 1fr; /* pas 150px aan indien nodig */
+          gap: 1em;
+          margin-bottom: 0.3em;
+        }
+        li::marker {
+          content: none; /* verbergt het standaard bolletje */
+        }
+      </style>
+
+      <div id="popupHelpLocalMessages">Help Sleutelwoorden</div>
+      <div>
+        <ul>
+          <li><b>&lt;time&gt;</b> - Laat de tijd zien</li>
+          <li><b>&lt;date&gt;</b> - Laat de datum zien</li>
+          <li><b>&lt;datetime&gt;</b> - Laat de datum en tijd zien</li>
+          <li><b>&lt;space&gt;</b> - Maakt de Ticker leeg</li>
+          <li><b>&lt;weerlive&gt;</b> - Laat de weergegevens van weerlive zien</li>
+          <li><b>&lt;mediastack&gt;</b> - Laat het volgende item van mediastack zien</li>
+          <li><b>&lt;rssfeed&gt;</b> - Laat het volgende item van een rssfeed zien</li>
+        </ul>
+      </div>
+      Let op! Deze sleutelwoorden moeten als enige in een regel staan!
+      <br><button type="button" onClick="closePopup('popup_Help')">Close</button></br>
+    )HTML";
+        
     spa.addPage("localMessagesPage", localMessagesPage);
     spa.setPageTitle("localMessagesPage", "Local Messages");
     spa.addMenu("localMessagesPage", "Local Messages");
+    spa.addMenuItemPopup("localMessagesPage", "Local Messages", "Help", popupHelpLocalMessages);
     spa.addMenuItem("localMessagesPage", "Local Messages", "Exit", handleMenuItem, "LMP-EXIT");
   
 } // setupLocalMessagesPage()
@@ -1753,10 +1143,10 @@ void setupSettingsPage()
     )HTML";
   
   debug->println("\nsetupSettingsPage(): Adding settings page");
-  spa.addPage("devSettingsPage", settingsPage);
-  spa.setPageTitle("devSettingsPage", "Device Settings");
-  spa.addMenu("devSettingsPage", "Device Settings");
-  spa.addMenuItem("devSettingsPage", "Device Settings", "Exit", handleMenuItem, "SET-UP");
+  spa.addPage("deviceSettingsPage", settingsPage);
+  spa.setPageTitle("deviceSettingsPage", "Device Settings");
+  spa.addMenu("deviceSettingsPage", "Device Settings");
+  spa.addMenuItem("deviceSettingsPage", "Device Settings", "Exit", handleMenuItem, "SET-UP");
   
   spa.addPage("parolaSettingsPage", settingsPage);
   spa.setPageTitle("parolaSettingsPage", "Parola Settings");
@@ -1796,7 +1186,7 @@ void setupMainSettingsPage()
   spa.setPageTitle("mainSettingsPage", "Settings");
   //-- Add Settings menu
   spa.addMenu("mainSettingsPage", "Settings");
-  spa.addMenuItem("mainSettingsPage", "Settings", "Device Settings", mainCallbackDevSettings);
+  spa.addMenuItem("mainSettingsPage", "Settings", "Device Settings", mainCallbackDeviceSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Parola Settings", mainCallbackParolaSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Weerlive Settings", mainCallbackWeerliveSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Mediastack Settings", mainCallbackMediastackSettings);
@@ -1895,40 +1285,24 @@ void setup()
       debug->println("setup(): LittleFS Mount Failed");
       return;
     }
-    listFiles("/", 0);
+    //-test- listFiles("/", 0);
 
     settings.setDebug(debug);
-    debug->println("setup(): readDeviceSettings()");
-    settings.readDeviceSettings();
-    debug->println("setup(): readParolaSettings()");
-    settings.readParolaSettings();
-    debug->println("setup(): readWeerliveSettings()");
-    settings.readWeerliveSettings();
-    debug->println("setup(): readMediastackSettings()");
-    settings.readMediastackSettings();
-    
-    // Store references to settings and attributes globally
-    gDeviceSettings = &settings.getDeviceSettings();
-    gDeviceAttributes = &settings.getDeviceAttributes();
+    debug->println("setup(): readSettingFields(deviceSettings)");
+    settings.readSettingFields("deviceSettings");
+    debug->println("setup(): readSettingFields(parolaSettings)");
+    settings.readSettingFields("parolaSettings");
+    debug->println("setup(): readSettingFields(weerliveSettings)");
+    settings.readSettingFields("weerliveSettings");
+    debug->println("setup(): readSettingFields(mediastackSettings)");
+    settings.readSettingFields("mediastackSettings");
 
-    gParolaSettings = &settings.getParolaSettings();
-    gParolaAttributes = &settings.getParolaAttributes();
-
-    gWeerliveSettings = &settings.getWeerliveSettings();
-    gWeerliveAttributes = &settings.getWeerliveAttributes();
-    
-    gMediastackSettings = &settings.getMediastackSettings();
-    gMediastackAttributes = &settings.getMediastackAttributes();
-
-    if (gDeviceSettings->hostname.empty()) 
+    if (settings.hostname.empty()) 
     {
         debug->println("setup(): No hostname found in settings, using default");
-        gDeviceSettings->hostname = std::string(hostName);
-        settings.writeDeviceSettings();
-        // Update the global reference after writing
-        gDeviceSettings = &settings.getDeviceSettings();
+        settings.hostname = std::string(hostName);
+        settings.writeSettingFields("deviceSettings");
     }
-
 
     //-- Define custom NTP servers (optional)
     const char* ntpServers[] = {"time.google.com", "time.cloudflare.com", nullptr};
@@ -1970,23 +1344,22 @@ void setup()
     setupSettingsPage();
     setupFSmanagerPage();
 
-    debug->printf("setup(): weerliveAuthToken: [%s], weerlivePlaats: [%s], requestInterval: [%d minuten]\n"
-                                                                , gWeerliveSettings->authToken.c_str()
-                                                                , gWeerliveSettings->plaats.c_str()
-                                                                , gWeerliveSettings->requestInterval);
-    weerlive.setup(gWeerliveSettings->authToken.c_str(), gWeerliveSettings->plaats.c_str(), debug);
-    weerlive.setInterval(gWeerliveSettings->requestInterval); 
+    debug->printf("setup(): weerliveAuthToken: [%s], weerlivePlaats: [%s], requestInterval: [%d minuten]\n",
+                  settings.weerliveAuthToken.c_str(),
+                  settings.weerlivePlaats.c_str(),
+                  settings.weerliveRequestInterval);
+    weerlive.setup(settings.weerliveAuthToken.c_str(), settings.weerlivePlaats.c_str(), debug);
+    weerlive.setInterval(settings.weerliveRequestInterval); 
 
-    debug->printf("setup(): mediastackAuthToken: [%s], requestInterval: [%d minuten], maxMessages: [%d], onlyDuringDay: [%s]\n"
-                                              , gMediastackSettings->authToken.c_str()
-                                              , gMediastackSettings->requestInterval
-                                              , gMediastackSettings->maxMessages
-                                              , gMediastackSettings->onlyDuringDay ? "true" : "false");
-    mediastack.setup(gMediastackSettings->authToken.c_str(), gMediastackSettings->requestInterval
-                                                           , gMediastackSettings->maxMessages
-                                                           , gMediastackSettings->onlyDuringDay
-                                                           , debug);
-    //mediastack.setInterval(gMediastackSettings->requestInterval);
+    debug->printf("setup(): mediastackAuthToken: [%s], requestInterval: [%d minuten], maxMessages: [%d], onlyDuringDay: [%s]\n",
+                  settings.mediastackAuthToken.c_str(),
+                  settings.mediastackRequestInterval,
+                  settings.mediastackMaxMessages,
+                  settings.mediastackOnlyDuringDay ? "true" : "false");
+    mediastack.setup(settings.mediastackAuthToken.c_str(), settings.mediastackRequestInterval,
+                     settings.mediastackMaxMessages,
+                     settings.mediastackOnlyDuringDay,
+                     debug);
 
     rssReader.setDebug(debug);
     
@@ -2004,9 +1377,7 @@ void setup()
     actMessage = nextMessage();
 
     debug->println("Done with setup() ..\n");
-
 } // setup()
-
 
 void loop()
 {
@@ -2038,7 +1409,7 @@ void loop()
   }
   
   static uint32_t lastDisplay = 0;
-  if (millis() - lastDisplay >= 5000)
+  if (millis() - lastDisplay >= 2500)
   {
     display.loop();
     lastDisplay = millis();
