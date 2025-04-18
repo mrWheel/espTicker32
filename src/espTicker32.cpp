@@ -58,22 +58,11 @@ char localMessage[LOCAL_MESSAGES_RECORD_SIZE +2] = {};
 std::string currentActivePage = "";
 
 
-String getWeatherLine()
+String getWeerliveMessage()
 {
-    // Read ONE line from weather source
-    //return "Weather: Sunny 24C"; // <<< replace with real file reading
     return weerliveText;
-}
 
-String getNewsLine()
-{
-    return "This is a really long line =========================================================================================================================== and so forth and so on!"; // <<< replace with real file reading
-}
-
-String getDataFeedLine()
-{
-    return "Sensor: 45% humidity"; // <<< replace with real file reading
-}
+} // getWeerliveMessage()
 
 String getMediastackMessage()
 {
@@ -140,12 +129,14 @@ String getLocalMessage()
 std::string nextMessage()
 {
     std::string newMessage = "-";
+    std::string tmpMessage = "";
     newMessage = getLocalMessage().c_str();
+
 
     if (strcmp(newMessage.c_str(), "<weerlive>") == 0) 
     {
         debug->println("nextMessage(): weerlive message");
-        newMessage = getWeatherLine().c_str();
+        newMessage = getWeerliveMessage().c_str();
     }
     else if (strcmp(newMessage.c_str(), "<mediastack>") == 0) 
     {
@@ -510,9 +501,9 @@ void sendParolaFieldsToClient()
 
 
 // Function to process the received device settings from the client
-void processDevSettings(const std::string& jsonString)
+void processDeviceSettings(const std::string& jsonString)
 {
-  debug->println("processDevSettings(): Processing device settings from JSON:");
+  debug->println("processDeviceSettings(): Processing device settings from JSON:");
   debug->println(jsonString.c_str());
   
   // Use ArduinoJson library to parse the JSON
@@ -521,24 +512,24 @@ void processDevSettings(const std::string& jsonString)
   
   if (error) 
   {
-    debug->printf("processDevSettings(): JSON parsing error: %s\n", error.c_str());
+    debug->printf("processDeviceSettings(): JSON parsing error: %s\n", error.c_str());
     return;
   }
   
   // Check if the JSON has the expected structure
   if (!doc.containsKey("fields") || !doc["fields"].is<JsonArray>()) 
   {
-    debug->println("processDevSettings(): JSON does not contain fields array");
+    debug->println("processDeviceSettings(): JSON does not contain fields array");
     return;
   }
   
   JsonArray fields = doc["fields"].as<JsonArray>();
-  debug->printf("processDevSettings(): Processing array with %d fields\n", fields.size());
+  debug->printf("processDeviceSettings(): Processing array with %d fields\n", fields.size());
   
   // Process each field
   for (JsonObject field : fields) {
     if (!field.containsKey("fieldName") || !field.containsKey("value")) {
-      debug->println("processDevSettings(): Field missing required properties");
+      debug->println("processDeviceSettings(): Field missing required properties");
       continue;
     }
     
@@ -547,32 +538,32 @@ void processDevSettings(const std::string& jsonString)
     // Update the appropriate setting based on the field name
     if (strcmp(fieldName, "hostname") == 0) {
       std::string newHostname = field["value"].as<std::string>();
-      debug->printf("processDevSettings(): Setting hostname to [%s]\n", newHostname.c_str());
+      debug->printf("processDeviceSettings(): Setting hostname to [%s]\n", newHostname.c_str());
       settings.hostname = newHostname;
     }
     else if (strcmp(fieldName, "scrollSnelheid") == 0) {
       uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processDevSettings(): Setting scrollSnelheid to [%d]\n", newValue);
+      debug->printf("processDeviceSettings(): Setting scrollSnelheid to [%d]\n", newValue);
       settings.scrollSnelheid = newValue;
     }
     else if (strcmp(fieldName, "LDRMinWaarde") == 0) {
       uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processDevSettings(): Setting LDRMinWaarde to [%d]\n", newValue);
+      debug->printf("processDeviceSettings(): Setting LDRMinWaarde to [%d]\n", newValue);
       settings.LDRMinWaarde = newValue;
     }
     else if (strcmp(fieldName, "LDRMaxWaarde") == 0) {
       uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processDevSettings(): Setting LDRMaxWaarde to [%d]\n", newValue);
+      debug->printf("processDeviceSettings(): Setting LDRMaxWaarde to [%d]\n", newValue);
       settings.LDRMaxWaarde = newValue;
     }
     else if (strcmp(fieldName, "maxIntensiteitLeds") == 0) {
       uint8_t newValue = field["value"].as<uint8_t>();
-      debug->printf("processDevSettings(): Setting [%s] to [%d]\n", fieldName, newValue);
+      debug->printf("processDeviceSettings(): Setting [%s] to [%d]\n", fieldName, newValue);
       settings.maxIntensiteitLeds = newValue;
     }
     else if (strcmp(fieldName, "skipItems") == 0) {
       std::string newValue = field["value"].as<std::string>();
-      debug->printf("processDevSettings(): Setting skipItems to [%s]\n", newValue);
+      debug->printf("processDeviceSettings(): Setting skipItems to [%s]\n", newValue);
       settings.skipItems = newValue;
     }
     else if (strcmp(fieldName, "tickerSpeed") == 0) {
@@ -581,12 +572,12 @@ void processDevSettings(const std::string& jsonString)
       settings.tickerSpeed = newValue;
     }
     else {
-      debug->printf("processDevSettings(): Unknown field: %s\n", fieldName);
+      debug->printf("processDeviceSettings(): Unknown field: %s\n", fieldName);
     }
   }
   
   // Always write settings
-  debug->println("processDevSettings(): Writing settings to storage");
+  debug->println("processDeviceSettings(): Writing settings to storage");
   settings.writeSettingFields("deviceSettings");
   
   // Send a confirmation message to the client
@@ -602,7 +593,7 @@ void processDevSettings(const std::string& jsonString)
   // Refresh the device settings display
   sendDeviceFieldsToClient();
 
-} // processDevSettings()
+} // processDeviceSettings()
 
 
 // Function to process the received parola settings from the client
@@ -835,6 +826,7 @@ void processMediastackSettings(const std::string& jsonString)
   sendMediastackFieldsToClient();
 
 } // processMediastackSettings()
+
 
 // Generic function to process settings from the client
 void processSettings(const std::string& jsonString, const std::string& target)
@@ -1140,7 +1132,7 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
           debug->println(deviceSettingsData);
           
           // Process the device settings data
-          processDevSettings(deviceSettingsData);
+          processDeviceSettings(deviceSettingsData);
         } else {
           debug->println("handleLocalWebSocketEvent(): No deviceSettingsData found in the message");
         }
@@ -1464,24 +1456,7 @@ void setupLocalMessagesPage()
       </div>
     </div>
     )HTML";
-/***** 
-    const char *popupHelpLocalMessages = R"HTML(
-      <div id="popupHelpLocalMessages">Help Sleutelwoorden</div>
-      <div>
-        <ul>
-          <li><b>&lt;time&gt;</b> - Laat de tijd zien</li>
-          <li><b>&lt;date&gt;</b> - Laat de datum zien</li>
-          <li><b>&lt;datetime&gt;</b> - Laat de datum en tijd zien</li>
-          <li><b>&lt;space&gt;</b> - Maakt de Ticker leeg</li>
-          <li><b>&lt;weerlive&gt;</b> - Laat de weergegevens van weerlive zien</li>
-          <li><b>&lt;mediastack&gt;</b> - Laat het volgende item van mediastack zien</li>
-          <li><b>&lt;rssfeed&gt;</b> - Laat het volgende item van een rssfeed zien</li>
-        </ul>
-      </div>
-      Let op! Deze sleutelwoorden moeten als enige in een regel staan!
-      <br><button type="button" onClick="closePopup('popup_Help')">Close</button></br>
-    )HTML";
-*****/
+
     const char *popupHelpLocalMessages = R"HTML(
     <style>
         li {
