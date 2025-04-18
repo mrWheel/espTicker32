@@ -279,6 +279,7 @@ void SettingsClass::saveSettings(const std::string& target)
 {
   if (debug && doDebug) debug->printf("saveSettings(): Saving settings for target: [%s]\n", target.c_str());
   writeSettingFields(target);
+  //-not yet- spa.setPopupMessage("Settings saved successfully!");
 }
 
 const SettingsContainer* SettingsClass::getSettingsContainer(const std::string& settingsType) const 

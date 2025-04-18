@@ -20,7 +20,7 @@
 //#include <SPI.h>
 #include "ParolaManager.h"
 
-ParolaManager display(5);  // 5 = your CS pin
+ParolaManager parola(5);  // 5 = your CS pin
 
 #define CLOCK_UPDATE_INTERVAL  1000
 #define LOCAL_MESSAGES_PATH      "/localMessages.txt"
@@ -169,7 +169,7 @@ std::string nextMessage()
         newMessage = "                                                                                     ";
     }
     debug->printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
-    display.sendNextText(("* "+newMessage+"*  ").c_str());
+    parola.sendNextText(("* "+newMessage+"*  ").c_str());
     spa.callJsFunction("queueMessageToMonitor", ("* "+newMessage+" *").c_str());
 
     return newMessage;
@@ -588,6 +588,7 @@ void processSettings(const std::string& jsonString, const std::string& settingsT
   
   // Save settings using the generic method
   debug->printf("processSettings(): Saving settings for type: %s\n", settingsType.c_str());
+  //-not yet- spa.setPopupMessage("Saving settings ...", 1);
   settings.writeSettingFields(settingsType);
   
   // Send a confirmation message to the client
@@ -704,10 +705,12 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
       if (strcmp(processType, "saveLocalMessages") == 0) 
       {
         debug->println("handleLocalWebSocketEvent(): Handling saveLocalMessages message");
+      //spa.setPopupMessage("Saving Local Messages ...", 1);
         
         // Check if inputValues exists and contains LocalMessagesData
         if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("LocalMessagesData")) 
         {
+
           // Get the LocalMessagesData as a string
           const char* LocalMessagesData = doc["inputValues"]["LocalMessagesData"];
           debug->println("handleLocalWebSocketEvent(): Received input fields data:");
@@ -826,16 +829,20 @@ void pageIsLoadedCallback()
 } // pageIsLoadedCallback()
 
 
-void localMessagesCallback()
+void localMessagesCallback(std::string itemName)
 {
   debug->println("localMessagesCallback(): Local Messages menu item clicked");
   
-  spa.setErrorMessage("Main Menu \"Local Messages\" clicked!", 5);
-  spa.activatePage("localMessagesPage");
-  
-  // Call the JavaScript function to set up event handlers
-  // It will request the input fields data itself
-  spa.callJsFunction("isEspTicker32Loaded");
+  if (itemName == "LM-START") {
+    spa.setMessage("Main Menu [Local Messages] clicked!", 0);
+    spa.activatePage("localMessagesPage");
+    // Call the JavaScript function to set up event handlers
+    // It will request the input fields data itself
+    spa.callJsFunction("isEspTicker32Loaded");
+  } else if (itemName == "LM-EXIT") {
+    spa.setMessage("localMessages Menu [Exit] clicked!", 0);
+    spa.activatePage("mainPage");
+  }
     
 } // localMessagesCallback()
 
@@ -966,18 +973,16 @@ void handleMenuItem(std::string itemName)
         spa.activatePage("FSmanagerPage");
         spa.callJsFunction("loadFileList");
     } else if (itemName == "FSM-EXIT") {
-        spa.setMessage("FS manager: \"Exit\" clicked!", 5);
+        spa.setMessage("FS manager: [Exit] clicked!", 5);
         spa.activatePage("Main");
-    } else if (itemName == "LMP-EXIT") {
-        spa.setMessage("Local Messages: \"Exit\" clicked!", 5);
+    } else if (itemName == "LM-EXIT") {
+        spa.setMessage("Local Messages: [Exit] clicked!", 5);
         spa.activatePage("Main");
     } else if (itemName == "SET-UP") {
-        spa.setMessage("Settings: \"Exit\" clicked!", 5);
-        //spa.disableID("settings", "settingsTable");
+        spa.setMessage("Settings: [Exit] clicked!", 5);
         spa.activatePage("mainSettingsPage");
     } else if (itemName == "SET-EXIT") {
-      spa.setMessage("Main Settings: \"Exit\" clicked!", 5);
-      //spa.disableID("settings", "settingsTable");
+      spa.setMessage("Main Settings: [Exit] clicked!", 5);
       spa.activatePage("Main");
     }
 
@@ -1007,7 +1012,7 @@ void setupMainPage()
 
     //-- Add Main menu
     spa.addMenu("Main", "Main Menu");
-    spa.addMenuItem("Main", "Main Menu", "LocalMessages", localMessagesCallback);
+    spa.addMenuItem("Main", "Main Menu", "LocalMessages", localMessagesCallback, "LM-START");
     spa.addMenuItem("Main", "Main Menu", "Settings", mainCallbackSettings);
     spa.addMenuItem("Main", "Main Menu", "FSmanager", mainCallbackFSmanager);
     spa.addMenuItem("Main", "Main Menu", "isFSmanagerLoaded", doJsFunction, "isFSmanagerLoaded");
@@ -1070,7 +1075,7 @@ void setupLocalMessagesPage()
     spa.setPageTitle("localMessagesPage", "Local Messages");
     spa.addMenu("localMessagesPage", "Local Messages");
     spa.addMenuItemPopup("localMessagesPage", "Local Messages", "Help", popupHelpLocalMessages);
-    spa.addMenuItem("localMessagesPage", "Local Messages", "Exit", handleMenuItem, "LMP-EXIT");
+    spa.addMenuItem("localMessagesPage", "Local Messages", "Exit", handleMenuItem, "LM-EXIT");
   
 } // setupLocalMessagesPage()
 
@@ -1245,16 +1250,16 @@ void setupParola()
         .MAX_SPEED = 2
     };
 
-    display.begin(config);
+    parola.begin(config);
 
-    display.setRandomEffects({
+    parola.setRandomEffects({
         PA_SCROLL_LEFT,
         PA_SCROLL_RIGHT,
         PA_FADE,
         PA_WIPE
     });
 
-    display.setCallback([](const String& finishedText) 
+    parola.setCallback([](const String& finishedText) 
     {
       debug->print("[FINISHED] ");
       debug->println(finishedText);
@@ -1409,9 +1414,9 @@ void loop()
   }
   
   static uint32_t lastDisplay = 0;
-  if (millis() - lastDisplay >= 2500)
+  if (millis() - lastDisplay >= 60000)
   {
-    display.loop();
+    parola.loop();
     lastDisplay = millis();
   }
 
