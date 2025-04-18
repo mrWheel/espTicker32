@@ -283,6 +283,53 @@ void sendLocalMessagesToClient()
 } // sendLocalMessagesToClient()
 
 
+// Function to process the received input fields from the client
+void processLocalMessages(const std::string& jsonString)
+{
+  uint8_t recNr = 0; // record number
+
+  debug->println("processLocalMessages(): Processing input fields from JSON:");
+  debug->println(jsonString.c_str());
+  
+  //-- Use ArduinoJson library to parse the JSON
+  DynamicJsonDocument doc(1024);
+  DeserializationError error = deserializeJson(doc, jsonString);
+  
+  if (error) 
+  {
+    debug->printf("processLocalMessages(): JSON parsing error: %s\n", error.c_str());
+    return;
+  }
+  
+  if (!doc.is<JsonArray>()) 
+  {
+    debug->println("processLocalMessages(): JSON is not an array");
+    return;
+  }
+  
+  JsonArray array = doc.as<JsonArray>();
+  debug->printf("processLocalMessages(): Processing array with %d elements\n", array.size());
+  
+  for (size_t i = 0; i < array.size(); i++) {
+    // Safely handle each value, even if it's null or empty
+    if (array[i].isNull()) {
+      debug->println("processLocalMessages(): Skip (null)\n");
+    } else {
+      // Use String for Arduino compatibility, which handles empty strings properly
+      String value = array[i].as<String>();
+      debug->printf("processLocalMessages(): Input value[%d]: %s\n", i, value.c_str());
+      if (localMessages.write(recNr, value.c_str()))
+      {
+        recNr++;
+      }
+    }
+  }
+  
+  debug->printf("processLocalMessages(): [%d] Local Messages written to [%s]\n", recNr, LOCAL_MESSAGES_PATH);
+  sendLocalMessagesToClient();
+
+} // processLocalMessages()
+
 
 
 // Generic function to send settings fields to the client
@@ -437,7 +484,7 @@ void sendSettingFieldToClient(const std::string& settingsType)
 
 
 // Function to send the JSON string to the client when deviceSettingsPage is activated
-void sendDevFieldsToClient()
+void sendDeviceFieldsToClient()
 {
   sendSettingFieldToClient("deviceSettings");
 }
@@ -460,53 +507,6 @@ void sendParolaFieldsToClient()
   sendSettingFieldToClient("parolaSettings");
 }
 
-
-// Function to process the received input fields from the client
-void processLocalMessages(const std::string& jsonString)
-{
-  uint8_t recNr = 0; // record number
-
-  debug->println("processLocalMessages(): Processing input fields from JSON:");
-  debug->println(jsonString.c_str());
-  
-  //-- Use ArduinoJson library to parse the JSON
-  DynamicJsonDocument doc(1024);
-  DeserializationError error = deserializeJson(doc, jsonString);
-  
-  if (error) 
-  {
-    debug->printf("processLocalMessages(): JSON parsing error: %s\n", error.c_str());
-    return;
-  }
-  
-  if (!doc.is<JsonArray>()) 
-  {
-    debug->println("processLocalMessages(): JSON is not an array");
-    return;
-  }
-  
-  JsonArray array = doc.as<JsonArray>();
-  debug->printf("processLocalMessages(): Processing array with %d elements\n", array.size());
-  
-  for (size_t i = 0; i < array.size(); i++) {
-    // Safely handle each value, even if it's null or empty
-    if (array[i].isNull()) {
-      debug->println("processLocalMessages(): Skip (null)\n");
-    } else {
-      // Use String for Arduino compatibility, which handles empty strings properly
-      String value = array[i].as<String>();
-      debug->printf("processLocalMessages(): Input value[%d]: %s\n", i, value.c_str());
-      if (localMessages.write(recNr, value.c_str()))
-      {
-        recNr++;
-      }
-    }
-  }
-  
-  debug->printf("processLocalMessages(): [%d] Local Messages written to [%s]\n", recNr, LOCAL_MESSAGES_PATH);
-  sendLocalMessagesToClient();
-
-} // processLocalMessages()
 
 
 // Function to process the received device settings from the client
@@ -600,7 +600,7 @@ void processDevSettings(const std::string& jsonString)
   spa.ws.broadcastTXT(confirmMessage.c_str(), confirmMessage.length());
   
   // Refresh the device settings display
-  sendDevFieldsToClient();
+  sendDeviceFieldsToClient();
 
 } // processDevSettings()
 
@@ -1003,7 +1003,7 @@ void processSettings(const std::string& jsonString, const std::string& target)
   
   // Refresh the settings display
   if (target == "deviceSettings") {
-    sendDevFieldsToClient();
+    sendDeviceFieldsToClient();
   } else if (target == "weerliveSettings") {
     sendWeerliveFieldsToClient();
   } else if (target == "mediastackSettings") {
@@ -1075,10 +1075,10 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
       return;
     }
     
-    // Check if this is a requestDevSettings message
-    if (doc["type"] == "requestDevSettings") {
-      debug->println("handleLocalWebSocketEvent(): Handling requestDevSettings message");
-      sendDevFieldsToClient();
+    // Check if this is a requestDeviceSettings message
+    if (doc["type"] == "requestDeviceSettings") {
+      debug->println("handleLocalWebSocketEvent(): Handling requestDeviceSettings message");
+      sendDeviceFieldsToClient();
       return;
     }
     
@@ -1126,10 +1126,10 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
           debug->println("handleLocalWebSocketEvent(): No LocalMessagesData found in the message");
         }
       } 
-      // Check if this is a saveDevSettings message
-      else if (strcmp(processType, "saveDevSettings") == 0) 
+      // Check if this is a saveDeviceSettings message
+      else if (strcmp(processType, "saveDeviceSettings") == 0) 
       {
-        debug->println("handleLocalWebSocketEvent(): Handling saveDevSettings message");
+        debug->println("handleLocalWebSocketEvent(): Handling saveDeviceSettings message");
         
         // Check if inputValues exists and contains deviceSettingsData
         if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("deviceSettingsData")) 
@@ -1240,7 +1240,7 @@ void pageIsLoadedCallback()
   // Check if the device settings page was just activated
   else if (activePage == "deviceSettingsPage") {
     debug->println("Device settings page activated");
-    sendDevFieldsToClient();
+    sendDeviceFieldsToClient();
   }
   // Check if the weerlive settings page was just activated
   else if (activePage == "weerliveSettingsPage") {
@@ -1268,7 +1268,7 @@ void localMessagesCallback()
 } // localMessagesCallback()
 
     
-void mainCallbackDevSettings()
+void mainCallbackDeviceSettings()
 {
   spa.setErrorMessage("Main Menu \"Dev Settings\" clicked!", 5);
   spa.activatePage("deviceSettingsPage");
@@ -1277,9 +1277,9 @@ void mainCallbackDevSettings()
   spa.callJsFunction("isEspTicker32Loaded");
   
   // Send the device settings to the client
-  sendDevFieldsToClient();
+  sendDeviceFieldsToClient();
 
-} //  mainCallbackDevSettings()
+} //  mainCallbackDeviceSettings()
 
 
 void mainCallbackParolaSettings()
@@ -1464,10 +1464,57 @@ void setupLocalMessagesPage()
       </div>
     </div>
     )HTML";
-    
+/***** 
+    const char *popupHelpLocalMessages = R"HTML(
+      <div id="popupHelpLocalMessages">Help Sleutelwoorden</div>
+      <div>
+        <ul>
+          <li><b>&lt;time&gt;</b> - Laat de tijd zien</li>
+          <li><b>&lt;date&gt;</b> - Laat de datum zien</li>
+          <li><b>&lt;datetime&gt;</b> - Laat de datum en tijd zien</li>
+          <li><b>&lt;space&gt;</b> - Maakt de Ticker leeg</li>
+          <li><b>&lt;weerlive&gt;</b> - Laat de weergegevens van weerlive zien</li>
+          <li><b>&lt;mediastack&gt;</b> - Laat het volgende item van mediastack zien</li>
+          <li><b>&lt;rssfeed&gt;</b> - Laat het volgende item van een rssfeed zien</li>
+        </ul>
+      </div>
+      Let op! Deze sleutelwoorden moeten als enige in een regel staan!
+      <br><button type="button" onClick="closePopup('popup_Help')">Close</button></br>
+    )HTML";
+*****/
+    const char *popupHelpLocalMessages = R"HTML(
+    <style>
+        li {
+          display: grid;
+          grid-template-columns: 130px 1fr; /* pas 150px aan indien nodig */
+          gap: 1em;
+          margin-bottom: 0.3em;
+        }
+        li::marker {
+          content: none; /* verbergt het standaard bolletje */
+        }
+      </style>
+
+      <div id="popupHelpLocalMessages">Help Sleutelwoorden</div>
+      <div>
+        <ul>
+          <li><b>&lt;time&gt;</b> - Laat de tijd zien</li>
+          <li><b>&lt;date&gt;</b> - Laat de datum zien</li>
+          <li><b>&lt;datetime&gt;</b> - Laat de datum en tijd zien</li>
+          <li><b>&lt;space&gt;</b> - Maakt de Ticker leeg</li>
+          <li><b>&lt;weerlive&gt;</b> - Laat de weergegevens van weerlive zien</li>
+          <li><b>&lt;mediastack&gt;</b> - Laat het volgende item van mediastack zien</li>
+          <li><b>&lt;rssfeed&gt;</b> - Laat het volgende item van een rssfeed zien</li>
+        </ul>
+      </div>
+      Let op! Deze sleutelwoorden moeten als enige in een regel staan!
+      <br><button type="button" onClick="closePopup('popup_Help')">Close</button></br>
+    )HTML";
+        
     spa.addPage("localMessagesPage", localMessagesPage);
     spa.setPageTitle("localMessagesPage", "Local Messages");
     spa.addMenu("localMessagesPage", "Local Messages");
+    spa.addMenuItemPopup("localMessagesPage", "Local Messages", "Help", popupHelpLocalMessages);
     spa.addMenuItem("localMessagesPage", "Local Messages", "Exit", handleMenuItem, "LMP-EXIT");
   
 } // setupLocalMessagesPage()
@@ -1584,7 +1631,7 @@ void setupMainSettingsPage()
   spa.setPageTitle("mainSettingsPage", "Settings");
   //-- Add Settings menu
   spa.addMenu("mainSettingsPage", "Settings");
-  spa.addMenuItem("mainSettingsPage", "Settings", "Device Settings", mainCallbackDevSettings);
+  spa.addMenuItem("mainSettingsPage", "Settings", "Device Settings", mainCallbackDeviceSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Parola Settings", mainCallbackParolaSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Weerlive Settings", mainCallbackWeerliveSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Mediastack Settings", mainCallbackMediastackSettings);
@@ -1807,7 +1854,7 @@ void loop()
   }
   
   static uint32_t lastDisplay = 0;
-  if (millis() - lastDisplay >= 30000)
+  if (millis() - lastDisplay >= 2500)
   {
     display.loop();
     lastDisplay = millis();
