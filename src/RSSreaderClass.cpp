@@ -393,9 +393,9 @@ void RSSreaderClass::deleteFeedsOlderThan(struct tm timeNow)
 
   // Calculate timestamp for 24 hours ago
   time_t now = time(nullptr);
-  time_t twentyFourHoursAgo = now - (24 * 60 * 60); // 24 hours in seconds
+  time_t twentyFourHoursAgo = now - (48 * 60 * 60); // 48 hours in seconds
 
-  if (debug && doDebug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Current time: %ld, 24 hours ago: %ld\n", 
+  if (debug && doDebug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Current time: %ld, 48 hours ago: %ld\n", 
                           now, twentyFourHoursAgo);
 
   for (uint8_t feedIndex = 0; feedIndex < _activeFeedCount; feedIndex++)

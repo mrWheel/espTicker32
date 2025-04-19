@@ -1503,7 +1503,7 @@ void loop()
   }
   
   static uint32_t lastDisplay = 0;
-  if (millis() - lastDisplay >= 2000)
+  if (millis() - lastDisplay >= 3000)
   {
     parola.loop();
     lastDisplay = millis();
