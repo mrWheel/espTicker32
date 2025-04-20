@@ -40,7 +40,8 @@ private:
   unsigned long _lastHealthCheck = 0;
   const unsigned long _healthCheckInterval = 3600000; // 1 hour
   unsigned long _lastFeedUpdate[10] = {0}; // Track when each feed was last updated
-  
+  bool hasSufficientWords(const String& title);
+
   String fetchFeed(const char* host, const char* path);
   std::vector<String> extractTitles(const String& feed);
   std::vector<String> getStoredLines(uint8_t feedIndex);

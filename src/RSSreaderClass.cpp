@@ -289,7 +289,7 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
 
   for (const auto& title : newTitles) 
   {
-    if (!titleExists(title, existing)) 
+    if (!titleExists(title, existing) && hasSufficientWords(title)) 
     {
       if (debug && doDebug) debug->printf("RSSreaderClass::checkFeed(): Nieuwe titel gevonden: %s\n", title.c_str());
       time_t now = time(nullptr);
@@ -327,6 +327,7 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
   {
     if (debug && doDebug) debug->println("RSSreaderClass::checkFeed(): Geen nieuwe titels.");
   }
+
 } // checkFeed()
 
 
@@ -354,7 +355,7 @@ void RSSreaderClass::checkForNewFeedItems()
 
     for (const auto& title : newTitles) 
     {
-      if (!titleExists(title, existing)) 
+      if (!titleExists(title, existing) && hasSufficientWords(title)) 
       {
         if (debug && doDebug) debug->printf("RSSreaderClass::checkForNewFeedItems(): Nieuwe titel gevonden: %s\n", title.c_str());
         time_t now = time(nullptr);
@@ -553,6 +554,47 @@ bool RSSreaderClass::getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex)
 
 } // getNextFeedItem()
 
+
+bool RSSreaderClass::hasSufficientWords(const String& title) 
+{
+  int wordCount = 0;
+  bool inWord = false;
+  
+  // Count words by tracking transitions between word and non-word characters
+  for (size_t i = 0; i < title.length(); i++) 
+  {
+    char c = title[i];
+    
+    // Consider a character as part of a word if it's alphanumeric or certain special characters
+    bool isWordChar = isAlphaNumeric(c) || c == '-' || c == '\'';
+    
+    // If we're not in a word and we find a word character, we're starting a new word
+    if (!inWord && isWordChar) 
+    {
+      wordCount++;
+      inWord = true;
+    }
+    // If we're in a word and we find a non-word character, we're ending the current word
+    else if (inWord && !isWordChar) 
+    {
+      inWord = false;
+    }
+    
+    // Explicitly treat certain punctuation as word separators
+    if (c == ':' || c == ',' || c == ';' || c == '.' || c == '!' || c == '?') 
+    {
+      inWord = false;
+    }
+  }
+  
+  if (debug && doDebug) debug->printf("RSSreaderClass::hasSufficientWords(): Title [%s] has %d words\n", 
+                          title.c_str(), wordCount);
+  
+  return wordCount > 3; // Return true if more than 3 words
+  
+} // hasSufficientWords()
+
+
 void RSSreaderClass::checkFeedHealth() 
 {
   unsigned long currentTime = millis();
@@ -578,6 +620,7 @@ void RSSreaderClass::checkFeedHealth()
     }
   }
 } // checkFeedHealth()
+
 
 void RSSreaderClass::createRSSfeedMap()
 {
