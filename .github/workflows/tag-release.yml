@@ -17,28 +17,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Extract version from espTicker32.cpp (expects format: const char* ESPTICKER32_VERSION = "v1.2.3";)
+      # Step 2: Extract version from espTicker32.cpp
+      # Expected format: const char* ESPTICKER32_VERSION = "v1.2.3";
       - name: Get version from espTicker32.cpp
         id: get_version
         run: |
           VERSION=$(grep 'const char\* ESPTICKER32_VERSION' src/espTicker32.cpp | sed -E 's/.*"([^"]+)".*/\1/')
-          echo "VERSION=$VERSION"
+          echo "Extracted version: $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
-      # Step 3: Fetch all existing Git tags
+      # Step 3: Fetch all existing Git tags from the repo
       - name: Fetch all tags
         run: git fetch --tags
 
-      # Step 4: Determine the latest semver-style tag starting with "v"
+      # Step 4: Find the latest semantic version tag (supports v-prefixed versions like "v1.2.3")
       - name: Get latest semver tag
         id: latest_tag
         run: |
-          # Get latest tag that matches semver format (v1.2.3)
-          LATEST=$(git tag --sort=-v:refname | grep -E '^v([0-9]+\.){2}[0-9]+$' | head -n 1 || true)
-          echo "DEBUG: LATEST=$LATEST"
+          # This finds the latest tag that matches semver format, optionally prefixed with 'v'
+          LATEST=$(git tag --sort=-v:refname | grep -E '^v?([0-9]+\.){2}[0-9]+$' | head -n 1 || true)
+          echo "Latest existing tag: $LATEST"
           echo "LATEST=$LATEST" >> $GITHUB_OUTPUT
 
-      # Step 5: Compare current version with latest tag and decide whether to proceed
+      # Step 5: Compare the current version with the latest tag and determine whether to create a new tag
       - name: Compare version
         id: compare_version
         run: |
@@ -47,13 +48,17 @@ jobs:
 
           echo "Comparing VERSION: $VERSION with LATEST: $LATEST"
 
+          # Strip 'v' prefix if it exists for accurate numeric comparison
+          STRIPPED_VERSION="${VERSION#v}"
+          STRIPPED_LATEST="${LATEST#v}"
+
           if [ -z "$LATEST" ]; then
             echo "No existing tag found. Proceeding to tag."
             echo "PROCEED=true" >> $GITHUB_ENV
-          elif [ "$VERSION" = "$LATEST" ]; then
+          elif [ "$STRIPPED_VERSION" = "$STRIPPED_LATEST" ]; then
             echo "::warning::Version $VERSION already exists. Skipping tagging."
             echo "PROCEED=false" >> $GITHUB_ENV
-          elif [ "$(printf '%s\n' "$LATEST" "$VERSION" | sort -V | head -n1)" != "$VERSION" ]; then
+          elif [ "$(printf '%s\n' "$STRIPPED_LATEST" "$STRIPPED_VERSION" | sort -V | head -n1)" != "$STRIPPED_LATEST" ]; then
             echo "::warning::Version $VERSION is not greater than $LATEST. Skipping tagging."
             echo "PROCEED=false" >> $GITHUB_ENV
           else
@@ -61,7 +66,7 @@ jobs:
             echo "PROCEED=true" >> $GITHUB_ENV
           fi
 
-      # Step 6: Create and push new tag if approved
+      # Step 6: Create and push a new tag if the version is valid and newer
       - name: Create and push tag
         if: env.PROCEED == 'true'
         run: |
