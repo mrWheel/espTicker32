@@ -34,27 +34,27 @@ jobs:
           echo "DEBUG: VERSION from get_version: ${{ steps.get_version.outputs.VERSION }}"
           echo "DEBUG: LATEST from latest_tag: ${{ steps.latest_tag.outputs.LATEST }}"
 
-      - name: Compare version
-        id: compare_version
-        run: |-
-          VERSION="${{ steps.get_version.outputs.VERSION }}"
-          LATEST="${{ steps.latest_tag.outputs.LATEST }}"
-
-          echo "Comparing VERSION: $VERSION with LATEST: $LATEST"
-
-          if [ -z "$LATEST" ]; then
-            echo "No existing tag found. Proceeding to tag."
-            echo "PROCEED=true" >> $GITHUB_ENV
-          elif [ "$VERSION" = "$LATEST" ]; then
-            echo "::warning::Version $VERSION already exists. Skipping tagging."
-            echo "PROCEED=false" >> $GITHUB_ENV
-          elif [ "$(printf '%s\n' "$LATEST" "$VERSION" | sort -V | head -n1)" != "$VERSION" ]; then
-            echo "::warning::Version $VERSION is not greater than $LATEST. Skipping tagging."
-            echo "PROCEED=false" >> $GITHUB_ENV
-          else
-            echo "Version $VERSION is newer than $LATEST. Proceeding to tag."
-            echo "PROCEED=true" >> $GITHUB_ENV
-
+          - name: Compare version
+          id: compare_version
+          run: |-
+            VERSION="${{ steps.get_version.outputs.VERSION }}"
+            LATEST="${{ steps.latest_tag.outputs.LATEST }}"
+  
+            echo "Comparing VERSION: $VERSION with LATEST: $LATEST"
+  
+            if [ -z "$LATEST" ]; then
+              echo "No existing tag found. Proceeding to tag."
+              echo "PROCEED=true" >> $GITHUB_ENV
+            elif [ "$VERSION" = "$LATEST" ]; then
+              echo "::warning::Version $VERSION already exists. Skipping tagging."
+              echo "PROCEED=false" >> $GITHUB_ENV
+            elif [ "$(printf '%s\n' "$LATEST" "$VERSION" | sort -V | head -n1)" != "$VERSION" ]; then
+              echo "::warning::Version $VERSION is not greater than $LATEST. Skipping tagging."
+              echo "PROCEED=false" >> $GITHUB_ENV
+            else
+              echo "Version $VERSION is newer than $LATEST. Proceeding to tag."
+              echo "PROCEED=true" >> $GITHUB_ENV
+            fi
       - name: Create and push tag
         if: env.PROCEED == 'true'
         run: |
@@ -62,4 +62,3 @@ jobs:
           git config user.email "actions@github.com"
           git tag "${{ steps.get_version.outputs.VERSION }}"
           git push origin "${{ steps.get_version.outputs.VERSION }}"
-          
