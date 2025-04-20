@@ -25,7 +25,7 @@ jobs:
       - name: Get latest semver tag
         id: latest_tag
         run: |
-          LATEST=$(git tag --sort=-v:refname | grep -E '^([0-9]+\.){2}[0-9]+$' | head -n 1 || echo "0.0.0")
+          LATEST=$(git tag --sort=-v:refname | grep -E '^([0-9]+\.){2}[0-9]+$' | head -n 1 || true)
           echo "LATEST=$LATEST"
           echo "LATEST=$LATEST" >> $GITHUB_OUTPUT
 
@@ -42,15 +42,18 @@ jobs:
 
           echo "Comparing VERSION: $VERSION with LATEST: $LATEST"
 
-          if [ "$VERSION" = "$LATEST" ]; then
+          if [ -z "$LATEST" ]; then
+            echo "No existing tag found. Proceeding to tag."
+            echo "PROCEED=true" >> $GITHUB_ENV
+          elif [ "$VERSION" = "$LATEST" ]; then
             echo "::warning::Version $VERSION already exists. Skipping tagging."
             echo "PROCEED=false" >> $GITHUB_ENV
-          elif [ "$(printf '%s\n' "$LATEST" "$VERSION" | sort -V | head -n1)" = "$LATEST" ]; then
+          elif [ "$(printf '%s\n' "$LATEST" "$VERSION" | sort -V | head -n1)" != "$VERSION" ]; then
+            echo "::warning::Version $VERSION is not greater than $LATEST. Skipping tagging."
+            echo "PROCEED=false" >> $GITHUB_ENV
+          else
             echo "Version $VERSION is newer than $LATEST. Proceeding to tag."
             echo "PROCEED=true" >> $GITHUB_ENV
-          else
-            echo "::warning::Version $VERSION is not greater than existing tag $LATEST. Skipping tagging."
-            echo "PROCEED=false" >> $GITHUB_ENV
 
       - name: Create and push tag
         if: env.PROCEED == 'true'
