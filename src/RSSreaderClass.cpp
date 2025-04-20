@@ -8,6 +8,10 @@
 RSSreaderClass::RSSreaderClass() 
 {
   _activeFeedCount = 0;
+  // Initialize feed update tracking
+  for (int i = 0; i < 10; i++) {
+    _lastFeedUpdate[i] = 0;
+  }
 
 } // RSSreaderClass()
 
@@ -69,7 +73,6 @@ void RSSreaderClass::loop(struct tm timeNow)
   if (!_checkingFeeds && (millis() - _lastCheck >= _interval)) 
   {
     // Start the feed checking process
-    deleteFeedsOlderThan(timeNow);
     _checkingFeeds = true;
     _feedCheckState = 0;
     _lastFeedCheck = 0; // Force immediate check of first feed
@@ -92,7 +95,9 @@ void RSSreaderClass::loop(struct tm timeNow)
     } 
     else 
     {
-      // All feeds checked, end the cycle
+      // All feeds checked, now it's safe to delete old items
+      deleteFeedsOlderThan(timeNow);
+      
       if (debug && doDebug) debug->println("RSSreaderClass::loop(): Feed check cycle complete");
       _checkingFeeds = false;
       _lastCheck = millis(); // Reset the main interval timer
@@ -395,15 +400,22 @@ void RSSreaderClass::deleteFeedsOlderThan(struct tm timeNow)
 {
   if (debug && doDebug) debug->println("RSSreaderClass::deleteFeedsOlderThan(): Verwijderen van oude feeds...");
 
-  // Calculate timestamp for 24 hours ago
+  // Calculate timestamp for 48 hours ago
   time_t now = time(nullptr);
-  time_t twentyFourHoursAgo = now - (48 * 60 * 60); // 48 hours in seconds
+  time_t fortyEightHoursAgo = now - (48 * 60 * 60); // 48 hours in seconds
 
   if (debug && doDebug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Current time: %ld, 48 hours ago: %ld\n", 
-                          now, twentyFourHoursAgo);
+                          now, fortyEightHoursAgo);
 
   for (uint8_t feedIndex = 0; feedIndex < _activeFeedCount; feedIndex++)
   {
+    // Skip feeds that haven't been updated recently
+    if (_lastFeedUpdate[feedIndex] == 0 || millis() - _lastFeedUpdate[feedIndex] > _interval * 2) {
+      if (debug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Skipping feed[%d] as it hasn't been updated recently\n", 
+                              feedIndex);
+      continue;
+    }
+    
     std::vector<String> lines = getStoredLines(feedIndex);
     std::vector<String> filtered;
 
@@ -413,7 +425,7 @@ void RSSreaderClass::deleteFeedsOlderThan(struct tm timeNow)
       if (sep != -1) 
       {
         time_t ts = atol(line.substring(0, sep).c_str());
-        if (ts >= twentyFourHoursAgo) 
+        if (ts >= fortyEightHoursAgo) 
         {
           filtered.push_back(line);
         }
@@ -425,20 +437,36 @@ void RSSreaderClass::deleteFeedsOlderThan(struct tm timeNow)
       }
     }
 
-    LittleFS.begin();
-    File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "w");
-    if (file) 
-    {
-      for (const auto& line : filtered) 
-      {
-        file.println(line);
+    // Safeguard: Don't delete all items if it would leave the feed empty
+    if (filtered.empty() && !lines.empty()) {
+      if (debug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Keeping some items in feed[%d] to prevent empty feed\n", 
+                              feedIndex);
+      // Keep the newest items (up to half of max)
+      size_t itemsToKeep = min(lines.size(), _maxFeedsPerFile[feedIndex] / 2);
+      for (size_t i = lines.size() - itemsToKeep; i < lines.size(); i++) {
+        filtered.push_back(lines[i]);
       }
-      file.close();
     }
 
-    if (debug && doDebug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Feed[%d], Feeds behouden[%d] / verwijderd[%d]\n", 
-                            feedIndex, filtered.size(), lines.size() - filtered.size());
+    // Only write if we have changes
+    if (filtered.size() != lines.size()) 
+    {
+      LittleFS.begin();
+      File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "w");
+      if (file) 
+      {
+        for (const auto& line : filtered) 
+        {
+          file.println(line);
+        }
+        file.close();
+      }
+
+      if (debug && doDebug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Feed[%d], Feeds behouden[%d] / verwijderd[%d]\n", 
+                              feedIndex, filtered.size(), lines.size() - filtered.size());
+    }
   }
+
 } // deleteFeedsOlderThan()
 
 
@@ -524,6 +552,32 @@ bool RSSreaderClass::getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex)
   return true;
 
 } // getNextFeedItem()
+
+void RSSreaderClass::checkFeedHealth() 
+{
+  unsigned long currentTime = millis();
+  
+  // Only check once per hour
+  if (currentTime - _lastHealthCheck < _healthCheckInterval) {
+    return;
+  }
+  
+  _lastHealthCheck = currentTime;
+  
+  if (debug) debug->println("RSSreaderClass::checkFeedHealth(): Checking feed health...");
+  
+  for (uint8_t feedIndex = 0; feedIndex < _activeFeedCount; feedIndex++) 
+  {
+    std::vector<String> lines = getStoredLines(feedIndex);
+    
+    // If feed is empty or has very few items, force an update
+    if (lines.size() < _maxFeedsPerFile[feedIndex] / 4) {
+      if (debug) debug->printf("RSSreaderClass::checkFeedHealth(): Feed[%d] has only %d items, forcing update\n", 
+                              feedIndex, lines.size());
+      checkFeed(feedIndex);
+    }
+  }
+} // checkFeedHealth()
 
 void RSSreaderClass::createRSSfeedMap()
 {

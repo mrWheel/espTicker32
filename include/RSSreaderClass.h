@@ -16,6 +16,7 @@ public:
   bool addRSSfeed(const char* url, const char* path, size_t maxFeeds);
   bool getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex);
   String readRssFeed(uint8_t feedIndex, size_t itemIndex);
+  void checkFeedHealth();
 
 private:
   WiFiClientSecure secureClient;
@@ -36,6 +37,9 @@ private:
   size_t _currentItemIndices[10] = {0}; // Track current item index for each feed
   uint8_t _feedReadCounts[10] = {0}; // Track how many items we've read from each feed
   uint16_t _totalMaxFeeds = 0;       // Sum of all maxFeeds values
+  unsigned long _lastHealthCheck = 0;
+  const unsigned long _healthCheckInterval = 3600000; // 1 hour
+  unsigned long _lastFeedUpdate[10] = {0}; // Track when each feed was last updated
   
   String fetchFeed(const char* host, const char* path);
   std::vector<String> extractTitles(const String& feed);
