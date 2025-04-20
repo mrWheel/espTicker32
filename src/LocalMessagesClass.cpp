@@ -1,13 +1,13 @@
-#include "LocalMessagesIO.h"
+#include "LocalMessagesClass.h"
 
-LocalMessagesIO::LocalMessagesIO(const std::string& path, size_t recordSize)
+LocalMessagesClass::LocalMessagesClass(const std::string& path, size_t recordSize)
     : path(path), recordSize(recordSize) {}
 
-void LocalMessagesIO::setDebug(Stream* debugPort) {
+void LocalMessagesClass::setDebug(Stream* debugPort) {
     debug = debugPort;
 }
 
-std::string LocalMessagesIO::read(uint8_t recNr) {
+std::string LocalMessagesClass::read(uint8_t recNr) {
     File file = LittleFS.open(path.c_str(), "r");
     if (!file) {
         if (debug) debug->printf("read(): Failed to open file: %s\n", path.c_str());
@@ -40,7 +40,7 @@ std::string LocalMessagesIO::read(uint8_t recNr) {
     return std::string(buffer);
 }
 
-bool LocalMessagesIO::write(uint8_t recNr, const char* data) {
+bool LocalMessagesClass::write(uint8_t recNr, const char* data) {
     if (recNr == 0) {
         if (debug) debug->println("write(): record number is zero, erase file");
         LittleFS.remove(path.c_str());

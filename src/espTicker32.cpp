@@ -1,4 +1,8 @@
-//#include "espTicker32.h"
+/*
+**  espTicker32.cpp
+*/
+const char* ESPTICKER32_VERSION = "0.1.0";
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
@@ -11,9 +15,11 @@
 #include <string>
 #include "SPAmanager.h"
 #include "SettingsClass.h"
-#include "LocalMessagesIO.h"
+#include "LocalMessagesClass.h"
 #include "WeerliveClass.h"
-#include "MediastackClass.h"
+#ifdef USE_MEDIASTACK
+  #include "MediastackClass.h"
+#endif
 #include "RSSreaderClass.h"
 //#include <MD_Parola.h>
 //#include <MD_MAX72xx.h>
@@ -31,11 +37,13 @@ Stream* debug = nullptr;
 
 SettingsClass settings;
 
-LocalMessagesIO localMessages(LOCAL_MESSAGES_PATH, LOCAL_MESSAGES_RECORD_SIZE);
+LocalMessagesClass localMessages(LOCAL_MESSAGES_PATH, LOCAL_MESSAGES_RECORD_SIZE);
 
 WiFiClient wifiClient;
 Weerlive weerlive(wifiClient);
-Mediastack mediastack(wifiClient);
+#ifdef USE_MEDIASTACK
+  Mediastack mediastack(wifiClient);
+#endif
 RSSreaderClass rssReader;
 
 SPAmanager spa(80);
@@ -64,6 +72,7 @@ String getWeerliveMessage()
 
 } // getWeerliveMessage()
 
+#ifdef USE_MEDIASTACK
 String getMediastackMessage()
 {
   static uint8_t msgNr = 0;
@@ -80,7 +89,7 @@ String getMediastackMessage()
   return mediastackMessage;
 
 } // getMediastackMessage()
-
+#endif
 String getRSSfeedMessage()
 {
   uint8_t feedIndex = 0;
@@ -138,11 +147,13 @@ std::string nextMessage()
         debug->println("nextMessage(): weerlive message");
         newMessage = getWeerliveMessage().c_str();
     }
+#ifdef USE_MEDIASTACK
     else if (strcmp(newMessage.c_str(), "<mediastack>") == 0) 
     {
         debug->println("nextMessage(): mediastack message");
         newMessage = getMediastackMessage().c_str();
     }
+#endif
     else if (strcmp(newMessage.c_str(), "<rssfeed>") == 0) 
     {
         debug->println("nextMessage(): rssfeed message");
@@ -371,8 +382,10 @@ void sendSettingFieldToClient(const std::string& settingsType)
             htmlContent += "ParolaSettings";
           } else if (settingsType == "weerliveSettings") {
             htmlContent += "WeerliveSettings";
+#ifdef USE_MEDIASTACK
           } else if (settingsType == "mediastackSettings") {
             htmlContent += "MediastackSettings";
+#endif
           } else {
             // Generic fallback
             htmlContent += "Setting";
@@ -400,8 +413,10 @@ void sendSettingFieldToClient(const std::string& settingsType)
             htmlContent += "ParolaSettings";
           } else if (settingsType == "weerliveSettings") {
             htmlContent += "WeerliveSettings";
+#ifdef USE_MEDIASTACK
           } else if (settingsType == "mediastackSettings") {
             htmlContent += "MediastackSettings";
+#endif
           } else if (settingsType == "rssfeedSettings") {
             htmlContent += "RSSfeedSettings";
           } else {
@@ -488,11 +503,15 @@ void sendWeerliveFieldsToClient()
   sendSettingFieldToClient("weerliveSettings");
 }
 
+#ifdef USE_MEDIASTACK
 // Function to send the JSON string to the client when mediastackSettingsPage is activated
 void sendMediastackFieldsToClient()
 {
   sendSettingFieldToClient("mediastackSettings");
 }
+#endif
+
+
 // Function to send the JSON string to the client when rssfeedSettingsPage is activated
 void sendRssfeedFieldsToClient()
 {
@@ -696,12 +715,14 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
       sendWeerliveFieldsToClient();
       return;
     }
+#ifdef USE_MEDIASTACK
     // Check if this is a requestMediastackSettings message
     if (doc["type"] == "requestMediastackSettings") {
       debug->println("handleLocalWebSocketEvent(): Handling requestMediastackSettings message");
       sendMediastackFieldsToClient();
       return;
     }    
+#endif
     // Check if this is a requestRssfeedSettings message
     if (doc["type"] == "requestRssfeedSettings") {
       debug->println("handleLocalWebSocketEvent(): Handling requestRssfeedSettings message");
@@ -920,6 +941,7 @@ void mainCallbackWeerliveSettings()
 } // mainCallbackWeerliveSettings()
 
 
+#ifdef USE_MEDIASTACK
 void mainCallbackMediastackSettings()
 {
   spa.setMessage("Main Menu [Mediastack Settings] clicked!", 0);
@@ -932,6 +954,7 @@ void mainCallbackMediastackSettings()
   sendMediastackFieldsToClient();
 
 } // mainCallbackMediastackSettings()
+#endif
 
 void mainCallbackRssfeedSettings()
 {
@@ -956,7 +979,6 @@ void mainCallbackSettings()
 } // mainCallbackSettings()    
 
 
-/***
 void mainCallbackFSmanager()
 {
     spa.setMessage("Main Menu \"FSmanager\" clicked!", 5);
@@ -964,20 +986,20 @@ void mainCallbackFSmanager()
     spa.callJsFunction("loadFileList");
 
 } // mainCallbackFSmanager()
-***/
 
+/******
 void mainCallbackFSmanager()
 {
-    // Check if the FSmanagerPage exists before trying to activate it
-    if (spa.pageExists("FSmanagerPage")) {
+  // Check if the FSmanagerPage exists before trying to activate it
+  if (spa.pageExists("FSmanagerPage")) {
         spa.setMessage("Main Menu [FSmanager] clicked!", 5);
         spa.activatePage("FSmanagerPage");
         spa.callJsFunction("loadFileList");
-    } else {
+  } else {
         spa.setErrorMessage("FSmanager is not available due to memory constraints. Please restart the device.", 0);
-    }
+  }
 } // mainCallbackFSmanager()
-
+*****/
 
 void processUploadFileCallback()
 {
@@ -1038,6 +1060,11 @@ void handleMenuItem(std::string itemName)
     } else if (itemName == "SET-UP") {
         spa.setMessage("Settings: [Exit] clicked!", 5);
         spa.activatePage("mainSettingsPage");
+    } else if (itemName == "SET-RESTART") {
+      spa.setMessage("Main Settings: [Restart] clicked!", 5);
+      spa.activatePage("Main");
+      ESP.restart();
+      delay(1000);
     } else if (itemName == "SET-EXIT") {
       spa.setMessage("Main Settings: [Exit] clicked!", 5);
       spa.activatePage("Main");
@@ -1139,50 +1166,47 @@ void setupLocalMessagesPage()
 
 void setupFSmanagerPage()
 {
-  debug->printf("setupFSmanagerPage(): Available heap memory: %u bytes\n", ESP.getFreeHeap());
+    debug->printf("setupFSmanagerPage(): Available heap memory: %u bytes\n", ESP.getFreeHeap());
+    const char *fsManagerPage = R"HTML(
+      <div id="fsm_fileList" style="display: block;">
+      </div>
+      <div id="fsm_spaceInfo" class="FSM_space-info" style="display: block;">
+        <!-- Space information will be displayed here -->
+      </div>    
+    )HTML";
+    
+    spa.addPage("FSmanagerPage", fsManagerPage);
   
-  // Instead of trying to add the FSmanagerPage, create a simple error page
-  const char *errorPage = R"HTML(
-    <div style="text-align: center; padding: 20px;">
-      <h2>File System Manager</h2>
-      <p>Unable to load File System Manager due to memory constraints.</p>
-      <p>Please free up memory by restarting the device or reducing other functionality.</p>
-    </div>
-  )HTML";
+    const char *popupUploadFile = R"HTML(
+      <div id="popUpUploadFile">Upload File</div>
+      <div id="fsm_fileUpload">
+        <input type="file" id="fsm_fileInput">
+        <div id="selectedFileName" style="margin-top: 5px; font-style: italic;"></div>
+      </div>
+      <div style="margin-top: 10px;">
+        <button type="button" onClick="closePopup('popup_FS_Manager_Upload_File')">Cancel</button>
+        <button type="button" id="uploadButton" onClick="uploadSelectedFile()" disabled>Upload File</button>
+      </div>
+    )HTML";
+    
+    const char *popupNewFolder = R"HTML(
+      <div id="popupCreateFolder">Create Folder</div>
+      <label for="folderNameInput">Folder Name:</label>
+      <input type="text" id="folderNameInput" placeholder="Enter folder name">
+      <br>
+      <button type="button" onClick="closePopup('popup_FS_Manager_New_Folder')">Cancel</button>
+      <button type="button" onClick="createFolderFromInput()">Create Folder</button>
+    )HTML";
   
-  // Single attempt to add the error page
-  bool pageAdded = false;
-  try {
-    spa.addPage("FSmanagerPage", errorPage);
-    pageAdded = true;
-    debug->println("setupFSmanagerPage(): Added simplified error page successfully");
-  } catch (const std::exception& e) {
-    debug->printf("setupFSmanagerPage(): Failed to add error page: %s\n", e.what());
-    // Don't try again - we'll handle this case below
-  }
-  
-  // Only add menu items if the page was successfully added
-  if (pageAdded) {
     spa.setPageTitle("FSmanagerPage", "FileSystem Manager");
+    //-- Add FSmanager menu
     spa.addMenu("FSmanagerPage", "FS Manager");
-    
-    // Only add the Exit menu item - no popups or other functionality
+    //spa.addMenuItem("FSmanagerPage", "FS Manager", "List LittleFS", handleMenuItem, "FSM-1");
+    spa.addMenuItemPopup("FSmanagerPage", "FS Manager", "Upload File", popupUploadFile);
+    spa.addMenuItemPopup("FSmanagerPage", "FS Manager", "Create Folder", popupNewFolder);
     spa.addMenuItem("FSmanagerPage", "FS Manager", "Exit", handleMenuItem, "FSM-EXIT");
-  } else {
-    // If we couldn't even add the error page, modify the main menu to disable FSmanager
-    debug->println("setupFSmanagerPage(): Disabling FSmanager functionality in main menu");
-    
-    // Find and modify the FSmanager menu item in the main menu
-    // This depends on how your menu system works, but here's a conceptual approach:
-    
-    // Option 1: If you can modify existing menu items:
-    // spa.updateMenuItem("Main", "Main Menu", "FSmanager", mainCallbackDisabled);
-    
-    // Option 2: If you can't modify existing items, you might need to remove and re-add:
-    // spa.removeMenuItem("Main", "Main Menu", "FSmanager");
-    // spa.addMenuItem("Main", "Main Menu", "FSmanager (Disabled)", mainCallbackDisabledMessage);
-  }
-}
+  
+} // setupFSmanagerPage()
 
 // Add this function to handle the disabled FSmanager case
 void mainCallbackDisabledMessage()
@@ -1191,7 +1215,7 @@ void mainCallbackDisabledMessage()
 } // mainCallbackDisabledMessage()
 
 
-void setupSettingsPage()
+void setupMySettingsPage()
 {
   const char *settingsPage = R"HTML(
     <div id="settingsName" style="font-size: 48px; text-align: center; font-weight: bold;">Settings</div>
@@ -1215,7 +1239,7 @@ void setupSettingsPage()
     </div>
     )HTML";
   
-  debug->println("\nsetupSettingsPage(): Adding settings page");
+  debug->println("\nsetupMySettingsPage(): Adding settings page");
   spa.addPage("deviceSettingsPage", settingsPage);
   spa.setPageTitle("deviceSettingsPage", "Device Settings");
   spa.addMenu("deviceSettingsPage", "Device Settings");
@@ -1231,17 +1255,19 @@ void setupSettingsPage()
   spa.addMenu("weerliveSettingsPage", "Weerlive Settings");
   spa.addMenuItem("weerliveSettingsPage", "Weerlive Settings", "Exit", handleMenuItem, "SET-UP");
 
+#ifdef USE_MEDIASTACK
   spa.addPage("mediastackSettingsPage", settingsPage);
   spa.setPageTitle("mediastackSettingsPage", "Mediastack Settings");
   spa.addMenu("mediastackSettingsPage", "Mediastack Settings");
   spa.addMenuItem("mediastackSettingsPage", "Mediastack Settings", "Exit", handleMenuItem, "SET-UP");
+#endif
 
   spa.addPage("rssfeedSettingsPage", settingsPage);
   spa.setPageTitle("rssfeedSettingsPage", "RSSfeed Settings");
   spa.addMenu("rssfeedSettingsPage", "RSSfeed Settings");
   spa.addMenuItem("rssfeedSettingsPage", "RSSfeed Settings", "Exit", handleMenuItem, "SET-UP");
   
-} // setupSettingsPage()
+} // setupMySettingsPage()
 
 
 
@@ -1267,9 +1293,14 @@ void setupMainSettingsPage()
   spa.addMenuItem("mainSettingsPage", "Settings", "Device Settings", mainCallbackDeviceSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Parola Settings", mainCallbackParolaSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Weerlive Settings", mainCallbackWeerliveSettings);
+#ifdef USE_MEDIASTACK
   spa.addMenuItem("mainSettingsPage", "Settings", "Mediastack Settings", mainCallbackMediastackSettings);
+#endif
   spa.addMenuItem("mainSettingsPage", "Settings", "RSS feed Settings", mainCallbackRssfeedSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Exit", handleMenuItem, "SET-EXIT");
+
+  spa.addMenu("mainSettingsPage", "System");
+  spa.addMenuItem("mainSettingsPage", "System", "RESTART espTicker32", handleMenuItem, "SET-RESTART");
 
 } //  setupMainSettingsPage()
 
@@ -1359,6 +1390,8 @@ void setup()
     debug->print("setup(): IP address: ");
     debug->println(WiFi.localIP());
 
+    debug->printf("espTicker32 Version: %s\n", ESPTICKER32_VERSION);
+    
     if (!LittleFS.begin()) 
     {
       debug->println("setup(): LittleFS Mount Failed");
@@ -1420,10 +1453,10 @@ void setup()
     fsManager.addSystemFile(fsManager.getSystemFilePath() + "/espTicker32.js", false);
 
     setupMainPage();
-    setupLocalMessagesPage();
-    setupMainSettingsPage();
-    setupSettingsPage();
     setupFSmanagerPage();
+    setupMainSettingsPage();
+    setupMySettingsPage();
+    setupLocalMessagesPage();
 
     debug->printf("setup(): weerliveAuthToken: [%s], weerlivePlaats: [%s], requestInterval: [%d minuten]\n",
                   settings.weerliveAuthToken.c_str(),
@@ -1431,7 +1464,7 @@ void setup()
                   settings.weerliveRequestInterval);
     weerlive.setup(settings.weerliveAuthToken.c_str(), settings.weerlivePlaats.c_str(), debug);
     weerlive.setInterval(settings.weerliveRequestInterval); 
-
+#ifdef USE_MEDIASTACK
     debug->printf("setup(): mediastackAuthToken: [%s], requestInterval: [%d minuten], maxMessages: [%d], onlyDuringDay: [%s]\n",
                   settings.mediastackAuthToken.c_str(),
                   settings.mediastackRequestInterval,
@@ -1441,6 +1474,7 @@ void setup()
                      settings.mediastackMaxMessages,
                      settings.mediastackOnlyDuringDay,
                      debug);
+#endif
 
     rssReader.setDebug(debug);
     
@@ -1485,10 +1519,12 @@ void loop()
     debug->printf("weerlive::loop(): weerliveText: [%s]\n", weerliveText);
   
   }
+  #ifdef USE_MEDIASTACK
   if (mediastack.loop(network->ntpGetTmStruct()))
   {
     debug->println("mediastack::loop(): mediastack updated");
   }
+#endif
 
   rssReader.loop(network->ntpGetTmStruct());
 
