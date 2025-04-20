@@ -36,7 +36,7 @@ jobs:
 
       - name: Compare version
         id: compare_version
-        run: |
+        run: |-
           VERSION="${{ steps.get_version.outputs.VERSION }}"
           LATEST="${{ steps.latest_tag.outputs.LATEST }}"
 
