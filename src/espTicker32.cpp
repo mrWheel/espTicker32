@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* ESPTICKER32_VERSION = "0.1.0";
+const char* ESPTICKER32_VERSION = "0.1.1";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -1391,7 +1391,7 @@ void setup()
     debug->println(WiFi.localIP());
 
     debug->printf("espTicker32 Version: %s\n", ESPTICKER32_VERSION);
-    
+
     if (!LittleFS.begin()) 
     {
       debug->println("setup(): LittleFS Mount Failed");
