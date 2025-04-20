@@ -26,7 +26,7 @@ private:
   size_t _maxFeedsPerFile[10] = {0};
   unsigned long _interval = 12000000; // standaard 20 min
   unsigned long _lastCheck = 0;
-
+  void createRSSfeedMap();
   uint8_t _feedCheckState = 0;         // Current feed being checked
   unsigned long _lastFeedCheck = 0;     // Time of last individual feed check
   unsigned long _feedCheckInterval = 60000; // Time between checking individual feeds (60 seconds)

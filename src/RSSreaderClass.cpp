@@ -3,6 +3,8 @@
 #include <HTTPClient.h>
 #include <LittleFS.h>
 
+#define RSS_BASE_FOLDER "/RSSfeeds"
+
 RSSreaderClass::RSSreaderClass() 
 {
   _activeFeedCount = 0;
@@ -25,6 +27,8 @@ bool RSSreaderClass::addRSSfeed(const char* url, const char* path, size_t maxFee
   _totalMaxFeeds += maxFeeds; // Update total max feeds
   _lastCheck = 0;
 
+  createRSSfeedMap();
+
   if (debug && doDebug) debug->printf("RSSreaderClass::addRSSfeed(): URL:[%s], Path:[%s], File:[%s], Max Feeds:[%d], Index: [%d]\n" 
                                                                   , _urls[feedIndex].c_str()
                                                                   , _paths[feedIndex].c_str()
@@ -32,18 +36,18 @@ bool RSSreaderClass::addRSSfeed(const char* url, const char* path, size_t maxFee
                                                                   , _maxFeedsPerFile[feedIndex], feedIndex);
 
   LittleFS.begin();
-  if (!LittleFS.exists(_filePaths[feedIndex])) 
+  if (!LittleFS.exists(RSS_BASE_FOLDER + _filePaths[feedIndex])) 
   {
-    if (debug) debug->printf("RSSreaderClass::addRSSfeed(): Bestand [%s] bestaat niet, aanmaken...\n", _filePaths[feedIndex].c_str());
-    File file = LittleFS.open(_filePaths[feedIndex], "w");
+    if (debug) debug->printf("RSSreaderClass::addRSSfeed(): Bestand [%s] bestaat niet, aanmaken...\n", (RSS_BASE_FOLDER + _filePaths[feedIndex]).c_str());
+    File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "w");
     if (file) 
     {
       file.close();
-      if (debug && doDebug) debug->printf("RSSreaderClass::addRSSfeed(): Bestand [%s]aangemaakt.\n", _filePaths[feedIndex].c_str());
+      if (debug && doDebug) debug->printf("RSSreaderClass::addRSSfeed(): Bestand [%s]aangemaakt.\n", (RSS_BASE_FOLDER + _filePaths[feedIndex]).c_str());
     } 
     else 
     {
-      if (debug) debug->printf("RSSreaderClass::addRSSfeed(): Kan bestand [%s] niet aanmaken.\n", _filePaths[feedIndex].c_str()); 
+      if (debug) debug->printf("RSSreaderClass::addRSSfeed(): Kan bestand [%s] niet aanmaken.\n", (RSS_BASE_FOLDER + _filePaths[feedIndex]).c_str());
       return false;
     }
   } 
@@ -199,7 +203,7 @@ std::vector<String> RSSreaderClass::getStoredLines(uint8_t feedIndex)
   if (feedIndex >= _activeFeedCount) return lines;
   
   LittleFS.begin();
-  File file = LittleFS.open(_filePaths[feedIndex], "r");
+  File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "r");
   if (!file) return lines;
 
   while (file.available()) 
@@ -219,7 +223,7 @@ void RSSreaderClass::saveTitles(const std::vector<String>& titles, uint8_t feedI
   if (feedIndex >= _activeFeedCount) return;
   
   LittleFS.begin();
-  File file = LittleFS.open(_filePaths[feedIndex], "a");
+  File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "a");
   if (!file) 
   {
     if (debug && doDebug) debug->println("RSSreaderClass::saveTitles(): Kan bestand niet openen voor schrijven");
@@ -298,7 +302,7 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
   if (changed) 
   {
     LittleFS.begin();
-    File file = LittleFS.open(_filePaths[feedIndex], "w"); 
+    File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "w"); 
     if (file) 
     {
       for (const auto& line : updated) 
@@ -363,7 +367,7 @@ void RSSreaderClass::checkForNewFeedItems()
     if (changed) 
     {
       LittleFS.begin();
-      File file = LittleFS.open(_filePaths[feedIndex], "w"); 
+      File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "w"); 
       if (file) 
       {
         for (const auto& line : updated) 
@@ -422,7 +426,7 @@ void RSSreaderClass::deleteFeedsOlderThan(struct tm timeNow)
     }
 
     LittleFS.begin();
-    File file = LittleFS.open(_filePaths[feedIndex], "w");
+    File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "w");
     if (file) 
     {
       for (const auto& line : filtered) 
@@ -520,6 +524,19 @@ bool RSSreaderClass::getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex)
   return true;
 
 } // getNextFeedItem()
+
+void RSSreaderClass::createRSSfeedMap()
+{
+  if (!LittleFS.exists(RSS_BASE_FOLDER)) 
+  {
+    if (debug) debug->printf("RSSreaderClass::createRSSfeedMap(): Creating [%s] directory\n", RSS_BASE_FOLDER);
+    if (!LittleFS.mkdir(RSS_BASE_FOLDER)) 
+    {
+      if (debug) debug->printf("RSSreaderClass::createRSSfeedMap(): Failed to create [%s] directory\n", RSS_BASE_FOLDER);
+    }
+  }
+
+} // createRSSfeedMap()
 
 
 String RSSreaderClass::readRssFeed(uint8_t feedIndex, size_t itemIndex) 
