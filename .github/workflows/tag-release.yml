@@ -26,8 +26,13 @@ jobs:
         id: latest_tag
         run: |
           LATEST=$(git tag --sort=-v:refname | grep -E '^([0-9]+\.){2}[0-9]+$' | head -n 1 || echo "0.0.0")
-          echo "Latest tag is $LATEST"
+          echo "LATEST=$LATEST"
           echo "LATEST=$LATEST" >> $GITHUB_OUTPUT
+
+      - name: Debug version info
+        run: |
+          echo "DEBUG: VERSION from get_version: ${{ steps.get_version.outputs.VERSION }}"
+          echo "DEBUG: LATEST from latest_tag: ${{ steps.latest_tag.outputs.LATEST }}"
 
       - name: Compare version
         id: compare_version
@@ -35,13 +40,12 @@ jobs:
           VERSION="${{ steps.get_version.outputs.VERSION }}"
           LATEST="${{ steps.latest_tag.outputs.LATEST }}"
 
-          echo "VERSION: $VERSION"
-          echo "LATEST: $LATEST"
+          echo "Comparing VERSION: $VERSION with LATEST: $LATEST"
 
-          if [ "$LATEST" = "0.0.0" ]; then
-            echo "No existing tags found. Proceeding to tag."
-            echo "PROCEED=true" >> $GITHUB_ENV
-          elif dpkg --compare-versions "$VERSION" gt "$LATEST"; then
+          if [ "$VERSION" = "$LATEST" ]; then
+            echo "::warning::Version $VERSION already exists. Skipping tagging."
+            echo "PROCEED=false" >> $GITHUB_ENV
+          elif [ "$(printf '%s\n' "$LATEST" "$VERSION" | sort -V | head -n1)" = "$LATEST" ]; then
             echo "Version $VERSION is newer than $LATEST. Proceeding to tag."
             echo "PROCEED=true" >> $GITHUB_ENV
           else
