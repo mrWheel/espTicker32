@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* ESPTICKER32_VERSION = "v0.9.12";
+const char* ESPTICKER32_VERSION = "v0.9.13";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -1126,6 +1126,7 @@ void setupLocalMessagesPage()
     </div>
     )HTML";
 
+#ifdef USE_MEDIASTACK
     const char *popupHelpLocalMessages = R"HTML(
     <style>
         li {
@@ -1154,7 +1155,35 @@ void setupLocalMessagesPage()
       Let op! Deze sleutelwoorden moeten als enige in een regel staan!
       <br><button type="button" onClick="closePopup('popup_Help')">Close</button></br>
     )HTML";
-        
+#else
+const char *popupHelpLocalMessages = R"HTML(
+  <style>
+      li {
+        display: grid;
+        grid-template-columns: 130px 1fr; /* pas 150px aan indien nodig */
+        gap: 1em;
+        margin-bottom: 0.3em;
+      }
+      li::marker {
+        content: none; /* verbergt het standaard bolletje */
+      }
+    </style>
+
+    <div id="popupHelpLocalMessages">Help Sleutelwoorden</div>
+    <div>
+      <ul>
+        <li><b>&lt;time&gt;</b> - Laat de tijd zien</li>
+        <li><b>&lt;date&gt;</b> - Laat de datum zien</li>
+        <li><b>&lt;datetime&gt;</b> - Laat de datum en tijd zien</li>
+        <li><b>&lt;space&gt;</b> - Maakt de Ticker leeg</li>
+        <li><b>&lt;weerlive&gt;</b> - Laat de weergegevens van weerlive zien</li>
+        <li><b>&lt;rssfeed&gt;</b> - Laat het volgende item van een rssfeed zien</li>
+      </ul>
+    </div>
+    Let op! Deze sleutelwoorden moeten als enige in een regel staan!
+    <br><button type="button" onClick="closePopup('popup_Help')">Close</button></br>
+  )HTML";
+#endif
     spa.addPage("localMessagesPage", localMessagesPage);
     spa.setPageTitle("localMessagesPage", "Local Messages");
     spa.addMenu("localMessagesPage", "Local Messages");
@@ -1273,6 +1302,7 @@ void setupMySettingsPage()
 
 void setupMainSettingsPage()
 {
+#ifdef USE_MEDIASTACK
   const char *settingsPage = R"HTML(
     <div style="font-size: 48px; text-align: center; font-weight: bold;">Settings</div>
     <br>You can modify system settings here that influence the operation of the device.
@@ -1284,7 +1314,31 @@ void setupMainSettingsPage()
     <li>RSS feed settings</li>
     </ul> 
     )HTML";
-  
+#else
+  const char *settingsPage = R"HTML(
+  <div style="font-size: 48px; text-align: center; font-weight: bold;">Settings</div>
+  <br>You can modify system settings here that influence the operation of the device.
+  <ul>
+  <li>Device settings</li>
+  <li>Parola settings</li>
+  <li>Weerlive settings</li>
+  <li>RSS feed settings</li>
+  </ul> 
+  )HTML";
+#endif
+/**
+  const char *settingsPage = R"HTML(
+    <div style="font-size: 48px; text-align: center; font-weight: bold;">Settings</div>
+    <br>You can modify system settings here that influence the operation of the device.
+    <ul>
+    <li>Device settings</li>
+    <li>Parola settings</li>
+    <li>Weerlive settings</li>
+    <li>RSS feed settings</li>
+    </ul> 
+    )HTML";  
+***/
+
   debug->println("\nsetupMainSettingsPage(): Adding main settings page");
   spa.addPage("mainSettingsPage", settingsPage);
   spa.setPageTitle("mainSettingsPage", "Settings");
@@ -1299,8 +1353,8 @@ void setupMainSettingsPage()
   spa.addMenuItem("mainSettingsPage", "Settings", "RSS feed Settings", mainCallbackRssfeedSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Exit", handleMenuItem, "SET-EXIT");
 
-  spa.addMenu("mainSettingsPage", "System");
-  spa.addMenuItem("mainSettingsPage", "System", "RESTART espTicker32", handleMenuItem, "SET-RESTART");
+  spa.addMenu("mainSettingsPage", "Restart");
+  spa.addMenuItem("mainSettingsPage", "Restart", "RESTART espTicker32", handleMenuItem, "SET-RESTART");
 
 } //  setupMainSettingsPage()
 
@@ -1477,6 +1531,7 @@ void setup()
 #endif
 
     rssReader.setDebug(debug);
+    rssReader.addWordStringToSkipWords(settings.skipWords.c_str());
     
     if (!settings.domain0.empty() && !settings.path0.empty() && settings.maxFeeds0 > 0) 
               rssReader.addRSSfeed(settings.domain0.c_str(), settings.path0.c_str(), settings.maxFeeds0);

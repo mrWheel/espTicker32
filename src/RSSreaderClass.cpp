@@ -8,6 +8,71 @@
 RSSreaderClass::RSSreaderClass() 
 {
   _activeFeedCount = 0;
+  // Initialize feed update tracking
+  for (int i = 0; i < 10; i++) {
+    _lastFeedUpdate[i] = 0;
+  }
+  // Initialize skipWords with football club names
+  _skipWords = {
+    "ADO", "AFC", "Almere City", "AZ", "De Graafschap", "De Treffers", "Excelsior",
+    "Excelsior", "FC Den Bosch", "FC Dordrecht", "FC Eindhoven", "FC Emmen", "FC Groningen",
+    "FC Twente", "FC Utrecht", "FC Volendam", "Feyenoord", "Fortuna Sittard", "Go Ahead", "Eagles",
+    "GVVV", "HHC Hardenberg", "Helmond Sport", "Heracles", "IJsselmeervogels", "Katwijk",
+    "Koninklijke HFC", "HFC", "Lisse", "MVV", "NAC", "NEC", "Noordwijk", "PEC Zwolle", "PSV",
+    "Quick Boys", "RKC Waalwijk", "RKC", "Rijnsburgse Boys", "Roda JC", "SC Heerenveen", "Spakenburg",
+    "Sparta", "Telstar", "TEC", "TOP Oss", "FC Utrecht", "VVSB", "VVV-Venlo",
+    "Vitesse", "Willem II"
+    "Champions League", "Europa League", "Europa Conference League", "Super Cup",
+    "Kategoria Superiore", "Kategoria e Parë",
+    "Armenian Premier League",
+    "Austrian Bundesliga", "2. Liga",
+    "Azerbaijan Premier League",
+    "Belarusian Premier League",
+    "Belgian Pro League", "Challenger Pro League",
+    "Premier League of Bosnia and Herzegovina",
+    "First Professional Football League",
+    "Croatian First Football League",
+    "Cypriot First Division",
+    "Czech First League", "Czech National Football League",
+    "Danish Superliga", "1st Division",
+    "Premier League", "EFL Championship", "League One", "League Two", "National League", "National League North", "National League South",
+    "Meistriliiga",
+    "Faroe Islands Premier League",
+    "Veikkausliiga", "Ykkönen",
+    "Ligue 1", "Ligue 2", "Championnat National",
+    "Erovnuli Liga",
+    "Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga",
+    "Gibraltar Football League",
+    "Super League Greece", "Super League 2",
+    "Nemzeti Bajnokság I", "Nemzeti Bajnokság II",
+    "Úrvalsdeild karla",
+    "League of Ireland Premier Division", "League of Ireland First Division",
+    "Serie A", "Serie B", "Serie C",
+    "Football Superleague of Kosovo",
+    "Latvian Higher League",
+    "A Lyga",
+    "Luxembourg National Division",
+    "Maltese Premier League",
+    "Moldovan Super Liga",
+    "Montenegrin First League",
+    "Eredivisie", "Eerste Divisie", "Tweede Divisie", "Derde Divisie",
+    "Macedonian First Football League",
+    "Eliteserien", "OBOS-ligaen",
+    "Ekstraklasa", "I liga",
+    "Primeira Liga", "Liga Portugal 2",
+    "Liga I", "Liga II",
+    "Russian Premier League", "Russian First League",
+    "Campionato Sammarinese di Calcio",
+    "Serbian SuperLiga",
+    "Slovak Super Liga",
+    "Slovenian PrvaLiga",
+    "La Liga", "Segunda División", "Primera Federación", "Segunda Federación",
+    "Allsvenskan", "Superettan",
+    "Swiss Super League", "Challenge League",
+    "Ukrainian Premier League",
+    "Vatican City Championship",
+    "Cymru Premier"
+  };
 
 } // RSSreaderClass()
 
@@ -69,7 +134,6 @@ void RSSreaderClass::loop(struct tm timeNow)
   if (!_checkingFeeds && (millis() - _lastCheck >= _interval)) 
   {
     // Start the feed checking process
-    deleteFeedsOlderThan(timeNow);
     _checkingFeeds = true;
     _feedCheckState = 0;
     _lastFeedCheck = 0; // Force immediate check of first feed
@@ -92,7 +156,9 @@ void RSSreaderClass::loop(struct tm timeNow)
     } 
     else 
     {
-      // All feeds checked, end the cycle
+      // All feeds checked, now it's safe to delete old items
+      deleteFeedsOlderThan(timeNow);
+      
       if (debug && doDebug) debug->println("RSSreaderClass::loop(): Feed check cycle complete");
       _checkingFeeds = false;
       _lastCheck = millis(); // Reset the main interval timer
@@ -106,10 +172,8 @@ String RSSreaderClass::fetchFeed(const char* host, const char* path)
 {
   if (debug) debug->printf("RSSreaderClass::fetchFeed(): URL[%s], PATH[%s]\n", host, path);
 
-//if (debug && doDebug) debug->printf("RSSreaderClass::fetchFeed(): host[%s], path[%s]\n", host.c_str(), path.c_str());
-
   WiFiClientSecure client;
-  client.setInsecure();  // Voor testdoeleinden
+  client.setInsecure();  //-- we hebben geen certificaat
   client.setTimeout(5000); // 5s timeout
 
   if (!client.connect(host, 443)) 
@@ -197,6 +261,154 @@ std::vector<String> RSSreaderClass::extractTitles(const String& feed)
 
 } // extractTitles()
 
+std::vector<RSSreaderClass::FeedItem> RSSreaderClass::extractFeedItems(const String& feed)
+{
+  std::vector<FeedItem> items;
+  int itemStart = 0;
+  
+  // Skip the channel title by finding the first item
+  itemStart = feed.indexOf("<item>", itemStart);
+  
+  while (itemStart != -1) {
+    int itemEnd = feed.indexOf("</item>", itemStart);
+    if (itemEnd == -1) break;
+    
+    String itemContent = feed.substring(itemStart, itemEnd + 7);
+    
+    // Extract title
+    String title = "";
+    int titleStart = itemContent.indexOf("<title>");
+    if (titleStart != -1) {
+      titleStart += 7; // Length of "<title>"
+      int titleEnd = itemContent.indexOf("</title>", titleStart);
+      if (titleEnd != -1) {
+        title = itemContent.substring(titleStart, titleEnd);
+        title.trim();
+        
+        // Remove CDATA tags if present
+        if (title.startsWith("<![CDATA[") && title.endsWith("]]>")) {
+          title = title.substring(9, title.length() - 3);
+        }
+      }
+    }
+    
+    // Extract publication date
+    time_t pubDate = 0;
+    int dateStart = itemContent.indexOf("<pubDate>");
+    if (dateStart != -1) {
+      dateStart += 9; // Length of "<pubDate>"
+      int dateEnd = itemContent.indexOf("</pubDate>", dateStart);
+      if (dateEnd != -1) {
+        String dateStr = itemContent.substring(dateStart, dateEnd);
+        dateStr.trim();
+        pubDate = parseRSSDate(dateStr);
+      }
+    }
+    
+    // If no pubDate found or parsing failed, use current time
+    if (pubDate == 0) {
+      pubDate = time(nullptr);
+      if (debug && doDebug) debug->printf("RSSreaderClass::extractFeedItems(): No valid pubDate found for item, using current time\n");
+    }
+    
+    // Add item if title is not empty
+    if (title.length() > 0) {
+      FeedItem item;
+      item.title = title;
+      item.pubDate = pubDate;
+      items.push_back(item);
+    }
+    
+    // Find next item
+    itemStart = feed.indexOf("<item>", itemEnd);
+  }
+  
+  return items;
+
+} // extractFeedItems()
+
+
+time_t RSSreaderClass::parseRSSDate(const String& dateStr)
+{
+  // RFC 822/2822 format: "Wed, 02 Oct 2002 13:00:00 GMT"
+  // We'll use a simple parsing approach
+  
+  if (debug && doDebug) debug->printf("RSSreaderClass::parseRSSDate(): Parsing date: %s\n", dateStr.c_str());
+  
+  // Extract components
+  int dayPos = dateStr.indexOf(", ");
+  if (dayPos == -1) return 0;
+  
+  dayPos += 2; // Skip ", "
+  int dayEnd = dateStr.indexOf(" ", dayPos);
+  if (dayEnd == -1) return 0;
+  
+  int monthPos = dayEnd + 1;
+  int monthEnd = dateStr.indexOf(" ", monthPos);
+  if (monthEnd == -1) return 0;
+  
+  int yearPos = monthEnd + 1;
+  int yearEnd = dateStr.indexOf(" ", yearPos);
+  if (yearEnd == -1) return 0;
+  
+  int timePos = yearEnd + 1;
+  
+  // Parse day
+  int day = dateStr.substring(dayPos, dayEnd).toInt();
+  
+  // Parse month
+  String monthStr = dateStr.substring(monthPos, monthEnd);
+  int month = 0;
+  const char* months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+  for (int i = 0; i < 12; i++) {
+    if (monthStr.equalsIgnoreCase(months[i])) {
+      month = i + 1;
+      break;
+    }
+  }
+  if (month == 0) return 0;
+  
+  // Parse year
+  int year = dateStr.substring(yearPos, yearEnd).toInt();
+  
+  // Parse time
+  String timeStr = dateStr.substring(timePos);
+  int hour = 0, minute = 0, second = 0;
+  
+  int colonPos = timeStr.indexOf(":");
+  if (colonPos != -1) {
+    hour = timeStr.substring(0, colonPos).toInt();
+    int colonPos2 = timeStr.indexOf(":", colonPos + 1);
+    if (colonPos2 != -1) {
+      minute = timeStr.substring(colonPos + 1, colonPos2).toInt();
+      int spacePos = timeStr.indexOf(" ", colonPos2);
+      if (spacePos != -1) {
+        second = timeStr.substring(colonPos2 + 1, spacePos).toInt();
+      } else {
+        second = timeStr.substring(colonPos2 + 1).toInt();
+      }
+    }
+  }
+  
+  // Create tm structure and convert to time_t
+  struct tm timeinfo;
+  timeinfo.tm_year = year - 1900;
+  timeinfo.tm_mon = month - 1;
+  timeinfo.tm_mday = day;
+  timeinfo.tm_hour = hour;
+  timeinfo.tm_min = minute;
+  timeinfo.tm_sec = second;
+  timeinfo.tm_isdst = -1;
+  
+  time_t timestamp = mktime(&timeinfo);
+  
+  if (debug && doDebug) debug->printf("RSSreaderClass::parseRSSDate(): Parsed date components: %d-%02d-%02d %02d:%02d:%02d, timestamp: %ld\n", 
+                          year, month, day, hour, minute, second, timestamp);
+  
+  return timestamp;
+
+} // parseRSSDate()
+
 std::vector<String> RSSreaderClass::getStoredLines(uint8_t feedIndex) 
 {
   std::vector<String> lines;
@@ -277,51 +489,44 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
     return;
   }
 
-  std::vector<String> existing = getStoredLines(feedIndex);
-  std::vector<String> newTitles = extractTitles(feed);
-  std::vector<String> updated = existing;
-  bool changed = false;
-
-  for (const auto& title : newTitles) 
+  std::vector<FeedItem> feedItems = extractFeedItems(feed);
+  std::vector<String> titlesToSave;
+  
+  // Filter items that have sufficient words
+  for (const auto& item : feedItems) 
   {
-    if (!titleExists(title, existing)) 
+    if (hasSufficientWords(item.title) && hasNoSkipWords(item.title)) 
     {
-      if (debug && doDebug) debug->printf("RSSreaderClass::checkFeed(): Nieuwe titel gevonden: %s\n", title.c_str());
-      time_t now = time(nullptr);
-      updated.push_back(String(now) + "|" + title);
-      changed = true;
+      if (debug && doDebug) debug->printf("RSSreaderClass::checkFeed(): Titel gevonden: %s (timestamp: %ld)\n", 
+                              item.title.c_str(), item.pubDate);
+      titlesToSave.push_back(String(item.pubDate) + "|" + item.title);
     }
   }
 
-  // FIFO: maximaal _maxFeedsPerFile titels
-  while (updated.size() > _maxFeedsPerFile[feedIndex]) 
+  // Limit to _maxFeedsPerFile titles
+  while (titlesToSave.size() > _maxFeedsPerFile[feedIndex]) 
   {
-    updated.erase(updated.begin());
+    titlesToSave.erase(titlesToSave.begin());
   }
 
-  if (changed) 
+  // Always open the file in "w" mode to empty it first
+  LittleFS.begin();
+  File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "w"); 
+  if (file) 
   {
-    LittleFS.begin();
-    File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "w"); 
-    if (file) 
+    for (const auto& line : titlesToSave) 
     {
-      for (const auto& line : updated) 
-      {
-        file.println(line);
-      }
-      file.close();
-      if (debug && doDebug) debug->println("RSSreaderClass::checkFeed(): Nieuwe feeds toegevoegd.");
-      if (debug) debug->printf("RSSreaderClass::checkFeed(): Feed[%d] now has [%d] items\n", feedIndex, updated.size());
-    } 
-    else 
-    {
-      if (debug) debug->println("RSSreaderClass::checkFeed(): Kan niet naar bestand schrijven.");
+      file.println(line);
     }
+    file.close();
+    _lastFeedUpdate[feedIndex] = millis(); // Update the last feed update time
+    if (debug) debug->printf("RSSreaderClass::checkFeed(): Feed[%d] now has [%d] items\n", feedIndex, titlesToSave.size());
   } 
   else 
   {
-    if (debug && doDebug) debug->println("RSSreaderClass::checkFeed(): Geen nieuwe titels.");
+    if (debug) debug->println("RSSreaderClass::checkFeed(): Kan niet naar bestand schrijven.");
   }
+
 } // checkFeed()
 
 
@@ -343,17 +548,20 @@ void RSSreaderClass::checkForNewFeedItems()
     }
 
     std::vector<String> existing = getStoredLines(feedIndex);
-    std::vector<String> newTitles = extractTitles(feed);
+    std::vector<FeedItem> feedItems = extractFeedItems(feed);
     std::vector<String> updated = existing;
     bool changed = false;
 
-    for (const auto& title : newTitles) 
+    for (const auto& item : feedItems) 
     {
-      if (!titleExists(title, existing)) 
+      // Create a formatted string with timestamp|title
+      String formattedTitle = String(item.pubDate) + "|" + item.title;
+      
+      if (!titleExists(item.title, existing) && hasSufficientWords(item.title) && hasNoSkipWords(item.title)) 
       {
-        if (debug && doDebug) debug->printf("RSSreaderClass::checkForNewFeedItems(): Nieuwe titel gevonden: %s\n", title.c_str());
-        time_t now = time(nullptr);
-        updated.push_back(String(now) + "|" + title);
+        if (debug && doDebug) debug->printf("RSSreaderClass::checkForNewFeedItems(): Nieuwe titel gevonden: %s (timestamp: %ld)\n", 
+                              item.title.c_str(), item.pubDate);
+        updated.push_back(formattedTitle);
         changed = true;
       }
     }
@@ -389,21 +597,30 @@ void RSSreaderClass::checkForNewFeedItems()
     }
   }
 
+
 } // checkForNewFeedItems()
+
 
 void RSSreaderClass::deleteFeedsOlderThan(struct tm timeNow) 
 {
   if (debug && doDebug) debug->println("RSSreaderClass::deleteFeedsOlderThan(): Verwijderen van oude feeds...");
 
-  // Calculate timestamp for 24 hours ago
+  // Calculate timestamp for 48 hours ago
   time_t now = time(nullptr);
-  time_t twentyFourHoursAgo = now - (48 * 60 * 60); // 48 hours in seconds
+  time_t fortyEightHoursAgo = now - (48 * 60 * 60); // 48 hours in seconds
 
   if (debug && doDebug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Current time: %ld, 48 hours ago: %ld\n", 
-                          now, twentyFourHoursAgo);
+                          now, fortyEightHoursAgo);
 
   for (uint8_t feedIndex = 0; feedIndex < _activeFeedCount; feedIndex++)
   {
+    // Skip feeds that haven't been updated recently
+    if (_lastFeedUpdate[feedIndex] == 0 || millis() - _lastFeedUpdate[feedIndex] > _interval * 2) {
+      if (debug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Skipping feed[%d] as it hasn't been updated recently\n", 
+                              feedIndex);
+      continue;
+    }
+    
     std::vector<String> lines = getStoredLines(feedIndex);
     std::vector<String> filtered;
 
@@ -413,7 +630,7 @@ void RSSreaderClass::deleteFeedsOlderThan(struct tm timeNow)
       if (sep != -1) 
       {
         time_t ts = atol(line.substring(0, sep).c_str());
-        if (ts >= twentyFourHoursAgo) 
+        if (ts >= fortyEightHoursAgo) 
         {
           filtered.push_back(line);
         }
@@ -425,20 +642,36 @@ void RSSreaderClass::deleteFeedsOlderThan(struct tm timeNow)
       }
     }
 
-    LittleFS.begin();
-    File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "w");
-    if (file) 
-    {
-      for (const auto& line : filtered) 
-      {
-        file.println(line);
+    // Safeguard: Don't delete all items if it would leave the feed empty
+    if (filtered.empty() && !lines.empty()) {
+      if (debug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Keeping some items in feed[%d] to prevent empty feed\n", 
+                              feedIndex);
+      // Keep the newest items (up to half of max)
+      size_t itemsToKeep = min(lines.size(), _maxFeedsPerFile[feedIndex] / 2);
+      for (size_t i = lines.size() - itemsToKeep; i < lines.size(); i++) {
+        filtered.push_back(lines[i]);
       }
-      file.close();
     }
 
-    if (debug && doDebug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Feed[%d], Feeds behouden[%d] / verwijderd[%d]\n", 
-                            feedIndex, filtered.size(), lines.size() - filtered.size());
+    // Only write if we have changes
+    if (filtered.size() != lines.size()) 
+    {
+      LittleFS.begin();
+      File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "w");
+      if (file) 
+      {
+        for (const auto& line : filtered) 
+        {
+          file.println(line);
+        }
+        file.close();
+      }
+
+      if (debug && doDebug) debug->printf("RSSreaderClass::deleteFeedsOlderThan(): Feed[%d], Feeds behouden[%d] / verwijderd[%d]\n", 
+                              feedIndex, filtered.size(), lines.size() - filtered.size());
+    }
   }
+
 } // deleteFeedsOlderThan()
 
 
@@ -524,6 +757,184 @@ bool RSSreaderClass::getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex)
   return true;
 
 } // getNextFeedItem()
+
+
+bool RSSreaderClass::hasSufficientWords(const String& title) 
+{
+  int wordCount = 0;
+  bool inWord = false;
+  
+  // Count words by tracking transitions between word and non-word characters
+  for (size_t i = 0; i < title.length(); i++) 
+  {
+    char c = title[i];
+    
+    // Consider a character as part of a word if it's alphanumeric or certain special characters
+    bool isWordChar = isAlphaNumeric(c) || c == '-' || c == '\'';
+    
+    // If we're not in a word and we find a word character, we're starting a new word
+    if (!inWord && isWordChar) 
+    {
+      wordCount++;
+      inWord = true;
+    }
+    // If we're in a word and we find a non-word character, we're ending the current word
+    else if (inWord && !isWordChar) 
+    {
+      inWord = false;
+    }
+    
+    // Explicitly treat certain punctuation as word separators
+    if (c == ':' || c == ',' || c == ';' || c == '.' || c == '!' || c == '?') 
+    {
+      inWord = false;
+    }
+  }
+  
+  if (debug && doDebug) debug->printf("RSSreaderClass::hasSufficientWords(): Title [%s] has %d words\n", 
+                          title.c_str(), wordCount);
+  
+  return wordCount > 3; // Return true if more than 3 words
+
+} // hasSufficientWords()
+
+void RSSreaderClass::addToSkipWords(std::string skipWord)
+{
+  _skipWords.push_back(skipWord);
+  //if (debug && doDebug) debug->printf("RSSreaderClass::addToSkipWords(): Added word: %s\n", skipWord.c_str());
+  if (debug) debug->printf("RSSreaderClass::addToSkipWords(): Added word: %s\n", skipWord.c_str());
+
+} // addToSkipWords()
+
+
+void RSSreaderClass::addWordStringToSkipWords(std::string wordList)
+{
+  if (debug && doDebug) debug->printf("RSSreaderClass::addWordStringToSkipWords(): wordList: [%s]\n", wordList.c_str());
+  // Current position in the string
+  size_t pos = 0;
+  size_t commaPos = 0;
+
+  // Iterate through the string
+  while (pos < wordList.length()) 
+  {
+    // Find the next comma
+    commaPos = wordList.find(',', pos);
+    
+    // If no more commas, use the rest of the string
+    if (commaPos == std::string::npos) 
+    {
+      commaPos = wordList.length();
+    }
+    
+    // Extract the word
+    std::string word = wordList.substr(pos, commaPos - pos);
+    
+    // Trim whitespace from the word
+    size_t start = word.find_first_not_of(" \t\r\n");
+    size_t end = word.find_last_not_of(" \t\r\n");
+    
+    if (start != std::string::npos && end != std::string::npos) 
+    {
+      word = word.substr(start, end - start + 1);
+      
+      // Add the word to the skipWords list
+      addToSkipWords(word);
+      
+      if (debug && doDebug) debug->printf("RSSreaderClass::addWordStringToSkipWords(): Added word: %s\n", word.c_str());
+    }
+    
+    // Move to the next word (skip the comma)
+    pos = commaPos + 1;
+  }
+
+} // addWordStringToSkipWords()
+
+
+bool RSSreaderClass::hasNoSkipWords(const String& title)
+{
+  // Create a copy of the title
+  String lowerTitle = title;
+  lowerTitle.toLowerCase();
+  
+  // Define word boundary characters
+  const char* boundaries = " .,;:!?()-[]{}\"'";
+  
+  // Process the title to add spaces around boundary characters
+  String processedTitle = " "; // Start with a space for boundary checking
+  for (size_t i = 0; i < lowerTitle.length(); i++) {
+    char c = lowerTitle[i];
+    bool isBoundary = false;
+    
+    // Check if the character is a boundary
+    for (size_t j = 0; boundaries[j] != '\0'; j++) {
+      if (c == boundaries[j]) {
+        isBoundary = true;
+        break;
+      }
+    }
+    
+    // Add space before boundary character if it's not already a space
+    if (isBoundary && c != ' ') {
+      processedTitle += ' ';
+    }
+    
+    // Add the character
+    processedTitle += c;
+    
+    // Add space after boundary character if it's not already a space
+    if (isBoundary && c != ' ') {
+      processedTitle += ' ';
+    }
+  }
+  processedTitle += " "; // End with a space for boundary checking
+  
+  // Check each skipWord
+  for (const auto& word : _skipWords)
+  {
+    // Create a copy of the word with spaces for boundary checking
+    String lowerWord = String(word.c_str());
+    lowerWord.toLowerCase();
+    String searchPattern = " " + lowerWord + " ";
+    
+    // Check if the processed title contains the skipWord with spaces around it
+    if (processedTitle.indexOf(searchPattern) != -1)
+    {
+      if (debug) debug->printf("RSSreaderClass::hasNoSkipWords(): Found skipWord [%s] in title [%s]\n", 
+                              word.c_str(), title.c_str());
+      return false; // Found a skipWord, so return false
+    }
+  }
+  
+  return true; // No skipWords found, so return true
+
+} // hasNoSkipWords()
+
+void RSSreaderClass::checkFeedHealth() 
+{
+  unsigned long currentTime = millis();
+  
+  // Only check once per hour
+  if (currentTime - _lastHealthCheck < _healthCheckInterval) {
+    return;
+  }
+  
+  _lastHealthCheck = currentTime;
+  
+  if (debug) debug->println("RSSreaderClass::checkFeedHealth(): Checking feed health...");
+  
+  for (uint8_t feedIndex = 0; feedIndex < _activeFeedCount; feedIndex++) 
+  {
+    std::vector<String> lines = getStoredLines(feedIndex);
+    
+    // If feed is empty or has very few items, force an update
+    if (lines.size() < _maxFeedsPerFile[feedIndex] / 4) {
+      if (debug) debug->printf("RSSreaderClass::checkFeedHealth(): Feed[%d] has only %d items, forcing update\n", 
+                              feedIndex, lines.size());
+      checkFeed(feedIndex);
+    }
+  }
+} // checkFeedHealth()
+
 
 void RSSreaderClass::createRSSfeedMap()
 {

@@ -16,8 +16,16 @@ public:
   bool addRSSfeed(const char* url, const char* path, size_t maxFeeds);
   bool getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex);
   String readRssFeed(uint8_t feedIndex, size_t itemIndex);
+  void checkFeedHealth();
+  void addToSkipWords(std::string noNoWord);
+  void addWordStringToSkipWords(std::string wordList);
 
 private:
+  struct FeedItem {
+    String title;
+    time_t pubDate;
+  };
+
   WiFiClientSecure secureClient;
   String _urls[10];
   String _paths[10];
@@ -36,7 +44,13 @@ private:
   size_t _currentItemIndices[10] = {0}; // Track current item index for each feed
   uint8_t _feedReadCounts[10] = {0}; // Track how many items we've read from each feed
   uint16_t _totalMaxFeeds = 0;       // Sum of all maxFeeds values
-  
+  unsigned long _lastHealthCheck = 0;
+  const unsigned long _healthCheckInterval = 3600000; // 1 hour
+  unsigned long _lastFeedUpdate[10] = {0}; // Track when each feed was last updated
+  std::vector<std::string> _skipWords;
+  bool hasSufficientWords(const String& title);
+  bool hasNoSkipWords(const String& title);
+
   String fetchFeed(const char* host, const char* path);
   std::vector<String> extractTitles(const String& feed);
   std::vector<String> getStoredLines(uint8_t feedIndex);
@@ -45,6 +59,9 @@ private:
   void checkForNewFeedItems();
   void checkFeed(uint8_t feedIndex);
   void deleteFeedsOlderThan(struct tm timeNow);
+  std::vector<FeedItem> extractFeedItems(const String& feed);
+  time_t parseRSSDate(const String& dateStr);
+
   Stream* debug = nullptr; // Optional, default to nullptr
 
   #ifdef RSSREADER_DEBUG

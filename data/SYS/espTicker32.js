@@ -253,7 +253,7 @@ function isEspTicker32Loaded()
         clearTimeout(renderDebounceTimer);
         renderDebounceTimer = setTimeout(() => {
           // Initialize with the data
-          initializeDevSettings(lastReceivedData.data);
+          initializeDeviceSettings(lastReceivedData.data);
         }, 100);
       }
       // Check if this is our custom parolaSettingsData message
@@ -406,7 +406,7 @@ function isEspTicker32Loaded()
     isRequestingMediastackSettings = true;
     requestMediastackSettings();
   }  
-  // Check if the page is ready for mediastack settings (only for RSSfeed Settings page)
+  // Check if the page is ready for rssfeed settings (only for RSSfeed Settings page)
   if (pageTitle.includes("RSSfeed Settings") && isPageReadyForRssfeedSettings() && !isRequestingRssfeedSettings) 
     {
       console.log("Page is ready for rssfeed settings, requesting data from server");
@@ -640,7 +640,6 @@ function renderMediastackSettings()
         input.min = field.fieldMin;
         input.max = field.fieldMax;
         input.step = field.fieldStep;
-        
         input.dataset.fieldName = field.fieldName;
         input.dataset.fieldType = field.fieldType;
         input.addEventListener('input', updateMediastackSettings);
@@ -1027,23 +1026,23 @@ function isPageReadyForDeviceSettings()
 } // isPageReadyForDeviceSettings()
 
 // Function to initialize the device settings from JSON
-function initializeDevSettings(jsonString) 
+function initializeDeviceSettings(jsonString) 
 {
-  console.log('initializeDevSettings called with:', jsonString);
+  console.log('initializeDeviceSettings called with:', jsonString);
   try {
     deviceSettings = JSON.parse(jsonString) || { fields: [] };
-    renderDevSettings();
+    renderDeviceSettings();
   } catch (e) {
     console.error('Error parsing JSON:', e);
     deviceSettings = { fields: [] };
   }
 
-} //  initializeDevSettings()
+} //  initializeDeviceSettings()
 
 // Function to render the device settings in the table
-function renderDevSettings() 
+function renderDeviceSettings() 
 {
-  console.log('renderDevSettings called');
+  console.log('renderDeviceSettings called');
   
   // Check if the page is ready
   if (!isPageReadyForDeviceSettings()) {
@@ -1085,7 +1084,7 @@ function renderDevSettings()
 
         input.dataset.fieldName = field.fieldName;  // ADD THIS LINE
         input.dataset.fieldType = field.fieldType;  // ADD THIS LINE
-        input.addEventListener('input', updateDevSetting);  // ADD THIS LINE
+        input.addEventListener('input', updateDeviceSetting);  // ADD THIS LINE
 
         // Create a container for the input and range text
         const container = document.createElement('div');
@@ -1116,7 +1115,7 @@ function renderDevSettings()
       input.style.width = '100%';
       input.dataset.fieldName = field.fieldName;
       input.dataset.fieldType = field.fieldType;
-      input.addEventListener('input', updateDevSetting);
+      input.addEventListener('input', updateDeviceSetting);
       
       valueCell.appendChild(input);
       row.appendChild(promptCell);
@@ -1130,10 +1129,10 @@ function renderDevSettings()
     settingsNameElement.textContent = 'Device Settings';
   }
 
-} // renderDevSettings()
+} // renderDeviceSettings()
 
 // Function to update a device setting
-function updateDevSetting(event) 
+function updateDeviceSetting(event) 
 {
   const input = event.target || this;
   const fieldName = input.dataset.fieldName;
@@ -1150,14 +1149,14 @@ function updateDevSetting(event)
     }
   }
 
-} //  updateDevSetting()
+} //  updateDeviceSetting()
 
 // Function to request device settings data from the server
 function requestDeviceSettings() 
 {
   console.log("Requesting device settings data from server");
   window.ws.send(JSON.stringify({
-    type: 'requestDevSettings'
+    type: 'requestDeviceSettings'
   }));
 } //  requestDeviceSettings()
 
@@ -1175,7 +1174,7 @@ function saveSettings()
   
   if (settingsName === 'Device Settings') {
     settingsObj = deviceSettings;
-    processType = 'saveDevSettings';
+    processType = 'saveDeviceSettings';
     dataKey = 'deviceSettingsData';
   } else if (settingsName === 'Parola Settings') {
     settingsObj = parolaSettings;
@@ -1457,7 +1456,7 @@ function isEspTicker32Loaded()
         console.log('Received device settings data');
         
         // Initialize with the data
-        initializeDevSettings(data.data);
+        initializeDeviceSettings(data.data);
       }
       // Check if this is our custom parolaSettingsData message
       else if (data.type === 'custom' && data.action === 'parolaSettingsData') {
@@ -1547,7 +1546,7 @@ function isEspTicker32Loaded()
     console.log("Page is ready for mediastack settings, requesting data from server");
     requestMediastackSettings();
   }  
-  // Check if the page is ready for mediastack settings (only for RSSfeed Settings page)
+  // Check if the page is ready for rssfeed settings (only for RSSfeed Settings page)
   if (pageTitle.includes("RSSfeed Settings") && isPageReadyForRssfeedSettings()) 
     {
       console.log("Page is ready for rssfeed settings, requesting data from server");
