@@ -17,6 +17,8 @@ public:
   bool getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex);
   String readRssFeed(uint8_t feedIndex, size_t itemIndex);
   void checkFeedHealth();
+  void addToSkipWords(std::string noNoWord);
+  void addWordStringToSkipWords(std::string wordList);
 
 private:
   struct FeedItem {
@@ -45,7 +47,9 @@ private:
   unsigned long _lastHealthCheck = 0;
   const unsigned long _healthCheckInterval = 3600000; // 1 hour
   unsigned long _lastFeedUpdate[10] = {0}; // Track when each feed was last updated
+  std::vector<std::string> _skipWords;
   bool hasSufficientWords(const String& title);
+  bool hasNoSkipWords(const String& title);
 
   String fetchFeed(const char* host, const char* path);
   std::vector<String> extractTitles(const String& feed);

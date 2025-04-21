@@ -109,7 +109,7 @@ public:
   uint8_t LDRMinWaarde;
   uint8_t LDRMaxWaarde;
   uint8_t maxIntensiteitLeds;
-  std::string skipItems;
+  std::string skipWords;
   uint8_t tickerSpeed;
   
   // Weerlive settings data

@@ -20,7 +20,7 @@ void SettingsClass::initializeSettingsContainers()
   deviceContainer.addField({"LDRMinWaarde", "LDR Min. Waarde", "n", 0, 10, 100, 1, &LDRMinWaarde});
   deviceContainer.addField({"LDRMaxWaarde", "LDR Max. Waarde", "n", 0, 11, 101, 1, &LDRMaxWaarde});
   deviceContainer.addField({"maxIntensiteitLeds", "Max. Intensiteit LEDS", "n", 0, 10, 55, 1, &maxIntensiteitLeds});
-  deviceContainer.addField({"skipItems", "Words to skip", "s", 256, 0, 0, 0, &skipItems});
+  deviceContainer.addField({"skipWords", "Words to skip", "s", 250, 0, 0, 0, &skipWords});
   settingsContainers["deviceSettings"] = deviceContainer;
   
   // Weerlive settings
@@ -30,14 +30,16 @@ void SettingsClass::initializeSettingsContainers()
   weerliveContainer.addField({"requestInterval", "Request Interval (minuten)", "n", 0, 10, 120, 1, &weerliveRequestInterval});
   settingsContainers["weerliveSettings"] = weerliveContainer;
   
+  #ifdef USE_MEDIASTACK
   // Mediastack settings
-  SettingsContainer mediastackContainer("Mediastack Settings", "/Mediastack.ini", "mediastackSettings");
-  mediastackContainer.addField({"authToken", "mediastack Auth. Token", "s", 32, 0, 0, 0, &mediastackAuthToken});
-  mediastackContainer.addField({"maxMessages", "Max. Messages to save", "n", 0, 0, 50, 1, &mediastackMaxMessages});
-  mediastackContainer.addField({"requestInterval", "Request Interval (minuten)", "n", 0, 60, 240, 1, &mediastackRequestInterval});
-  mediastackContainer.addField({"onlyDuringDay", "Update alleen tussen 08:00 en 18:00", "n", 0, 0, 1, 1, &mediastackOnlyDuringDay});
-  settingsContainers["mediastackSettings"] = mediastackContainer;
-  
+    SettingsContainer mediastackContainer("Mediastack Settings", "/Mediastack.ini", "mediastackSettings");
+    mediastackContainer.addField({"authToken", "mediastack Auth. Token", "s", 32, 0, 0, 0, &mediastackAuthToken});
+    mediastackContainer.addField({"maxMessages", "Max. Messages to save", "n", 0, 0, 50, 1, &mediastackMaxMessages});
+    mediastackContainer.addField({"requestInterval", "Request Interval (minuten)", "n", 0, 60, 240, 1, &mediastackRequestInterval});
+    mediastackContainer.addField({"onlyDuringDay", "Update alleen tussen 08:00 en 18:00", "n", 0, 0, 1, 1, &mediastackOnlyDuringDay});
+    settingsContainers["mediastackSettings"] = mediastackContainer;
+  #endif
+
   // Parola settings
   SettingsContainer parolaContainer("Parola Settings", "/parola.ini", "parolaSettings");
   parolaContainer.addField({"hardwareType", "Type (1=PAROLA_HW, 2=FC16_HW, 3=GENERIC_HW)", "n", 0, 1, 3, 1, &parolaHardwareType});

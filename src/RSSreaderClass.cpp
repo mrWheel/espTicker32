@@ -12,6 +12,67 @@ RSSreaderClass::RSSreaderClass()
   for (int i = 0; i < 10; i++) {
     _lastFeedUpdate[i] = 0;
   }
+  // Initialize skipWords with football club names
+  _skipWords = {
+    "ADO", "AFC", "Almere City", "AZ", "De Graafschap", "De Treffers", "Excelsior",
+    "Excelsior", "FC Den Bosch", "FC Dordrecht", "FC Eindhoven", "FC Emmen", "FC Groningen",
+    "FC Twente", "FC Utrecht", "FC Volendam", "Feyenoord", "Fortuna Sittard", "Go Ahead", "Eagles",
+    "GVVV", "HHC Hardenberg", "Helmond Sport", "Heracles", "IJsselmeervogels", "Katwijk",
+    "Koninklijke HFC", "HFC", "Lisse", "MVV", "NAC", "NEC", "Noordwijk", "PEC Zwolle", "PSV",
+    "Quick Boys", "RKC Waalwijk", "RKC", "Rijnsburgse Boys", "Roda JC", "SC Heerenveen", "Spakenburg",
+    "Sparta", "Telstar", "TEC", "TOP Oss", "FC Utrecht", "VVSB", "VVV-Venlo",
+    "Vitesse", "Willem II"
+    "Champions League", "Europa League", "Europa Conference League", "Super Cup",
+    "Kategoria Superiore", "Kategoria e Parë",
+    "Armenian Premier League",
+    "Austrian Bundesliga", "2. Liga",
+    "Azerbaijan Premier League",
+    "Belarusian Premier League",
+    "Belgian Pro League", "Challenger Pro League",
+    "Premier League of Bosnia and Herzegovina",
+    "First Professional Football League",
+    "Croatian First Football League",
+    "Cypriot First Division",
+    "Czech First League", "Czech National Football League",
+    "Danish Superliga", "1st Division",
+    "Premier League", "EFL Championship", "League One", "League Two", "National League", "National League North", "National League South",
+    "Meistriliiga",
+    "Faroe Islands Premier League",
+    "Veikkausliiga", "Ykkönen",
+    "Ligue 1", "Ligue 2", "Championnat National",
+    "Erovnuli Liga",
+    "Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga",
+    "Gibraltar Football League",
+    "Super League Greece", "Super League 2",
+    "Nemzeti Bajnokság I", "Nemzeti Bajnokság II",
+    "Úrvalsdeild karla",
+    "League of Ireland Premier Division", "League of Ireland First Division",
+    "Serie A", "Serie B", "Serie C",
+    "Football Superleague of Kosovo",
+    "Latvian Higher League",
+    "A Lyga",
+    "Luxembourg National Division",
+    "Maltese Premier League",
+    "Moldovan Super Liga",
+    "Montenegrin First League",
+    "Eredivisie", "Eerste Divisie", "Tweede Divisie", "Derde Divisie",
+    "Macedonian First Football League",
+    "Eliteserien", "OBOS-ligaen",
+    "Ekstraklasa", "I liga",
+    "Primeira Liga", "Liga Portugal 2",
+    "Liga I", "Liga II",
+    "Russian Premier League", "Russian First League",
+    "Campionato Sammarinese di Calcio",
+    "Serbian SuperLiga",
+    "Slovak Super Liga",
+    "Slovenian PrvaLiga",
+    "La Liga", "Segunda División", "Primera Federación", "Segunda Federación",
+    "Allsvenskan", "Superettan",
+    "Swiss Super League", "Challenge League",
+    "Ukrainian Premier League",
+    "Vatican City Championship",
+    "Cymru Premier"
+  };
 
 } // RSSreaderClass()
 
@@ -434,7 +495,7 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
   // Filter items that have sufficient words
   for (const auto& item : feedItems) 
   {
-    if (hasSufficientWords(item.title)) 
+    if (hasSufficientWords(item.title) && hasNoSkipWords(item.title)) 
     {
       if (debug && doDebug) debug->printf("RSSreaderClass::checkFeed(): Titel gevonden: %s (timestamp: %ld)\n", 
                               item.title.c_str(), item.pubDate);
@@ -465,7 +526,7 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
   {
     if (debug) debug->println("RSSreaderClass::checkFeed(): Kan niet naar bestand schrijven.");
   }
-  
+
 } // checkFeed()
 
 
@@ -487,17 +548,20 @@ void RSSreaderClass::checkForNewFeedItems()
     }
 
     std::vector<String> existing = getStoredLines(feedIndex);
-    std::vector<String> newTitles = extractTitles(feed);
+    std::vector<FeedItem> feedItems = extractFeedItems(feed);
     std::vector<String> updated = existing;
     bool changed = false;
 
-    for (const auto& title : newTitles) 
+    for (const auto& item : feedItems) 
     {
-      if (!titleExists(title, existing) && hasSufficientWords(title)) 
+      // Create a formatted string with timestamp|title
+      String formattedTitle = String(item.pubDate) + "|" + item.title;
+      
+      if (!titleExists(item.title, existing) && hasSufficientWords(item.title) && hasNoSkipWords(item.title)) 
       {
-        if (debug && doDebug) debug->printf("RSSreaderClass::checkForNewFeedItems(): Nieuwe titel gevonden: %s\n", title.c_str());
-        time_t now = time(nullptr);
-        updated.push_back(String(now) + "|" + title);
+        if (debug && doDebug) debug->printf("RSSreaderClass::checkForNewFeedItems(): Nieuwe titel gevonden: %s (timestamp: %ld)\n", 
+                              item.title.c_str(), item.pubDate);
+        updated.push_back(formattedTitle);
         changed = true;
       }
     }
@@ -533,7 +597,9 @@ void RSSreaderClass::checkForNewFeedItems()
     }
   }
 
+
 } // checkForNewFeedItems()
+
 
 void RSSreaderClass::deleteFeedsOlderThan(struct tm timeNow) 
 {
@@ -732,6 +798,116 @@ bool RSSreaderClass::hasSufficientWords(const String& title)
 
 } // hasSufficientWords()
 
+void RSSreaderClass::addToSkipWords(std::string skipWord)
+{
+  _skipWords.push_back(skipWord);
+  //if (debug && doDebug) debug->printf("RSSreaderClass::addToSkipWords(): Added word: %s\n", skipWord.c_str());
+  if (debug) debug->printf("RSSreaderClass::addToSkipWords(): Added word: %s\n", skipWord.c_str());
+
+} // addToSkipWords()
+
+
+void RSSreaderClass::addWordStringToSkipWords(std::string wordList)
+{
+  if (debug && doDebug) debug->printf("RSSreaderClass::addWordStringToSkipWords(): wordList: [%s]\n", wordList.c_str());
+  // Current position in the string
+  size_t pos = 0;
+  size_t commaPos = 0;
+
+  // Iterate through the string
+  while (pos < wordList.length()) 
+  {
+    // Find the next comma
+    commaPos = wordList.find(',', pos);
+    
+    // If no more commas, use the rest of the string
+    if (commaPos == std::string::npos) 
+    {
+      commaPos = wordList.length();
+    }
+    
+    // Extract the word
+    std::string word = wordList.substr(pos, commaPos - pos);
+    
+    // Trim whitespace from the word
+    size_t start = word.find_first_not_of(" \t\r\n");
+    size_t end = word.find_last_not_of(" \t\r\n");
+    
+    if (start != std::string::npos && end != std::string::npos) 
+    {
+      word = word.substr(start, end - start + 1);
+      
+      // Add the word to the skipWords list
+      addToSkipWords(word);
+      
+      if (debug && doDebug) debug->printf("RSSreaderClass::addWordStringToSkipWords(): Added word: %s\n", word.c_str());
+    }
+    
+    // Move to the next word (skip the comma)
+    pos = commaPos + 1;
+  }
+
+} // addWordStringToSkipWords()
+
+
+bool RSSreaderClass::hasNoSkipWords(const String& title)
+{
+  // Create a copy of the title
+  String lowerTitle = title;
+  lowerTitle.toLowerCase();
+  
+  // Define word boundary characters
+  const char* boundaries = " .,;:!?()-[]{}\"'";
+  
+  // Process the title to add spaces around boundary characters
+  String processedTitle = " "; // Start with a space for boundary checking
+  for (size_t i = 0; i < lowerTitle.length(); i++) {
+    char c = lowerTitle[i];
+    bool isBoundary = false;
+    
+    // Check if the character is a boundary
+    for (size_t j = 0; boundaries[j] != '\0'; j++) {
+      if (c == boundaries[j]) {
+        isBoundary = true;
+        break;
+      }
+    }
+    
+    // Add space before boundary character if it's not already a space
+    if (isBoundary && c != ' ') {
+      processedTitle += ' ';
+    }
+    
+    // Add the character
+    processedTitle += c;
+    
+    // Add space after boundary character if it's not already a space
+    if (isBoundary && c != ' ') {
+      processedTitle += ' ';
+    }
+  }
+  processedTitle += " "; // End with a space for boundary checking
+  
+  // Check each skipWord
+  for (const auto& word : _skipWords)
+  {
+    // Create a copy of the word with spaces for boundary checking
+    String lowerWord = String(word.c_str());
+    lowerWord.toLowerCase();
+    String searchPattern = " " + lowerWord + " ";
+    
+    // Check if the processed title contains the skipWord with spaces around it
+    if (processedTitle.indexOf(searchPattern) != -1)
+    {
+      if (debug) debug->printf("RSSreaderClass::hasNoSkipWords(): Found skipWord [%s] in title [%s]\n", 
+                              word.c_str(), title.c_str());
+      return false; // Found a skipWord, so return false
+    }
+  }
+  
+  return true; // No skipWords found, so return true
+
+} // hasNoSkipWords()
 
 void RSSreaderClass::checkFeedHealth() 
 {
