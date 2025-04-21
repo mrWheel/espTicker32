@@ -10,13 +10,13 @@ void LocalMessagesClass::setDebug(Stream* debugPort) {
 std::string LocalMessagesClass::read(uint8_t recNr) {
     File file = LittleFS.open(path.c_str(), "r");
     if (!file) {
-        if (debug) debug->printf("read(): Failed to open file: %s\n", path.c_str());
+        if (debug) debug->printf("LocalMessagesClass::read(): Failed to open file: %s\n", path.c_str());
         return "";
     }
 
     size_t offset = recNr * recordSize;
     if (!file.seek(offset)) {
-        if (debug) debug->printf("read(): Failed to seek to record %d (offset %d)\n", recNr, offset);
+        if (debug) debug->printf("LocalMessagesClass::read(): Failed to seek to record %d (offset %d)\n", recNr, offset);
         file.close();
         return "";
     }
@@ -28,7 +28,7 @@ std::string LocalMessagesClass::read(uint8_t recNr) {
     file.close();
 
     if (bytesRead == 0) {
-        if (debug) debug->printf("read(): No data read for record %d\n", recNr);
+        if (debug) debug->printf("LocalMessagesClass::read(): No data read for record %d\n", recNr);
         return "";
     }
 
@@ -42,7 +42,7 @@ std::string LocalMessagesClass::read(uint8_t recNr) {
 
 bool LocalMessagesClass::write(uint8_t recNr, const char* data) {
     if (recNr == 0) {
-        if (debug) debug->println("write(): record number is zero, erase file");
+        if (debug) debug->println("LocalMessagesClass::write(): record number is zero, erase file");
         LittleFS.remove(path.c_str());
     }
 
@@ -55,19 +55,19 @@ bool LocalMessagesClass::write(uint8_t recNr, const char* data) {
     size_t trimmedLen = end - start;
 
     if (trimmedLen == 0) {
-        if (debug) debug->println("Skipped writing empty or space-only localMessage after trimming.");
+        if (debug) debug->println("LocalMessagesClass::write(): Skipped writing empty or space-only localMessage after trimming.");
         return false;
     }
 
     File file = LittleFS.open(path.c_str(), "a");
     if (!file) {
-        if (debug) debug->printf("write(): Failed to open file: %s\n", path.c_str());
+        if (debug) debug->printf("LocalMessagesClass::write(): Failed to open file: %s\n", path.c_str());
         return false;
     }
 
     size_t offset = recNr * recordSize;
     if (!file.seek(offset)) {
-        if (debug) debug->printf("write(): Failed to seek to record %d (offset %d)\n", recNr, offset);
+        if (debug) debug->printf("LocalMessagesClass::write(): Failed to seek to record %d (offset %d)\n", recNr, offset);
         file.close();
         return false;
     }
@@ -87,10 +87,10 @@ bool LocalMessagesClass::write(uint8_t recNr, const char* data) {
     file.close();
 
     if (bytesWritten != recordSize) {
-        if (debug) debug->printf("write(): Incomplete write: expected %d bytes, wrote %d bytes\n", recordSize, bytesWritten);
+        if (debug) debug->printf("LocalMessagesClass::write(): Incomplete write: expected %d bytes, wrote %d bytes\n", recordSize, bytesWritten);
         return false;
     }
 
-    if (debug) debug->printf("Successfully wrote record %d: '%.*s'\n", recNr, (int)trimmedLen, start);
+    if (debug) debug->printf("LocalMessagesClass::Successfully wrote record %d: '%.*s'\n", recNr, (int)trimmedLen, start);
     return true;
 }

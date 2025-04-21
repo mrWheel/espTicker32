@@ -32,6 +32,12 @@ ParolaManager parola(5);  // 5 = your CS pin
 #define LOCAL_MESSAGES_PATH      "/localMessages.txt"
 #define LOCAL_MESSAGES_RECORD_SIZE  150
 
+#ifdef ESPTICKER32_DEBUG
+  bool doDebug = true;
+#else
+  bool doDebug = false;
+#endif
+
 Networking* network = nullptr;
 Stream* debug = nullptr;
 
@@ -84,12 +90,14 @@ String getMediastackMessage()
     msgNr = 0;
     snprintf(mediastackMessage, sizeof(mediastackMessage), "%s", mediastack.readFileById("NWS", msgNr).c_str());
   } 
-  debug->printf("getMediastackMessage(): msgNr = [%d] mediastackMessage = [%s]\n", msgNr, mediastackMessage);
+  if (debug && doDebug) debug->printf("getMediastackMessage(): msgNr = [%d] mediastackMessage = [%s]\n", msgNr, mediastackMessage);
   msgNr++;
   return mediastackMessage;
 
 } // getMediastackMessage()
 #endif
+
+
 String getRSSfeedMessage()
 {
   uint8_t feedIndex = 0;
@@ -99,6 +107,7 @@ String getRSSfeedMessage()
   // Get the next feed item indices
   if (rssReader.getNextFeedItem(feedIndex, itemIndex))
   {
+    // Read the feed content
     snprintf(rssFeedMessage, sizeof(rssFeedMessage), "[%d][%d] %s"
                                             , feedIndex, itemIndex
                                             , rssReader.readRssFeed(feedIndex, itemIndex).c_str());
@@ -112,7 +121,7 @@ String getRSSfeedMessage()
     }
   }
   
-  debug->printf("getRSSfeedMessage(): feedNr[%d], msgNr[%d] rssFeedMessage[%s]\n" 
+  if (debug && doDebug) debug->printf("getRSSfeedMessage(): feedNr[%d], msgNr[%d] rssFeedMessage[%s]\n" 
                                   , feedIndex, itemIndex, rssFeedMessage);
   
   return rssFeedMessage;
@@ -130,10 +139,11 @@ String getLocalMessage()
     msgNr = 0;
     snprintf(localMessage, sizeof(localMessage), "%s", localMessages.read(msgNr++).c_str());
   } 
-  debug->printf("getLocalMessage(): msgNr = [%d] localMessage = [%s]\n", msgNr, localMessage);
+  if (debug && doDebug) debug->printf("getLocalMessage(): msgNr = [%d] localMessage = [%s]\n", msgNr, localMessage);
   return localMessage;
 
 } // getLocalMessage()
+
 
 std::string nextMessage()
 {
@@ -144,42 +154,47 @@ std::string nextMessage()
 
     if (strcmp(newMessage.c_str(), "<weerlive>") == 0) 
     {
-        debug->println("nextMessage(): weerlive message");
+        if (debug && doDebug) debug->println("nextMessage(): weerlive message");
         newMessage = getWeerliveMessage().c_str();
     }
 #ifdef USE_MEDIASTACK
     else if (strcmp(newMessage.c_str(), "<mediastack>") == 0) 
     {
-        debug->println("nextMessage(): mediastack message");
+        if (debug && doDebug) debug->println("nextMessage(): mediastack message");
         newMessage = getMediastackMessage().c_str();
     }
 #endif
     else if (strcmp(newMessage.c_str(), "<rssfeed>") == 0) 
     {
-        debug->println("nextMessage(): rssfeed message");
+        if (debug && doDebug) if (debug && doDebug) debug->println("nextMessage(): rssfeed message");
         newMessage = getRSSfeedMessage().c_str();
     }
     else if (strcmp(newMessage.c_str(), "<date>") == 0) 
     {
-        debug->println("nextMessage(): The Date");
+        if (debug && doDebug) if (debug && doDebug) debug->println("nextMessage(): The Date");
         newMessage = network->ntpGetDate();
     }
     else if (strcmp(newMessage.c_str(), "<time>") == 0) 
     {
-        debug->println("nextMessage(): The Time");
+        if (debug && doDebug) debug->println("nextMessage(): The Time");
         newMessage = network->ntpGetTime();
     }
     else if (strcmp(newMessage.c_str(), "<datetime>") == 0) 
     {
-        debug->println("nextMessage(): The Date & Time");
+        if (debug && doDebug) debug->println("nextMessage(): The Date & Time");
         newMessage = network->ntpGetDateTime();
     }
     else if (strcmp(newMessage.c_str(), "<spaces>") == 0) 
     {
-        debug->println("nextMessage(): spaces");
+        if (debug && doDebug) debug->println("nextMessage(): spaces");
         newMessage = "                                                                                     ";
     }
-    debug->printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
+    //if (newMessage.length() < 1) 
+    //{
+    //  if (debug) debug->println("nextMessage(): newMessage is empty!");
+    //  //return newMessage; 
+    //}
+    if (debug && doDebug) debug->printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
     parola.sendNextText(("* "+newMessage+"*  ").c_str());
     spa.callJsFunction("queueMessageToMonitor", ("* "+newMessage+" *").c_str());
 
@@ -231,7 +246,7 @@ std::string buildLocalMessagesJson()
 void sendLocalMessagesToClient()
 {
   std::string jsonData = buildLocalMessagesJson();
-  debug->printf("sendLocalMessagesToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
+  if (debug && doDebug) debug->printf("sendLocalMessagesToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
   
   // First, send the HTML content for the input fields
   DynamicJsonDocument doc(1024);
@@ -278,7 +293,7 @@ void sendLocalMessagesToClient()
   
   std::string jsonMessage;
   serializeJson(jsonDoc, jsonMessage);
-  debug->printf("sendLocalMessagesToClient(): Sending JSON message to client: %s\n", jsonMessage.c_str());
+  if (debug && doDebug) debug->printf("sendLocalMessagesToClient(): Sending JSON message to client: %s\n", jsonMessage.c_str());
   // Send the JSON message via WebSocket
   spa.ws.broadcastTXT(jsonMessage.c_str(), jsonMessage.length());
   
@@ -290,8 +305,8 @@ void processLocalMessages(const std::string& jsonString)
 {
   uint8_t recNr = 0; // record number
 
-  debug->println("processLocalMessages(): Processing input fields from JSON:");
-  debug->println(jsonString.c_str());
+  if (debug && doDebug) debug->println("processLocalMessages(): Processing input fields from JSON:");
+  if (debug && doDebug) debug->println(jsonString.c_str());
   
   //-- Use ArduinoJson library to parse the JSON
   DynamicJsonDocument doc(1024);
@@ -299,27 +314,27 @@ void processLocalMessages(const std::string& jsonString)
   
   if (error) 
   {
-    debug->printf("processLocalMessages(): JSON parsing error: %s\n", error.c_str());
+    if (debug && doDebug) debug->printf("processLocalMessages(): JSON parsing error: %s\n", error.c_str());
     return;
   }
   
   if (!doc.is<JsonArray>()) 
   {
-    debug->println("processLocalMessages(): JSON is not an array");
+    if (debug && doDebug) debug->println("processLocalMessages(): JSON is not an array");
     return;
   }
   
   JsonArray array = doc.as<JsonArray>();
-  debug->printf("processLocalMessages(): Processing array with %d elements\n", array.size());
+  if (debug && doDebug) debug->printf("processLocalMessages(): Processing array with %d elements\n", array.size());
   
   for (size_t i = 0; i < array.size(); i++) {
     // Safely handle each value, even if it's null or empty
     if (array[i].isNull()) {
-      debug->println("processLocalMessages(): Skip (null)\n");
+      if (debug && doDebug) debug->println("processLocalMessages(): Skip (null)\n");
     } else {
       // Use String for Arduino compatibility, which handles empty strings properly
       String value = array[i].as<String>();
-      debug->printf("processLocalMessages(): Input value[%d]: %s\n", i, value.c_str());
+      if (debug && doDebug) debug->printf("processLocalMessages(): Input value[%d]: %s\n", i, value.c_str());
       if (localMessages.write(recNr, value.c_str()))
       {
         recNr++;
@@ -327,7 +342,7 @@ void processLocalMessages(const std::string& jsonString)
     }
   }
   
-  debug->printf("processLocalMessages(): [%d] Local Messages written to [%s]\n", recNr, LOCAL_MESSAGES_PATH);
+  if (debug && doDebug) debug->printf("processLocalMessages(): [%d] Local Messages written to [%s]\n", recNr, LOCAL_MESSAGES_PATH);
   sendLocalMessagesToClient();
 
 } // processLocalMessages()
@@ -338,7 +353,7 @@ void processLocalMessages(const std::string& jsonString)
 void sendSettingFieldToClient(const std::string& settingsType)
 {
   std::string jsonData = settings.buildJsonFieldsString(settingsType);
-  debug->printf("sendSettingFieldToClient(): Sending JSON data for %s to client: %s\n", settingsType.c_str(), jsonData.c_str());
+  if (debug && doDebug) debug->printf("sendSettingFieldToClient(): Sending JSON data for %s to client: %s\n", settingsType.c_str(), jsonData.c_str());
   
   // First, send the HTML content for the settings fields
   DynamicJsonDocument doc(4096);
@@ -530,13 +545,13 @@ void sendParolaFieldsToClient()
 // Generic function to process settings from the client
 void processSettings(const std::string& jsonString, const std::string& settingsType)
 {
-  debug->printf("processSettings(): Processing %s settings from JSON:\n", settingsType.c_str());
-  debug->println(jsonString.c_str());
+  if (debug && doDebug) debug->printf("processSettings(): Processing %s settings from JSON:\n", settingsType.c_str());
+  if (debug && doDebug) debug->println(jsonString.c_str());
   
   // Get the settings container for this type
   const SettingsContainer* container = settings.getSettingsContainer(settingsType);
   if (!container) {
-    debug->printf("processSettings(): Unknown settings type: %s\n", settingsType.c_str());
+    if (debug && doDebug) debug->printf("processSettings(): Unknown settings type: %s\n", settingsType.c_str());
     return;
   }
   
@@ -546,19 +561,19 @@ void processSettings(const std::string& jsonString, const std::string& settingsT
   
   if (error) 
   {
-    debug->printf("processSettings(): JSON parsing error: %s\n", error.c_str());
+    if (debug && doDebug) debug->printf("processSettings(): JSON parsing error: %s\n", error.c_str());
     return;
   }
   
   // Check if the JSON has the expected structure
   if (!doc.containsKey("fields") || !doc["fields"].is<JsonArray>()) 
   {
-    debug->println("processSettings(): JSON does not contain fields array");
+    if (debug && doDebug) debug->println("processSettings(): JSON does not contain fields array");
     return;
   }
   
   JsonArray fields = doc["fields"].as<JsonArray>();
-  debug->printf("processSettings(): Processing array with %d fields\n", fields.size());
+  if (debug && doDebug) debug->printf("processSettings(): Processing array with %d fields\n", fields.size());
   
   // Get the field descriptors for this settings type
   const std::vector<FieldDescriptor>& fieldDescriptors = container->getFields();
@@ -568,7 +583,7 @@ void processSettings(const std::string& jsonString, const std::string& settingsT
   {
     if (!field.containsKey("fieldName") || !field.containsKey("value")) 
     {
-      debug->println("processSettings(): Field missing required properties");
+      if (debug && doDebug) debug->println("processSettings(): Field missing required properties");
       continue;
     }
     
@@ -589,7 +604,7 @@ void processSettings(const std::string& jsonString, const std::string& settingsT
       {
         // String field
         std::string newValue = field["value"].as<std::string>();
-        debug->printf("processSettings(): Setting %s to [%s]\n", fieldName, newValue.c_str());
+        if (debug && doDebug) debug->printf("processSettings(): Setting %s to [%s]\n", fieldName, newValue.c_str());
         
         // Update the value using the field pointer
         std::string* valuePtr = static_cast<std::string*>(descriptor.fieldValue);
@@ -599,7 +614,7 @@ void processSettings(const std::string& jsonString, const std::string& settingsT
       {
         // Numeric field
         uint8_t newValue = field["value"].as<uint8_t>();
-        debug->printf("processSettings(): Setting %s to [%d]\n", fieldName, newValue);
+        if (debug && doDebug) debug->printf("processSettings(): Setting %s to [%d]\n", fieldName, newValue);
         
         // Update the value using the field pointer
         uint8_t* valuePtr = static_cast<uint8_t*>(descriptor.fieldValue);
@@ -608,12 +623,12 @@ void processSettings(const std::string& jsonString, const std::string& settingsT
     } 
     else 
     {
-      debug->printf("processSettings(): Unknown field: %s\n", fieldName);
+      if (debug && doDebug) debug->printf("processSettings(): Unknown field: %s\n", fieldName);
     }
   }
   
   // Save settings using the generic method
-  debug->printf("processSettings(): Saving settings for type: %s\n", settingsType.c_str());
+  if (debug && doDebug) debug->printf("processSettings(): Saving settings for type: %s\n", settingsType.c_str());
   //-not yet- spa.setPopupMessage("Saving settings ...", 1);
   settings.writeSettingFields(settingsType);
   
@@ -636,12 +651,12 @@ void processSettings(const std::string& jsonString, const std::string& settingsT
 // WebSocket event handler to receive messages from the client
 void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
   // This function will be called when no other event handlers match
-  debug->printf("handleLocalWebSocketEvent(): WebSocket event type: %d\n", type);
+  if (debug) if (debug && doDebug) debug->printf("handleLocalWebSocketEvent(): WebSocket event type: %d\n", type);
   
   // Check the WebSocket event type
   if (type == WStype_TEXT) {
     // Handle text data
-    debug->println("handleLocalWebSocketEvent(): Received text data that wasn't handled by other event handlers");
+    if (debug && doDebug)if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Received text data that wasn't handled by other event handlers");
     
     // Ensure null termination of the payload
     payload[length] = 0;
@@ -651,14 +666,14 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
     DeserializationError error = deserializeJson(doc, payload);
     
     if (error) {
-      debug->printf("handleLocalWebSocketEvent(): JSON parsing error: %s\n", error.c_str());
+      if (debug && doDebug) debug->printf("handleLocalWebSocketEvent(): JSON parsing error: %s\n", error.c_str());
       return;
     }
     
     // Check if this is a jsFunctionResult message
     if (doc["type"] == "jsFunctionResult") 
     {
-      debug->println("handleLocalWebSocketEvent(): Handling jsFunctionResult message");
+      if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling jsFunctionResult message");
       
       // Extract the function name and result
       const char* functionName = doc["function"];
@@ -667,21 +682,21 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
       // Safely print the function name and result with null checks
       if (functionName && result) 
       {
-        debug->printf("handleLocalWebSocketEvent(): JavaScript function [%s] returned result: %s\n", 
+        if (debug && doDebug) debug->printf("handleLocalWebSocketEvent(): JavaScript function [%s] returned result: %s\n", 
                       functionName, result);
         
         // Handle specific function results if needed
         if (strcmp(functionName, "queueMessageToMonitor") == 0) 
         {
-          debug->printf("handleLocalWebSocketEvent(): queueMessageToMonitor result: %s\n", result);
+          if (debug && doDebug) debug->printf("handleLocalWebSocketEvent(): queueMessageToMonitor result: %s\n", result);
           // Add any specific handling for queueMessageToMonitor results here
         }
       } else {
-        debug->println("handleLocalWebSocketEvent(): Received jsFunctionResult with null function name or result");
+        if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Received jsFunctionResult with null function name or result");
         if (functionName) {
-          debug->printf("handleLocalWebSocketEvent(): JavaScript function [%s] returned null result\n", functionName);
+          if (debug && doDebug) debug->printf("handleLocalWebSocketEvent(): JavaScript function [%s] returned null result\n", functionName);
         } else if (result) {
-          debug->printf("handleLocalWebSocketEvent(): Unknown JavaScript function returned result: %s\n", result);
+          if (debug && doDebug) debug->printf("handleLocalWebSocketEvent(): Unknown JavaScript function returned result: %s\n", result);
         }
       }
       
@@ -690,42 +705,42 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
     
     // Check if this is a requestLocalMessages message
     if (doc["type"] == "requestLocalMessages") {
-      debug->println("handleLocalWebSocketEvent(): Handling requestLocalMessages message");
+      if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling requestLocalMessages message");
       sendLocalMessagesToClient();
       return;
     }
     
     // Check if this is a requestDeviceSettings message
     if (doc["type"] == "requestDeviceSettings") {
-      debug->println("handleLocalWebSocketEvent(): Handling requestDeviceSettings message");
+      if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling requestDeviceSettings message");
       sendDeviceFieldsToClient();
       return;
     }
     
     // Check if this is a requestParolaSettings message
     if (doc["type"] == "requestParolaSettings") {
-      debug->println("handleLocalWebSocketEvent(): Handling requestParolaSettings message");
+      if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling requestParolaSettings message");
       sendParolaFieldsToClient();
       return;
     }
     
     // Check if this is a requestWeerliveSettings message
     if (doc["type"] == "requestWeerliveSettings") {
-      debug->println("handleLocalWebSocketEvent(): Handling requestWeerliveSettings message");
+      if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling requestWeerliveSettings message");
       sendWeerliveFieldsToClient();
       return;
     }
 #ifdef USE_MEDIASTACK
     // Check if this is a requestMediastackSettings message
     if (doc["type"] == "requestMediastackSettings") {
-      debug->println("handleLocalWebSocketEvent(): Handling requestMediastackSettings message");
+      if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling requestMediastackSettings message");
       sendMediastackFieldsToClient();
       return;
     }    
 #endif
     // Check if this is a requestRssfeedSettings message
     if (doc["type"] == "requestRssfeedSettings") {
-      debug->println("handleLocalWebSocketEvent(): Handling requestRssfeedSettings message");
+      if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling requestRssfeedSettings message");
       sendRssfeedFieldsToClient();
       return;
     }    
@@ -733,12 +748,12 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
     if (doc["type"] == "process") 
     {
       const char* processType = doc["processType"];
-      debug->printf("handleLocalWebSocketEvent(): Processing message type: %s\n", processType);
+      if (debug && doDebug) debug->printf("handleLocalWebSocketEvent(): Processing message type: %s\n", processType);
       
       // Check if this is a saveLocalMessages message
       if (strcmp(processType, "saveLocalMessages") == 0) 
       {
-        debug->println("handleLocalWebSocketEvent(): Handling saveLocalMessages message");
+        if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling saveLocalMessages message");
       //spa.setPopupMessage("Saving Local Messages ...", 1);
         
         // Check if inputValues exists and contains LocalMessagesData
@@ -747,123 +762,123 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
 
           // Get the LocalMessagesData as a string
           const char* LocalMessagesData = doc["inputValues"]["LocalMessagesData"];
-          debug->println("handleLocalWebSocketEvent(): Received input fields data:");
-          debug->println(LocalMessagesData);
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Received input fields data:");
+          if (debug && doDebug) debug->println(LocalMessagesData);
           
           // Process the input fields data
           processLocalMessages(LocalMessagesData);
         } else {
-          debug->println("handleLocalWebSocketEvent(): No LocalMessagesData found in the message");
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): No LocalMessagesData found in the message");
         }
       } // saveLocalMessages 
       // Handle settings processing generically
       else if (strcmp(processType, "saveDeviceSettings") == 0) 
       {
-        debug->println("handleLocalWebSocketEvent(): Handling saveDeviceSettings message");
+        if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling saveDeviceSettings message");
         
         // Check if inputValues exists and contains deviceSettingsData
         if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("deviceSettingsData")) 
         {
           // Get the deviceSettingsData as a string
           const char* deviceSettingsData = doc["inputValues"]["deviceSettingsData"];
-          debug->println("handleLocalWebSocketEvent(): Received device settings data:");
-          debug->println(deviceSettingsData);
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Received device settings data:");
+          if (debug && doDebug) debug->println(deviceSettingsData);
           
           // Process the device settings data using the generic function
           processSettings(deviceSettingsData, "deviceSettings");
         } else {
-          debug->println("handleLocalWebSocketEvent(): No deviceSettingsData found in the message");
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): No deviceSettingsData found in the message");
         }
       } // saveDeviceSettings
       else if (strcmp(processType, "saveParolaSettings") == 0) 
       {
-        debug->println("handleLocalWebSocketEvent(): Handling saveParolaSettings message");
+        if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling saveParolaSettings message");
         
         // Check if inputValues exists and contains parolaSettingsData
         if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("parolaSettingsData")) 
         {
           // Get the parolaSettingsData as a string
           const char* parolaSettingsData = doc["inputValues"]["parolaSettingsData"];
-          debug->println("handleLocalWebSocketEvent(): Received parola settings data:");
-          debug->println(parolaSettingsData);
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Received parola settings data:");
+          if (debug && doDebug) debug->println(parolaSettingsData);
           
           // Process the parola settings data using the generic function
           processSettings(parolaSettingsData, "parolaSettings");
         } else {
-          debug->println("handleLocalWebSocketEvent(): No parolaSettingsData found in the message");
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): No parolaSettingsData found in the message");
         }
       } // saveParolaSettings
       else if (strcmp(processType, "saveWeerliveSettings") == 0) 
       {
-        debug->println("handleLocalWebSocketEvent(): Handling saveWeerliveSettings message");
+        if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling saveWeerliveSettings message");
         
         // Check if inputValues exists and contains weerliveSettingsData
         if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("weerliveSettingsData")) 
         {
           // Get the weerliveSettingsData as a string
           const char* weerliveSettingsData = doc["inputValues"]["weerliveSettingsData"];
-          debug->println("handleLocalWebSocketEvent(): Received weerlive settings data:");
-          debug->println(weerliveSettingsData);
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Received weerlive settings data:");
+          if (debug && doDebug) debug->println(weerliveSettingsData);
           
           // Process the weerlive settings data using the generic function
           processSettings(weerliveSettingsData, "weerliveSettings");
         } else {
-          debug->println("handleLocalWebSocketEvent(): No weerliveSettingsData found in the message");
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): No weerliveSettingsData found in the message");
         }
       } // saveWeerliveSettings
       else if (strcmp(processType, "saveMediastackSettings") == 0) 
       {
-        debug->println("handleLocalWebSocketEvent(): Handling saveMediastackSettings message");
+        if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling saveMediastackSettings message");
         
         // Check if inputValues exists and contains mediastackSettingsData
         if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("mediastackSettingsData")) 
         {
           // Get the mediastackSettingsData as a string
           const char* mediastackSettingsData = doc["inputValues"]["mediastackSettingsData"];
-          debug->println("handleLocalWebSocketEvent(): Received mediastack settings data:");
-          debug->println(mediastackSettingsData);
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Received mediastack settings data:");
+          if (debug && doDebug) debug->println(mediastackSettingsData);
           
           // Process the mediastack settings data using the generic function
           processSettings(mediastackSettingsData, "mediastackSettings");
         } else {
-          debug->println("handleLocalWebSocketEvent(): No mediastackSettingsData found in the message");
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): No mediastackSettingsData found in the message");
         }
       } // saveMediastackSettings
       else if (strcmp(processType, "saveRssfeedSettings") == 0) 
       {
-        debug->println("handleLocalWebSocketEvent(): Handling saveRssfeedSettings message");
+        if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling saveRssfeedSettings message");
         
         // Check if inputValues exists and contains rssfeedSettingsData
         if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("rssfeedSettingsData")) 
         {
           // Get the rssfeedSettingsData as a string
           const char* rssfeedSettingsData = doc["inputValues"]["rssfeedSettingsData"];
-          debug->println("handleLocalWebSocketEvent(): Received rssfeed settings data:");
-          debug->println(rssfeedSettingsData);
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Received rssfeed settings data:");
+          if (debug && doDebug) debug->println(rssfeedSettingsData);
           
           // Process the rssfeed settings data using the generic function
           processSettings(rssfeedSettingsData, "rssfeedSettings");
         } else {
-          debug->println("handleLocalWebSocketEvent(): No rssfeedSettingsData found in the message");
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): No rssfeedSettingsData found in the message");
         }
       } else {
-        debug->printf("handleLocalWebSocketEvent(): Unknown process type: %s\n", processType);
+        if (debug) debug->printf("handleLocalWebSocketEvent(): Unknown process type: %s\n", processType);
       } // saveRssfeedSettings
 
     } // processType
   }
   else if (type == WStype_BIN) {
     // Handle binary data
-    debug->println("handleLocalWebSocketEvent(): Received binary data that wasn't handled by other event handlers");
+    if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Received binary data that wasn't handled by other event handlers");
     // Process the binary payload...
   }
   else if (type == WStype_ERROR) {
     // Handle error events
-    debug->println("handleLocalWebSocketEvent(): WebSocket error occurred");
+    if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): WebSocket error occurred");
   }
   else if (type == WStype_FRAGMENT) {
     // Handle fragmented messages
-    debug->println("handleLocalWebSocketEvent(): Received message fragment");
+    if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Received message fragment");
   }
   // Add other event types as needed
   
@@ -873,7 +888,7 @@ void pageIsLoadedCallback()
 {
   // Get the current active page
   std::string activePage = spa.getActivePageName();
-  debug->printf("pageIsLoadedCallback(): Current active page: %s\n", activePage.c_str());
+  if (debug) debug->printf("pageIsLoadedCallback(): Current active page: %s\n", activePage.c_str());
   
   // Update the current active page
   currentActivePage = activePage;
@@ -883,7 +898,7 @@ void pageIsLoadedCallback()
 
 void localMessagesCallback(std::string itemName)
 {
-  debug->println("localMessagesCallback(): Local Messages menu item clicked");
+  if (debug && doDebug) debug->println("localMessagesCallback(): Local Messages menu item clicked");
   
   if (itemName == "LM-START") {
     spa.setMessage("Main Menu [Local Messages] clicked!", 0);
@@ -972,7 +987,7 @@ void mainCallbackRssfeedSettings()
     
 void mainCallbackSettings()
 {
-  debug->println("\nmainCallbackSettings(): Settings menu item clicked");
+  if (debug && doDebug) debug->println("\nmainCallbackSettings(): Settings menu item clicked");
   spa.setMessage("Main Menu [Settings] clicked!", 0);
   spa.activatePage("mainSettingsPage");
 
@@ -987,30 +1002,17 @@ void mainCallbackFSmanager()
 
 } // mainCallbackFSmanager()
 
-/******
-void mainCallbackFSmanager()
-{
-  // Check if the FSmanagerPage exists before trying to activate it
-  if (spa.pageExists("FSmanagerPage")) {
-        spa.setMessage("Main Menu [FSmanager] clicked!", 5);
-        spa.activatePage("FSmanagerPage");
-        spa.callJsFunction("loadFileList");
-  } else {
-        spa.setErrorMessage("FSmanager is not available due to memory constraints. Please restart the device.", 0);
-  }
-} // mainCallbackFSmanager()
-*****/
 
 void processUploadFileCallback()
 {
-  debug->println("Process processUploadFileCallback(): proceed action received");
+  if (debug && doDebug) debug->println("Process processUploadFileCallback(): proceed action received");
 
 } // processUploadFileCallback()
 
 
 void doJsFunction(std::string functionName)
 {
-    debug->printf("doJsFunction(): JavaScript function called with: [%s]\n", functionName.c_str());
+    if (debug && doDebug) debug->printf("doJsFunction(): JavaScript function called with: [%s]\n", functionName.c_str());
     
     // Call the JavaScript function with the given name
     if (functionName == "isEspTicker32Loaded") {
@@ -1026,15 +1028,15 @@ void doJsFunction(std::string functionName)
 
 void processInputCallback(const std::map<std::string, std::string>& inputValues)
 {
-  debug->println("Process callback: proceed action received");
-  debug->printf("Received %d input values\n", inputValues.size());
+  if (debug && doDebug) debug->println("Process callback: proceed action received");
+  if (debug && doDebug) debug->printf("Received %d input values\n", inputValues.size());
   
   // Check if this is our custom input fields data
   if (inputValues.count("LocalMessagesData") > 0) 
   {
     const std::string& jsonData = inputValues.at("LocalMessagesData");
-    debug->println("Received input fields data:");
-    debug->println(jsonData.c_str());
+    if (debug && doDebug) debug->println("Received input fields data:");
+    if (debug && doDebug) debug->println(jsonData.c_str());
     
     // Process the input fields data
     processLocalMessages(jsonData.c_str());
@@ -1045,7 +1047,7 @@ void processInputCallback(const std::map<std::string, std::string>& inputValues)
 
 void handleMenuItem(std::string itemName)
 {
-    debug->printf("handleMenuItem(): Menu item clicked: %s\n", itemName.c_str());
+    if (debug && doDebug) debug->printf("handleMenuItem(): Menu item clicked: %s\n", itemName.c_str());
     
     if (itemName == "FSM-1") {
         spa.setMessage("FS Manager: [List LittleFS] clicked!", 5);
@@ -1090,7 +1092,7 @@ void setupMainPage()
 ">
 </pre>
 )HTML";
-    debug->println("\nsetupMainPage(): Setting up Main page");
+    if (debug && doDebug) debug->println("\nsetupMainPage(): Setting up Main page");
     spa.addPage("Main", mainPage);
     spa.setPageTitle("Main", "esp Ticker32");
 
@@ -1195,7 +1197,7 @@ const char *popupHelpLocalMessages = R"HTML(
 
 void setupFSmanagerPage()
 {
-    debug->printf("setupFSmanagerPage(): Available heap memory: %u bytes\n", ESP.getFreeHeap());
+    if (debug && doDebug) debug->printf("setupFSmanagerPage(): Available heap memory: %u bytes\n", ESP.getFreeHeap());
     const char *fsManagerPage = R"HTML(
       <div id="fsm_fileList" style="display: block;">
       </div>
@@ -1268,7 +1270,7 @@ void setupMySettingsPage()
     </div>
     )HTML";
   
-  debug->println("\nsetupMySettingsPage(): Adding settings page");
+  if (debug && doDebug) debug->println("\nsetupMySettingsPage(): Adding settings page");
   spa.addPage("deviceSettingsPage", settingsPage);
   spa.setPageTitle("deviceSettingsPage", "Device Settings");
   spa.addMenu("deviceSettingsPage", "Device Settings");
@@ -1339,7 +1341,7 @@ void setupMainSettingsPage()
     )HTML";  
 ***/
 
-  debug->println("\nsetupMainSettingsPage(): Adding main settings page");
+  if (debug && doDebug) debug->println("\nsetupMainSettingsPage(): Adding main settings page");
   spa.addPage("mainSettingsPage", settingsPage);
   spa.setPageTitle("mainSettingsPage", "Settings");
   //-- Add Settings menu
@@ -1400,7 +1402,7 @@ void listFiles(const char * dirname, int numTabs)
 } // listFiles()  
 
 
-void setupParola()
+void setupParolaDisplay()
 {
     PAROLA config = {
         .HARDWARE_TYPE = 1, // FC16_HW
@@ -1420,13 +1422,12 @@ void setupParola()
 
     parola.setCallback([](const String& finishedText) 
     {
-      debug->print("[FINISHED] ");
-      debug->println(finishedText);
+      if (debug && doDebug) debug->print("[FINISHED] ");
+      if (debug && doDebug) debug->println(finishedText);
       actMessage = nextMessage();
-      //spa.callJsFunction("queueMessageToMonitor", actMessage.c_str());
     });
 
-} // setupParola()
+} // setupParolaDisplay()
 
 
 void setup()
@@ -1440,46 +1441,51 @@ void setup()
     //-- Parameters: hostname, resetWiFi pin, serial object, baud rate
     debug = network->begin(hostName, 0, Serial, 115200);
     
-    debug->println("\nsetup(): WiFi connected");
-    debug->print("setup(): IP address: ");
-    debug->println(WiFi.localIP());
+    if (debug) debug->println("\nespTicker32: setup(): WiFi connected");
+    if (debug) debug->print("espTicker32: setup(): IP address: ");
+    if (debug) debug->println(WiFi.localIP());
 
-    debug->printf("espTicker32 Version: %s\n", ESPTICKER32_VERSION);
+    if (debug) debug->printf("espTicker32 Version: %s\n", ESPTICKER32_VERSION);
 
     if (!LittleFS.begin()) 
     {
-      debug->println("setup(): LittleFS Mount Failed");
+      if (debug) debug->println("espTicker32: setup(): LittleFS Mount Failed");
       return;
     }
     //-test- listFiles("/", 0);
 
     settings.setDebug(debug);
-    debug->println("setup(): readSettingFields(deviceSettings)");
+    if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(deviceSettings)");
     settings.readSettingFields("deviceSettings");
-    debug->println("setup(): readSettingFields(parolaSettings)");
+    if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(parolaSettings)");
     settings.readSettingFields("parolaSettings");
-    debug->println("setup(): readSettingFields(weerliveSettings)");
+    if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(weerliveSettings)");
     settings.readSettingFields("weerliveSettings");
-    debug->println("setup(): readSettingFields(mediastackSettings)");
+    if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(mediastackSettings)");
     settings.readSettingFields("mediastackSettings");
-    debug->println("setup(): readSettingFields(rssfeedSettings)");
+    if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(rssfeedSettings)");
     settings.readSettingFields("rssfeedSettings");
 
     if (settings.hostname.empty()) 
     {
-        debug->println("setup(): No hostname found in settings, using default");
+        if (debug) debug->println("espTicker32: setup(): No hostname found in settings, using default");
         settings.hostname = std::string(hostName);
         settings.writeSettingFields("deviceSettings");
     }
 
     //-- Define custom NTP servers (optional)
-    const char* ntpServers[] = {"time.google.com", "time.cloudflare.com", nullptr};
+    //const char* ntpServers[] = {"time.google.com", "time.cloudflare.com", nullptr};
 
     //-- Start NTP with Amsterdam timezone and custom servers
-    if (network->ntpStart("CET-1CEST,M3.5.0,M10.5.0/3", ntpServers))
+    //if (network->ntpStart("CET-1CEST,M3.5.0,M10.5.0/3", ntpServers))
+    if (network->ntpStart("CET-1CEST,M3.5.0,M10.5.0/3"))
     {
-        debug->println("setup(): NTP started successfully");
+        if (debug && doDebug) debug->println("espTicker32: setup(): NTP started successfully");
     }
+    else
+    {
+        if (debug) debug->println("espTicker32: setup(): NTP failed to start");
+    } 
     
     localMessages.setDebug(debug);
 
@@ -1487,7 +1493,7 @@ void setup()
     // Set the local events handler
     spa.setLocalEventHandler(handleLocalWebSocketEvent);
 
-    debug->printf("setup(): SPAmanager files are located [%s]\n", spa.getSystemFilePath().c_str());
+    if (debug) debug->printf("espTicker32: setup(): SPAmanager files are located [%s]\n", spa.getSystemFilePath().c_str());
     fsManager.begin();
     fsManager.addSystemFile("/favicon.ico");
     fsManager.addSystemFile(spa.getSystemFilePath() + "/SPAmanager.html", false);
@@ -1498,7 +1504,7 @@ void setup()
     spa.pageIsLoaded(pageIsLoadedCallback);
 
     fsManager.setSystemFilePath("/SYS");
-    debug->printf("setup(): FSmanager files are located [%s]\n", fsManager.getSystemFilePath().c_str());
+    if (debug) debug->printf("espTicker32: setup(): FSmanager files are located [%s]\n", fsManager.getSystemFilePath().c_str());
     spa.includeJsFile(fsManager.getSystemFilePath() + "/FSmanager.js");
     fsManager.addSystemFile(fsManager.getSystemFilePath() + "/FSmanager.js", false);
     spa.includeCssFile(fsManager.getSystemFilePath() + "/FSmanager.css");
@@ -1512,14 +1518,14 @@ void setup()
     setupMySettingsPage();
     setupLocalMessagesPage();
 
-    debug->printf("setup(): weerliveAuthToken: [%s], weerlivePlaats: [%s], requestInterval: [%d minuten]\n",
+    if (debug && doDebug) debug->printf("espTicker32: setup(): weerliveAuthToken: [%s], weerlivePlaats: [%s], requestInterval: [%d minuten]\n",
                   settings.weerliveAuthToken.c_str(),
                   settings.weerlivePlaats.c_str(),
                   settings.weerliveRequestInterval);
     weerlive.setup(settings.weerliveAuthToken.c_str(), settings.weerlivePlaats.c_str(), debug);
     weerlive.setInterval(settings.weerliveRequestInterval); 
 #ifdef USE_MEDIASTACK
-    debug->printf("setup(): mediastackAuthToken: [%s], requestInterval: [%d minuten], maxMessages: [%d], onlyDuringDay: [%s]\n",
+    if (debug && doDebug) debug->printf("espTicker32: setup(): mediastackAuthToken: [%s], requestInterval: [%d minuten], maxMessages: [%d], onlyDuringDay: [%s]\n",
                   settings.mediastackAuthToken.c_str(),
                   settings.mediastackRequestInterval,
                   settings.mediastackMaxMessages,
@@ -1553,13 +1559,15 @@ void setup()
     ******* if you want them *********/
    
     rssReader.setRequestInterval(settings.requestInterval); // in minutes
+    rssReader.checkFeedHealth();
 
     spa.activatePage("Main");
 
-    setupParola();
+    setupParolaDisplay();
     actMessage = nextMessage();
 
-    debug->println("Done with setup() ..\n");
+    if (debug) debug->println("espTicker32: Done with setup() ..\n");
+
 } // setup()
 
 void loop()
@@ -1571,13 +1579,13 @@ void loop()
   if (weerlive.loop(weerliveInfo))
   {
     snprintf(weerliveText, 2000, "%s", weerliveInfo.c_str());
-    debug->printf("weerlive::loop(): weerliveText: [%s]\n", weerliveText);
+    if (debug && doDebug) debug->printf("espTicker32: weerlive::loop(): weerliveText: [%s]\n", weerliveText);
   
   }
   #ifdef USE_MEDIASTACK
   if (mediastack.loop(network->ntpGetTmStruct()))
   {
-    debug->println("mediastack::loop(): mediastack updated");
+    if (debug && doDebug) debug->println("espTicker32: mediastack::loop(): mediastack updated");
   }
 #endif
 
@@ -1588,8 +1596,8 @@ void loop()
   if (millis() - lastPrint >= 60000)
   {
     if (network->ntpIsValid())
-         debug->printf("loop(): NTP time: %s\n", network->ntpGetTime());
-    else debug->println("loop(): NTP is not valid");
+         if (debug && doDebug) debug->printf("espTicker32: loop(): NTP time: %s\n", network->ntpGetTime());
+    else if (debug) debug->println("espTicker32: loop(): NTP is not valid");
     lastPrint = millis();
   }
   
