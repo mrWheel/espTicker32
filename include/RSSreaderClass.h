@@ -19,6 +19,11 @@ public:
   void checkFeedHealth();
 
 private:
+  struct FeedItem {
+    String title;
+    time_t pubDate;
+  };
+
   WiFiClientSecure secureClient;
   String _urls[10];
   String _paths[10];
@@ -50,6 +55,9 @@ private:
   void checkForNewFeedItems();
   void checkFeed(uint8_t feedIndex);
   void deleteFeedsOlderThan(struct tm timeNow);
+  std::vector<FeedItem> extractFeedItems(const String& feed);
+  time_t parseRSSDate(const String& dateStr);
+
   Stream* debug = nullptr; // Optional, default to nullptr
 
   #ifdef RSSREADER_DEBUG

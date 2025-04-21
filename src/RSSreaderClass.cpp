@@ -111,10 +111,8 @@ String RSSreaderClass::fetchFeed(const char* host, const char* path)
 {
   if (debug) debug->printf("RSSreaderClass::fetchFeed(): URL[%s], PATH[%s]\n", host, path);
 
-//if (debug && doDebug) debug->printf("RSSreaderClass::fetchFeed(): host[%s], path[%s]\n", host.c_str(), path.c_str());
-
   WiFiClientSecure client;
-  client.setInsecure();  // Voor testdoeleinden
+  client.setInsecure();  //-- we hebben geen certificaat
   client.setTimeout(5000); // 5s timeout
 
   if (!client.connect(host, 443)) 
@@ -202,6 +200,154 @@ std::vector<String> RSSreaderClass::extractTitles(const String& feed)
 
 } // extractTitles()
 
+std::vector<RSSreaderClass::FeedItem> RSSreaderClass::extractFeedItems(const String& feed)
+{
+  std::vector<FeedItem> items;
+  int itemStart = 0;
+  
+  // Skip the channel title by finding the first item
+  itemStart = feed.indexOf("<item>", itemStart);
+  
+  while (itemStart != -1) {
+    int itemEnd = feed.indexOf("</item>", itemStart);
+    if (itemEnd == -1) break;
+    
+    String itemContent = feed.substring(itemStart, itemEnd + 7);
+    
+    // Extract title
+    String title = "";
+    int titleStart = itemContent.indexOf("<title>");
+    if (titleStart != -1) {
+      titleStart += 7; // Length of "<title>"
+      int titleEnd = itemContent.indexOf("</title>", titleStart);
+      if (titleEnd != -1) {
+        title = itemContent.substring(titleStart, titleEnd);
+        title.trim();
+        
+        // Remove CDATA tags if present
+        if (title.startsWith("<![CDATA[") && title.endsWith("]]>")) {
+          title = title.substring(9, title.length() - 3);
+        }
+      }
+    }
+    
+    // Extract publication date
+    time_t pubDate = 0;
+    int dateStart = itemContent.indexOf("<pubDate>");
+    if (dateStart != -1) {
+      dateStart += 9; // Length of "<pubDate>"
+      int dateEnd = itemContent.indexOf("</pubDate>", dateStart);
+      if (dateEnd != -1) {
+        String dateStr = itemContent.substring(dateStart, dateEnd);
+        dateStr.trim();
+        pubDate = parseRSSDate(dateStr);
+      }
+    }
+    
+    // If no pubDate found or parsing failed, use current time
+    if (pubDate == 0) {
+      pubDate = time(nullptr);
+      if (debug && doDebug) debug->printf("RSSreaderClass::extractFeedItems(): No valid pubDate found for item, using current time\n");
+    }
+    
+    // Add item if title is not empty
+    if (title.length() > 0) {
+      FeedItem item;
+      item.title = title;
+      item.pubDate = pubDate;
+      items.push_back(item);
+    }
+    
+    // Find next item
+    itemStart = feed.indexOf("<item>", itemEnd);
+  }
+  
+  return items;
+
+} // extractFeedItems()
+
+
+time_t RSSreaderClass::parseRSSDate(const String& dateStr)
+{
+  // RFC 822/2822 format: "Wed, 02 Oct 2002 13:00:00 GMT"
+  // We'll use a simple parsing approach
+  
+  if (debug && doDebug) debug->printf("RSSreaderClass::parseRSSDate(): Parsing date: %s\n", dateStr.c_str());
+  
+  // Extract components
+  int dayPos = dateStr.indexOf(", ");
+  if (dayPos == -1) return 0;
+  
+  dayPos += 2; // Skip ", "
+  int dayEnd = dateStr.indexOf(" ", dayPos);
+  if (dayEnd == -1) return 0;
+  
+  int monthPos = dayEnd + 1;
+  int monthEnd = dateStr.indexOf(" ", monthPos);
+  if (monthEnd == -1) return 0;
+  
+  int yearPos = monthEnd + 1;
+  int yearEnd = dateStr.indexOf(" ", yearPos);
+  if (yearEnd == -1) return 0;
+  
+  int timePos = yearEnd + 1;
+  
+  // Parse day
+  int day = dateStr.substring(dayPos, dayEnd).toInt();
+  
+  // Parse month
+  String monthStr = dateStr.substring(monthPos, monthEnd);
+  int month = 0;
+  const char* months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+  for (int i = 0; i < 12; i++) {
+    if (monthStr.equalsIgnoreCase(months[i])) {
+      month = i + 1;
+      break;
+    }
+  }
+  if (month == 0) return 0;
+  
+  // Parse year
+  int year = dateStr.substring(yearPos, yearEnd).toInt();
+  
+  // Parse time
+  String timeStr = dateStr.substring(timePos);
+  int hour = 0, minute = 0, second = 0;
+  
+  int colonPos = timeStr.indexOf(":");
+  if (colonPos != -1) {
+    hour = timeStr.substring(0, colonPos).toInt();
+    int colonPos2 = timeStr.indexOf(":", colonPos + 1);
+    if (colonPos2 != -1) {
+      minute = timeStr.substring(colonPos + 1, colonPos2).toInt();
+      int spacePos = timeStr.indexOf(" ", colonPos2);
+      if (spacePos != -1) {
+        second = timeStr.substring(colonPos2 + 1, spacePos).toInt();
+      } else {
+        second = timeStr.substring(colonPos2 + 1).toInt();
+      }
+    }
+  }
+  
+  // Create tm structure and convert to time_t
+  struct tm timeinfo;
+  timeinfo.tm_year = year - 1900;
+  timeinfo.tm_mon = month - 1;
+  timeinfo.tm_mday = day;
+  timeinfo.tm_hour = hour;
+  timeinfo.tm_min = minute;
+  timeinfo.tm_sec = second;
+  timeinfo.tm_isdst = -1;
+  
+  time_t timestamp = mktime(&timeinfo);
+  
+  if (debug && doDebug) debug->printf("RSSreaderClass::parseRSSDate(): Parsed date components: %d-%02d-%02d %02d:%02d:%02d, timestamp: %ld\n", 
+                          year, month, day, hour, minute, second, timestamp);
+  
+  return timestamp;
+
+} // parseRSSDate()
+
 std::vector<String> RSSreaderClass::getStoredLines(uint8_t feedIndex) 
 {
   std::vector<String> lines;
@@ -282,52 +428,44 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
     return;
   }
 
-  std::vector<String> existing = getStoredLines(feedIndex);
-  std::vector<String> newTitles = extractTitles(feed);
-  std::vector<String> updated = existing;
-  bool changed = false;
-
-  for (const auto& title : newTitles) 
+  std::vector<FeedItem> feedItems = extractFeedItems(feed);
+  std::vector<String> titlesToSave;
+  
+  // Filter items that have sufficient words
+  for (const auto& item : feedItems) 
   {
-    if (!titleExists(title, existing) && hasSufficientWords(title)) 
+    if (hasSufficientWords(item.title)) 
     {
-      if (debug && doDebug) debug->printf("RSSreaderClass::checkFeed(): Nieuwe titel gevonden: %s\n", title.c_str());
-      time_t now = time(nullptr);
-      updated.push_back(String(now) + "|" + title);
-      changed = true;
+      if (debug && doDebug) debug->printf("RSSreaderClass::checkFeed(): Titel gevonden: %s (timestamp: %ld)\n", 
+                              item.title.c_str(), item.pubDate);
+      titlesToSave.push_back(String(item.pubDate) + "|" + item.title);
     }
   }
 
-  // FIFO: maximaal _maxFeedsPerFile titels
-  while (updated.size() > _maxFeedsPerFile[feedIndex]) 
+  // Limit to _maxFeedsPerFile titles
+  while (titlesToSave.size() > _maxFeedsPerFile[feedIndex]) 
   {
-    updated.erase(updated.begin());
+    titlesToSave.erase(titlesToSave.begin());
   }
 
-  if (changed) 
+  // Always open the file in "w" mode to empty it first
+  LittleFS.begin();
+  File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "w"); 
+  if (file) 
   {
-    LittleFS.begin();
-    File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "w"); 
-    if (file) 
+    for (const auto& line : titlesToSave) 
     {
-      for (const auto& line : updated) 
-      {
-        file.println(line);
-      }
-      file.close();
-      if (debug && doDebug) debug->println("RSSreaderClass::checkFeed(): Nieuwe feeds toegevoegd.");
-      if (debug) debug->printf("RSSreaderClass::checkFeed(): Feed[%d] now has [%d] items\n", feedIndex, updated.size());
-    } 
-    else 
-    {
-      if (debug) debug->println("RSSreaderClass::checkFeed(): Kan niet naar bestand schrijven.");
+      file.println(line);
     }
+    file.close();
+    _lastFeedUpdate[feedIndex] = millis(); // Update the last feed update time
+    if (debug) debug->printf("RSSreaderClass::checkFeed(): Feed[%d] now has [%d] items\n", feedIndex, titlesToSave.size());
   } 
   else 
   {
-    if (debug && doDebug) debug->println("RSSreaderClass::checkFeed(): Geen nieuwe titels.");
+    if (debug) debug->println("RSSreaderClass::checkFeed(): Kan niet naar bestand schrijven.");
   }
-
+  
 } // checkFeed()
 
 
@@ -591,7 +729,7 @@ bool RSSreaderClass::hasSufficientWords(const String& title)
                           title.c_str(), wordCount);
   
   return wordCount > 3; // Return true if more than 3 words
-  
+
 } // hasSufficientWords()
 
 
