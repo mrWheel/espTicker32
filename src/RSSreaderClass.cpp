@@ -12,70 +12,10 @@ RSSreaderClass::RSSreaderClass()
   for (int i = 0; i < 10; i++) {
     _lastFeedUpdate[i] = 0;
   }
-  // Initialize skipWords with football club names
-  _skipWords = {
-    "Ajax", "PSV", "Feyenoord", "AZ", "FC Twente", "FC Utrecht",
-    "Manchester City", "Manchester United", "Liverpool", "Arsenal",
-    "Chelsea", "Tottenham Hotspur", "Newcastle United",
-    "Borussia Dortmund", "RB Leipzig", "Bayer Leverkusen",
-    "Eintracht Frankfurt", "VfL Wolfsburg", "Inter", "AC Milan",
-    "Juventus", "Napoli", "AS Roma", "Lazio", "Atalanta",
-    "Paris Saint-Germain", "PSG", "Olympique Marseille",
-    "Olympique Lyon", "Sporting CP", "FC Porto", "Benfica",
-    "Red Bull Salzburg", "Shakhtar Donetsk", "Dynamo Kiev",
-    "Fenerbahçe", "Galatasaray", "Besiktas", "Club Brugge",
-    "Rangers", "Celtic", "Sparta Praag", "Dinamo Zagreb",
-    "Champions League", "Europa League", "Europa Conference League", "Super Cup",
-    "Kategoria Superiore", "Kategoria e Parë",
-    "Armenian Premier League",
-    "Austrian Bundesliga", "2. Liga",
-    "Azerbaijan Premier League",
-    "Belarusian Premier League",
-    "Belgian Pro League", "Challenger Pro League",
-    "Premier League of Bosnia and Herzegovina",
-    "First Professional Football League",
-    "Croatian First Football League",
-    "Cypriot First Division",
-    "Czech First League", "Czech National Football League",
-    "Danish Superliga", "1st Division",
-    "Premier League", "EFL Championship", "League One", "League Two", "National League", "National League North", "National League South",
-    "Meistriliiga",
-    "Faroe Islands Premier League",
-    "Veikkausliiga", "Ykkönen",
-    "Ligue 1", "Ligue 2", "Championnat National",
-    "Erovnuli Liga",
-    "Bundesliga", "2. Bundesliga", "3. Liga", "Regionalliga",
-    "Gibraltar Football League",
-    "Super League Greece", "Super League 2",
-    "Nemzeti Bajnokság I", "Nemzeti Bajnokság II",
-    "Úrvalsdeild karla",
-    "League of Ireland Premier Division", "League of Ireland First Division",
-    "Serie A", "Serie B", "Serie C",
-    "Football Superleague of Kosovo",
-    "Latvian Higher League",
-    "A Lyga",
-    "Luxembourg National Division",
-    "Maltese Premier League",
-    "Moldovan Super Liga",
-    "Montenegrin First League",
-    "Eredivisie", "Eerste Divisie", "Tweede Divisie", "Derde Divisie",
-    "Macedonian First Football League",
-    "Eliteserien", "OBOS-ligaen",
-    "Ekstraklasa", "I liga",
-    "Primeira Liga", "Liga Portugal 2",
-    "Liga I", "Liga II",
-    "Russian Premier League", "Russian First League",
-    "Campionato Sammarinese di Calcio",
-    "Serbian SuperLiga",
-    "Slovak Super Liga",
-    "Slovenian PrvaLiga",
-    "La Liga", "Segunda División", "Primera Federación", "Segunda Federación",
-    "Allsvenskan", "Superettan",
-    "Swiss Super League", "Challenge League",
-    "Ukrainian Premier League",
-    "Vatican City Championship",
-    "Cymru Premier"
-  };
+  // Initialize skipWords container
+  _skipWords = { "Voetbal" };
+  //-- be aware: no debug set yes, so no print messages
+  readSkipWordsFromFile();
 
 } // RSSreaderClass()
 
@@ -812,8 +752,7 @@ bool RSSreaderClass::hasSufficientWords(const String& title)
 void RSSreaderClass::addToSkipWords(std::string skipWord)
 {
   _skipWords.push_back(skipWord);
-  //if (debug && doDebug) debug->printf("RSSreaderClass::addToSkipWords(): Added word: %s\n", skipWord.c_str());
-  if (debug) debug->printf("RSSreaderClass::addToSkipWords(): Added word: %s\n", skipWord.c_str());
+  if (debug && doDebug) debug->printf("RSSreaderClass::addToSkipWords(): Added word: [%s]\n", skipWord.c_str());
 
 } // addToSkipWords()
 
@@ -861,58 +800,94 @@ void RSSreaderClass::addWordStringToSkipWords(std::string wordList)
 } // addWordStringToSkipWords()
 
 
-bool RSSreaderClass::hasNoSkipWords(const String& title)
+void RSSreaderClass::readSkipWordsFromFile()
 {
-  // Create a copy of the title
-  String lowerTitle = title;
-  lowerTitle.toLowerCase();
+  if (debug) debug->println("RSSreaderClass::readSkipWordsFromFile(): Reading skip words from file");
+  else       Serial.println("RSSreaderClass::readSkipWordsFromFile(): Reading skip words from file");
   
-  // Define word boundary characters
-  const char* boundaries = " .,;:!?()-[]{}\"'";
+  LittleFS.begin();
   
-  // Process the title to add spaces around boundary characters
-  String processedTitle = " "; // Start with a space for boundary checking
-  for (size_t i = 0; i < lowerTitle.length(); i++) {
-    char c = lowerTitle[i];
-    bool isBoundary = false;
-    
-    // Check if the character is a boundary
-    for (size_t j = 0; boundaries[j] != '\0'; j++) {
-      if (c == boundaries[j]) {
-        isBoundary = true;
-        break;
+  // Check if the file exists
+  if (LittleFS.exists("/skipWords.txt"))
+  {
+    File file = LittleFS.open("/skipWords.txt", "r");
+    if (file)
+    {
+      if (debug) debug->println("RSSreaderClass::readSkipWordsFromFile(): File opened successfully");
+      else       Serial.println("RSSreaderClass::readSkipWordsFromFile(): File opened successfully");
+      
+      // Read the file line by line
+      while (file.available())
+      {
+        String line = file.readStringUntil('\n');
+        line.trim();
+        
+        if (line.length() > 0)
+        {
+          // Convert String to std::string and add to skip words
+          std::string stdLine = line.c_str();
+          addWordStringToSkipWords(stdLine);
+          
+          if (doDebug)
+          {
+            if (debug) debug->printf("RSSreaderClass::readSkipWordsFromFile(): Added line: [%s]\n", line.c_str());
+            else       Serial.printf("RSSreaderClass::readSkipWordsFromFile(): Added line: [%s]\n", line.c_str());
+          }
+        }
       }
+      
+      file.close();
     }
-    
-    // Add space before boundary character if it's not already a space
-    if (isBoundary && c != ' ') {
-      processedTitle += ' ';
-    }
-    
-    // Add the character
-    processedTitle += c;
-    
-    // Add space after boundary character if it's not already a space
-    if (isBoundary && c != ' ') {
-      processedTitle += ' ';
+    else
+    {
+      if (debug) debug->println("RSSreaderClass::readSkipWordsFromFile(): Failed to open file");
+      else       Serial.println("RSSreaderClass::readSkipWordsFromFile(): Failed to open file");
     }
   }
-  processedTitle += " "; // End with a space for boundary checking
+
+} // readSkipWordsFromFile()
+
+
+bool RSSreaderClass::hasNoSkipWords(const String& title)
+{
+  // Create a lowercase copy of the title
+  String lowerTitle = title;
+  lowerTitle.toLowerCase();
   
   // Check each skipWord
   for (const auto& word : _skipWords)
   {
-    // Create a copy of the word with spaces for boundary checking
+    // Convert the skipWord to lowercase
     String lowerWord = String(word.c_str());
     lowerWord.toLowerCase();
-    String searchPattern = " " + lowerWord + " ";
     
-    // Check if the processed title contains the skipWord with spaces around it
-    if (processedTitle.indexOf(searchPattern) != -1)
-    {
-      if (debug) debug->printf("RSSreaderClass::hasNoSkipWords(): Found skipWord [%s] in title [%s]\n", 
-                              word.c_str(), title.c_str());
-      return false; // Found a skipWord, so return false
+    // For single-word skipWords, check with word boundaries
+    if (lowerWord.indexOf(' ') == -1) {
+      // Define word boundary characters
+      const char* boundaries = " .,;:!?()-[]{}\"'";
+      
+      // Check if the word appears as a complete word in the title
+      int pos = 0;
+      while ((pos = lowerTitle.indexOf(lowerWord, pos)) != -1) {
+        bool isWordStart = (pos == 0 || strchr(boundaries, lowerTitle[pos-1]));
+        bool isWordEnd = (pos + lowerWord.length() == lowerTitle.length() || 
+                          strchr(boundaries, lowerTitle[pos + lowerWord.length()]));
+        
+        if (isWordStart && isWordEnd) {
+          if (debug) debug->printf("RSSreaderClass::hasNoSkipWords(): Found single-word skipWord [%s] in title [%s]\n", 
+                                  word.c_str(), title.c_str());
+          return false; // Found a skipWord, so return false
+        }
+        pos += lowerWord.length();
+      }
+    }
+    // For multi-word skipWords, just check if they appear in the title
+    else {
+      if (lowerTitle.indexOf(lowerWord) != -1) {
+        if (debug) debug->printf("RSSreaderClass::hasNoSkipWords(): Found multi-word skipWord [%s] in title [%s]\n", 
+                                word.c_str(), title.c_str());
+        return false; // Found a skipWord, so return false
+      }
     }
   }
   
