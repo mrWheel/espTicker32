@@ -37,7 +37,7 @@ private:
   void createRSSfeedMap();
   uint8_t _feedCheckState = 0;         // Current feed being checked
   uint32_t _lastFeedCheck = 0;     // Time of last individual feed check
-  uint32_t _feedCheckInterval = 60000; // Time between checking individual feeds (60 seconds)
+  uint32_t _feedCheckInterval = 25000; // Time between checking individual feeds (25 seconds)
   bool _checkingFeeds = false;          // Flag to indicate we're in the middle of checking feeds
   uint8_t _currentFeedIndex = 0;
   uint8_t _currentItemIndex = 0;
