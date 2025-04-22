@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* ESPTICKER32_VERSION = "v0.9.16";
+const char* ESPTICKER32_VERSION = "v0.10.1";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -172,7 +172,7 @@ std::string nextMessage()
     else if (strcmp(newMessage.c_str(), "<date>") == 0) 
     {
         if (debug && doDebug) if (debug && doDebug) debug->println("nextMessage(): The Date");
-        newMessage = network->ntpGetDate();
+        newMessage = network->ntpGetDateDMY();
     }
     else if (strcmp(newMessage.c_str(), "<time>") == 0) 
     {
@@ -182,7 +182,7 @@ std::string nextMessage()
     else if (strcmp(newMessage.c_str(), "<datetime>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): The Date & Time");
-        newMessage = network->ntpGetDateTime();
+        newMessage = network->ntpGetDateTimeDMY();
     }
     else if (strcmp(newMessage.c_str(), "<spaces>") == 0) 
     {
