@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* ESPTICKER32_VERSION = "v0.9.14";
+const char* ESPTICKER32_VERSION = "v0.9.15";
 
 #include <Arduino.h>
 #include <WiFi.h>
