@@ -19,6 +19,7 @@ public:
   void checkFeedHealth();
   void addToSkipWords(std::string noNoWord);
   void addWordStringToSkipWords(std::string wordList);
+  void readSkipWordsFromFile();
 
 private:
   struct FeedItem {
