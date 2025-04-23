@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* ESPTICKER32_VERSION = "v0.10.2";
+const char* ESPTICKER32_VERSION = "v0.10.3";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -613,11 +613,11 @@ void processSettings(const std::string& jsonString, const std::string& settingsT
       else if (descriptor.fieldType == "n") 
       {
         // Numeric field
-        uint8_t newValue = field["value"].as<uint8_t>();
+        int16_t newValue = field["value"].as<int16_t>();
         if (debug && doDebug) debug->printf("processSettings(): Setting %s to [%d]\n", fieldName, newValue);
         
         // Update the value using the field pointer
-        uint8_t* valuePtr = static_cast<uint8_t*>(descriptor.fieldValue);
+        int16_t* valuePtr = static_cast<int16_t*>(descriptor.fieldValue);
         *valuePtr = newValue;
       }
     } 
@@ -1406,7 +1406,7 @@ void setupParolaDisplay()
 {
     PAROLA config = {
         .HARDWARE_TYPE = 1, // FC16_HW
-        .MAX_DEVICES = 9,
+        .MAX_DEVICES = 16,
         .MAX_ZONES = 1,
         .MAX_SPEED = 10
     };
