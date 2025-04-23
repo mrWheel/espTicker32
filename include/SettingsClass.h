@@ -79,7 +79,7 @@ private:
   // Helper method to get a numeric value from a void pointer
   int getNumericValue(void* ptr) 
   {
-    return *static_cast<uint8_t*>(ptr);
+    return *static_cast<int16_t*>(ptr);
   }
   
   // Helper method to set a string value
@@ -99,64 +99,64 @@ private:
   // Helper method to set a numeric value
   void setNumericValue(void* ptr, int value) 
   {
-    *static_cast<uint8_t*>(ptr) = static_cast<uint8_t>(value);
+    *static_cast<int16_t*>(ptr) = static_cast<int16_t>(value);
   }
 
 public:
   // Device settings data
   std::string hostname;
-  uint8_t scrollSnelheid;
-  uint8_t LDRMinWaarde;
-  uint8_t LDRMaxWaarde;
-  uint8_t maxIntensiteitLeds;
+  int16_t scrollSnelheid;
+  int16_t LDRMinWaarde;
+  int16_t LDRMaxWaarde;
+  int16_t maxIntensiteitLeds;
   std::string skipWords;
-  uint16_t tickerSpeed;
+  int16_t tickerSpeed;
   
   // Weerlive settings data
   std::string weerliveAuthToken;
   std::string weerlivePlaats;
-  uint8_t weerliveRequestInterval;
+  int16_t weerliveRequestInterval;
   
   // Mediastack settings data
   std::string mediastackAuthToken;
-  uint8_t mediastackMaxMessages;
-  uint8_t mediastackRequestInterval;
-  uint8_t mediastackOnlyDuringDay;
+  int16_t mediastackMaxMessages;
+  int16_t mediastackRequestInterval;
+  int16_t mediastackOnlyDuringDay;
   
   // Parola settings data
-  uint8_t parolaHardwareType;
-  uint8_t parolaNumDevices;
-  uint8_t parolaNumZones;
-  uint8_t parolaPinDIN;
-  uint8_t parolaPinCS;
-  uint8_t parolaPinCLK;
+  int16_t parolaHardwareType;
+  int16_t parolaNumDevices;
+  int16_t parolaNumZones;
+  int16_t parolaPinDIN;
+  int16_t parolaPinCS;
+  int16_t parolaPinCLK;
   
   // rssfeed settings data
-  uint8_t requestInterval = 60; // Default request interval in minutes
+  int16_t requestInterval = 60; // Default request interval in minutes
   std::string domain0 = {};
   std::string path0  = {};
-  uint8_t maxFeeds0 = 0;
+  int16_t maxFeeds0 = 0;
   std::string domain1 = {};
   std::string path1  = {};
-  uint8_t maxFeeds1 = 0;
+  int16_t maxFeeds1 = 0;
   std::string domain2 = {};
   std::string path2  = {};
-  uint8_t maxFeeds2 = 0;
+  int16_t maxFeeds2 = 0;
   std::string domain3 = {};
   std::string path3  = {};
-  uint8_t maxFeeds3 = 0;
+  int16_t maxFeeds3 = 0;
   std::string domain4 = {};
   std::string path4  = {};
-  uint8_t maxFeeds4 = 0;
+  int16_t maxFeeds4 = 0;
   std::string domain5 = {};
   std::string path5  = {};
-  uint8_t maxFeeds5 = 0;
+  int16_t maxFeeds5 = 0;
   std::string domain6 = {};
   std::string path6  = {};
-  uint8_t maxFeeds6 = 0;
+  int16_t maxFeeds6 = 0;
   std::string domain7 = {};
   std::string path7  = {};
-  uint8_t maxFeeds7 = 0;
+  int16_t maxFeeds7 = 0;
 
   SettingsClass();
   void setDebug(Stream* debugPort);
