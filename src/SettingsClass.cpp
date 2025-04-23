@@ -45,9 +45,9 @@ void SettingsClass::initializeSettingsContainers()
   parolaContainer.addField({"hardwareType", "Type (1=PAROLA_HW, 2=FC16_HW, 3=GENERIC_HW)", "n", 0, 1, 3, 1, &parolaHardwareType});
   parolaContainer.addField({"numDevices", "Aantal segmenten", "n", 0, 1, 22, 1, &parolaNumDevices});
   parolaContainer.addField({"numZones", "Aantal rijen (Zones)", "n", 0, 1, 2, 1, &parolaNumZones});
-  parolaContainer.addField({"pinDIN", "DIN/MOSI GPIO pin (0 = default)", "n", 0, 0, 15, 1, &parolaPinDIN});
-  parolaContainer.addField({"pinCS", "CS/SS GPIO pin (default 5)", "n",     0, 1, 15, 1, &parolaPinCS});
-  parolaContainer.addField({"pinCLK", "CLK/SCK GPIO pin (0 = default )", "n",  0, 0, 15, 1, &parolaPinCLK});
+  parolaContainer.addField({"pinDIN", "DIN/MOSI GPIO pin (0 = default)", "n", 0, 0, 23, 1, &parolaPinDIN});
+  parolaContainer.addField({"pinCS", "CS/SS GPIO pin (default 5)", "n",     0, 1, 23, 1, &parolaPinCS});
+  parolaContainer.addField({"pinCLK", "CLK/SCK GPIO pin (0 = default )", "n",  0, 0, 23, 1, &parolaPinCLK});
   settingsContainers["parolaSettings"] = parolaContainer;
 
   // rssfeed settings

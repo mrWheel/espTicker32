@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* ESPTICKER32_VERSION = "v0.10.1";
+const char* ESPTICKER32_VERSION = "v0.10.2";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -24,9 +24,9 @@ const char* ESPTICKER32_VERSION = "v0.10.1";
 //#include <MD_Parola.h>
 //#include <MD_MAX72xx.h>
 //#include <SPI.h>
-#include "ParolaManager.h"
+#include "ParolaClass.h"
 
-ParolaManager parola(5);  // 5 = your CS pin
+ParolaClass max72xx; //-- constructor for the ParolaClass
 
 #define CLOCK_UPDATE_INTERVAL  1000
 #define LOCAL_MESSAGES_PATH      "/localMessages.txt"
@@ -62,7 +62,7 @@ uint32_t lastCounterUpdate = 0;
 
 const char *hostName = "espTicker32";
 uint32_t  counter = 0;
-uint16_t nr = 1;  //-- name it like "parolaMessageNr"
+//uint16_t nr = 1;  //-- name it like "parolaMessageNr"
 
 std::string actMessage = "";
 char weerliveText[2000] = {};
@@ -195,7 +195,7 @@ std::string nextMessage()
     //  //return newMessage; 
     //}
     if (debug && doDebug) debug->printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
-    parola.sendNextText(("* "+newMessage+"*  ").c_str());
+    max72xx.sendNextText(("* "+newMessage+"*  ").c_str());
     spa.callJsFunction("queueMessageToMonitor", ("* "+newMessage+" *").c_str());
 
     return newMessage;
@@ -1406,24 +1406,37 @@ void setupParolaDisplay()
 {
     PAROLA config = {
         .HARDWARE_TYPE = 1, // FC16_HW
-        .MAX_DEVICES = 32,
-        .MAX_ZONES = 2,
+        .MAX_DEVICES = 9,
+        .MAX_ZONES = 1,
         .MAX_SPEED = 2
     };
 
-    parola.begin(config);
+    //-- SPI1 : HSPI
+    settings.parolaPinDIN = 23;
+    settings.parolaPinCLK = 18;
+    settings.parolaPinCS  =  5;
+    //-- SPI1 : HSPI
 
-    parola.setRandomEffects({
+    if (debug) debug->printf("setupParolaDisplay(): Parola settings: DIN[%d], CLK[%d], CS[%d], MAX_DEVICES [%d]\n", 
+                                              settings.parolaPinDIN,
+                                              settings.parolaPinCLK,
+                                              settings.parolaPinCS,
+                                              config.MAX_DEVICES);
+
+    max72xx.setDebug(debug);
+    max72xx.begin(settings.parolaPinDIN, settings.parolaPinCLK, settings.parolaPinCS, config);
+
+    max72xx.setRandomEffects({
         PA_SCROLL_LEFT,
         PA_SCROLL_RIGHT,
         PA_FADE,
         PA_WIPE
     });
 
-    parola.setCallback([](const String& finishedText) 
+    max72xx.setCallback([](const std::string& finishedText) 
     {
       if (debug && doDebug) debug->print("[FINISHED] ");
-      if (debug && doDebug) debug->println(finishedText);
+      if (debug && doDebug) debug->println(finishedText.c_str());
       actMessage = nextMessage();
     });
 
@@ -1602,9 +1615,9 @@ void loop()
   }
   
   static uint32_t lastDisplay = 0;
-  if (millis() - lastDisplay >= 3000)
+  //if (millis() - lastDisplay >= 3000)
   {
-    parola.loop();
+    max72xx.loop();
     lastDisplay = millis();
   }
 
