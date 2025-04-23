@@ -16,7 +16,7 @@ void SettingsClass::initializeSettingsContainers()
   // Device settings
   SettingsContainer deviceContainer("Device Settings", "/settings.ini", "deviceSettings");
   deviceContainer.addField({"hostname", "hostname", "s", 32, 0, 0, 0, &hostname});
-  deviceContainer.addField({"tickerSpeed", "Ticker Scroll Speed", "n", 0, 10, 120, 1, &tickerSpeed});
+  deviceContainer.addField({"tickerSpeed", "Ticker Scroll Speed", "n", 0, 10, 1000, 1, &tickerSpeed});
   deviceContainer.addField({"LDRMinWaarde", "LDR Min. Waarde", "n", 0, 10, 100, 1, &LDRMinWaarde});
   deviceContainer.addField({"LDRMaxWaarde", "LDR Max. Waarde", "n", 0, 11, 101, 1, &LDRMaxWaarde});
   deviceContainer.addField({"maxIntensiteitLeds", "Max. Intensiteit LEDS", "n", 0, 10, 55, 1, &maxIntensiteitLeds});

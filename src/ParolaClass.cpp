@@ -93,7 +93,7 @@ bool ParolaClass::begin(uint8_t dataPin, uint8_t clkPin, uint8_t csPin, const PA
     }
     
     // Set animation speed
-    parola->setSpeed(config.MAX_SPEED);
+    parola->setSpeed(1000 - config.MAX_SPEED);
     
     // Set initial intensity (brightness)
     parola->setIntensity(7); // Medium brightness (0-15)

@@ -110,7 +110,7 @@ public:
   uint8_t LDRMaxWaarde;
   uint8_t maxIntensiteitLeds;
   std::string skipWords;
-  uint8_t tickerSpeed;
+  uint16_t tickerSpeed;
   
   // Weerlive settings data
   std::string weerliveAuthToken;

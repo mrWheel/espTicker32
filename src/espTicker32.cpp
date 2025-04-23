@@ -1408,7 +1408,7 @@ void setupParolaDisplay()
         .HARDWARE_TYPE = 1, // FC16_HW
         .MAX_DEVICES = 9,
         .MAX_ZONES = 1,
-        .MAX_SPEED = 2
+        .MAX_SPEED = 10
     };
 
     //-- SPI1 : HSPI
@@ -1416,6 +1416,7 @@ void setupParolaDisplay()
     settings.parolaPinCLK = 18;
     settings.parolaPinCS  =  5;
     //-- SPI1 : HSPI
+    config.MAX_SPEED = settings.tickerSpeed;
 
     if (debug) debug->printf("setupParolaDisplay(): Parola settings: DIN[%d], CLK[%d], CS[%d], MAX_DEVICES [%d]\n", 
                                               settings.parolaPinDIN,
@@ -1428,8 +1429,10 @@ void setupParolaDisplay()
 
     max72xx.setRandomEffects({
         PA_SCROLL_LEFT,
-        PA_SCROLL_RIGHT,
+        PA_SCROLL_UP,
         PA_FADE,
+        PA_DISSOLVE,
+        PA_RANDOM,
         PA_WIPE
     });
 
