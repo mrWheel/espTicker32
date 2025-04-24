@@ -1428,17 +1428,19 @@ void setupParolaDisplay()
     max72xx.begin(settings.parolaPinDIN, settings.parolaPinCLK, settings.parolaPinCS, config);
 
     max72xx.setRandomEffects({
-        PA_SCROLL_LEFT,
+        PA_NO_EFFECT,
+        PA_NO_EFFECT,
+        PA_NO_EFFECT,
+        PA_NO_EFFECT,
+        PA_NO_EFFECT,
+        PA_NO_EFFECT,
+        PA_NO_EFFECT,
+        PA_NO_EFFECT,
         PA_SCROLL_UP,
-        PA_SCROLL_LEFT,
         PA_FADE,
-        PA_SCROLL_LEFT,
         PA_DISSOLVE,
-        PA_SCROLL_LEFT,
         PA_RANDOM,
-        PA_SCROLL_LEFT,
-        PA_WIPE,
-        PA_SCROLL_LEFT
+        PA_WIPE
     });
 
     max72xx.setCallback([](const std::string& finishedText) 
