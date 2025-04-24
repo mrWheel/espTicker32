@@ -110,6 +110,21 @@ bool ParolaClass::begin(uint8_t dataPin, uint8_t clkPin, uint8_t csPin, const PA
   }
 }
 
+void ParolaClass::setScrollSpeed(uint16_t speed)
+{
+  // Update the speed in the display configuration
+  displayConfig.speed = speed;
+  
+  // If initialized, update the speed in the parola object
+  if (initialized && parola != nullptr)
+  {
+    //-- High Value is slow scrolling, Low Value is fast scrolling
+    parola->setSpeed((displayConfig.speed));
+  }
+  
+  debugPrint("ParolaClass::setScrollSpeed() - Speed updated to [%d]", displayConfig.speed);
+}
+
 bool ParolaClass::initSPI()
 {
   if (!spiInitialized) 
