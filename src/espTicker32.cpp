@@ -195,7 +195,7 @@ std::string nextMessage()
     //  //return newMessage; 
     //}
     if (debug && doDebug) debug->printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
-    max72xx.sendNextText(("* "+newMessage+"*  ").c_str());
+    max72xx.sendNextText(("** "+newMessage+" **").c_str());
     spa.callJsFunction("queueMessageToMonitor", ("* "+newMessage+" *").c_str());
 
     return newMessage;
@@ -1430,10 +1430,15 @@ void setupParolaDisplay()
     max72xx.setRandomEffects({
         PA_SCROLL_LEFT,
         PA_SCROLL_UP,
+        PA_SCROLL_LEFT,
         PA_FADE,
+        PA_SCROLL_LEFT,
         PA_DISSOLVE,
+        PA_SCROLL_LEFT,
         PA_RANDOM,
-        PA_WIPE
+        PA_SCROLL_LEFT,
+        PA_WIPE,
+        PA_SCROLL_LEFT
     });
 
     max72xx.setCallback([](const std::string& finishedText) 
