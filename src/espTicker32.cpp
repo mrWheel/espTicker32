@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* ESPTICKER32_VERSION = "v0.10.3";
+const char* ESPTICKER32_VERSION = "v0.10.4";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -1101,8 +1101,8 @@ void setupMainPage()
     spa.addMenuItem("Main", "Main Menu", "LocalMessages", localMessagesCallback, "LM-START");
     spa.addMenuItem("Main", "Main Menu", "Settings", mainCallbackSettings);
     spa.addMenuItem("Main", "Main Menu", "FSmanager", mainCallbackFSmanager);
-    spa.addMenuItem("Main", "Main Menu", "isFSmanagerLoaded", doJsFunction, "isFSmanagerLoaded");
-    spa.addMenuItem("Main", "Main Menu", "isEspTicker32Loaded", doJsFunction, "isEspTicker32Loaded");
+    //spa.addMenuItem("Main", "Main Menu", "isFSmanagerLoaded", doJsFunction, "isFSmanagerLoaded");
+    //spa.addMenuItem("Main", "Main Menu", "isEspTicker32Loaded", doJsFunction, "isEspTicker32Loaded");
     
 } // setupMainPage()
 
@@ -1440,6 +1440,7 @@ void setupParolaDisplay()
     {
       if (debug && doDebug) debug->print("[FINISHED] ");
       if (debug && doDebug) debug->println(finishedText.c_str());
+      max72xx.setScrollSpeed(settings.tickerSpeed);
       actMessage = nextMessage();
     });
 
