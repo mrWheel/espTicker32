@@ -37,12 +37,12 @@ bool ParolaClass::begin(uint8_t dataPin, uint8_t clkPin, uint8_t csPin, const PA
   this->csPin = csPin;
   
   debugPrint("ParolaClass::begin() - dataPin[%d], clkPin[%d], csPin[%d], MAX_DEVICES[%d]", 
-             dataPin, clkPin, csPin, config.MAX_DEVICES);
+             dataPin, clkPin, csPin, config.MY_MAX_DEVICES);
   
   // Validate configuration
-  if (config.MAX_DEVICES == 0 || config.MAX_DEVICES > 16)
+  if (config.MY_MAX_DEVICES == 0 || config.MY_MAX_DEVICES > 32)
   {
-    debugPrint("ParolaClass::begin() - Invalid MAX_DEVICES: [%d]", config.MAX_DEVICES);
+    debugPrint("ParolaClass::begin() - Invalid MAX_DEVICES: [%d]", config.MY_MAX_DEVICES);
     return false;
   }
   
@@ -62,13 +62,13 @@ bool ParolaClass::begin(uint8_t dataPin, uint8_t clkPin, uint8_t csPin, const PA
   
   // Determine hardware type
   MD_MAX72XX::moduleType_t hardware;
-  switch (config.HARDWARE_TYPE)
+  switch (config.MY_HARDWARE_TYPE)
   {
     case 0: hardware = MD_MAX72XX::PAROLA_HW; break;
     case 1: hardware = MD_MAX72XX::FC16_HW; break;
     case 2: hardware = MD_MAX72XX::GENERIC_HW; break;
     default: 
-      debugPrint("ParolaClass::begin() - Unknown hardware type: [%d], defaulting to FC16_HW", config.HARDWARE_TYPE);
+      debugPrint("ParolaClass::begin() - Unknown hardware type: [%d], defaulting to FC16_HW", config.MY_HARDWARE_TYPE);
       hardware = MD_MAX72XX::FC16_HW; 
       break;
   }
@@ -76,7 +76,7 @@ bool ParolaClass::begin(uint8_t dataPin, uint8_t clkPin, uint8_t csPin, const PA
   try
   {
     // Create and configure the MD_Parola instance
-    parola = new MD_Parola(hardware, csPin, config.MAX_DEVICES);
+    parola = new MD_Parola(hardware, csPin, config.MY_MAX_DEVICES);
     
     if (parola == nullptr)
     {
@@ -85,18 +85,19 @@ bool ParolaClass::begin(uint8_t dataPin, uint8_t clkPin, uint8_t csPin, const PA
     }
     
     // Initialize the display
-    if (!parola->begin(config.MAX_ZONES))
+    if (!parola->begin(config.MY_MAX_ZONES))
     {
-      debugPrint("ParolaClass::begin(MAX_ZONES) - Failed to initialize MD_Parola");
+      debugPrint("ParolaClass::begin(MY_MAX_ZONES) - Failed to initialize MD_Parola");
       cleanup();
       return false;
     }
     
     // Set animation speed
-    parola->setSpeed(1000 - config.MAX_SPEED);
+    parola->setSpeed(206 - config.MY_MAX_SPEED);
     
     // Set initial intensity (brightness)
     parola->setIntensity(7); // Medium brightness (0-15)
+    parola->displayClear();
     
     initialized = true;
     debugPrint("ParolaClass::begin() - Initialization successful");
@@ -108,12 +109,12 @@ bool ParolaClass::begin(uint8_t dataPin, uint8_t clkPin, uint8_t csPin, const PA
     cleanup();
     return false;
   }
-}
+} // begin()
 
-void ParolaClass::setScrollSpeed(uint16_t speed)
+void ParolaClass::setScrollSpeed(int16_t speed)
 {
   // Update the speed in the display configuration
-  displayConfig.speed = speed;
+  displayConfig.speed = (50 + 5) - speed;
   
   // If initialized, update the speed in the parola object
   if (initialized && parola != nullptr)
@@ -122,7 +123,7 @@ void ParolaClass::setScrollSpeed(uint16_t speed)
     parola->setSpeed((displayConfig.speed));
   }
   
-  debugPrint("ParolaClass::setScrollSpeed() - Speed updated to [%d]", displayConfig.speed);
+  debugPrint("ParolaClass::setScrollSpeed() - Speed[%d] -> updated to [%d]", speed, displayConfig.speed);
 }
 
 bool ParolaClass::initSPI()
@@ -231,6 +232,41 @@ bool ParolaClass::sendNextText(const std::string &text)
   return true;
 }
 
+bool ParolaClass::animateBlocking(const String &text)
+{
+  if (!initialized || parola == nullptr)
+  {
+    debugPrint("ParolaClass::animateBlocking() - Error: Not initialized");
+    return false;
+  }
+
+  if (text.length() == 0)
+  {
+    debugPrint("ParolaClass::animateBlocking() - Warning: Empty text");
+  }
+
+  // DEBUG: show what we're about to display
+  debugPrint("ParolaClass::animateBlocking() - Text: [%s]", text.c_str());
+
+  parola->displayText(
+    (char *)text.c_str(),  // <-- use input text directly
+    displayConfig.align,
+    5,
+    displayConfig.pauseTime,
+    PA_SCROLL_LEFT,
+    PA_NO_EFFECT
+  );
+
+  while (!parola->displayAnimate())
+  {
+    delay(10);
+  }
+
+  return true;
+
+} // animateBlocking()
+
+
 void ParolaClass::loop()
 {
   if (!initialized || parola == nullptr)
@@ -272,5 +308,7 @@ void ParolaClass::debugPrint(const char* format, ...)
   vsnprintf(buffer, sizeof(buffer), format, args);
   va_end(args);
   
-  debug->println(buffer);
-}
+  if (debug)  debug->println(buffer);
+  else        Serial.println(buffer);
+  
+} // debugPrint()

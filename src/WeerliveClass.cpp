@@ -101,7 +101,20 @@ void Weerlive::configureFilters()
   filter["liveweer"][0]["wrsch_gts"]= false;  //-- Timestamp van wrsch_g
   filter["liveweer"][0]["wrsch_gc"] = false;  //-- KNMI kleurcode voor de eerstkomende waarschuwing
   //---- week verwachting ---
-  for(int i = 0; i < 4; i++)
+  filter["wk_verw"][0]["dag"]       = true;   //-- datum van deze dag
+  filter["wk_verw"][0]["image"]     = false;  //-- afbeeldingsnaam
+  filter["wk_verw"][0]["max_temp"]  = true;   //-- maximum temperatuur voor de dag
+  filter["wk_verw"][0]["min_temp"]  = true;   //-- minimum temperatuur voor de dag
+  filter["wk_verw"][0]["windbft"]   = false;  //--  windkracht in Beaufort
+  filter["wk_verw"][0]["windkmh"]   = false;  //-- windkracht in km/h
+  filter["wk_verw"][0]["windms"]    = true;   //-- windkracht in m/s
+  filter["wk_verw"][0]["windknp"]   = false;  //-- windkracht in knopen
+  filter["wk_verw"][0]["windrgr"]   = false;  //-- windrichting in graden
+  filter["wk_verw"][0]["windr"]     = false;  //-- windrichting
+  filter["wk_verw"][0]["neersl_perc_dag"] = true;   //-- kans op neerslag per dag
+  filter["wk_verw"][0]["zond_perc_dag"]   = true;   //-- kans op zon per dag
+
+  for(int i = 1; i < 4; i++)
   {
     filter["wk_verw"][i]["dag"]       = false;   //-- datum van deze dag
     filter["wk_verw"][i]["image"]     = false;   //-- afbeeldingsnaam

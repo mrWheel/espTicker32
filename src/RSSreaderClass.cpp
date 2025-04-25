@@ -472,7 +472,12 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
   {
     for (const auto& line : titlesToSave) 
     {
-      file.println(line);
+//      simplifyCharacters(line);
+//      file.println(line);
+//      if (debug && doDebug) debug->printf("[%s]\n", line.c_str());
+      String simplifiedLine = simplifyCharacters(line);
+      file.println(simplifiedLine);
+      if (debug && doDebug) debug->printf("[%s]\n", simplifiedLine.c_str());
     }
     file.close();
     
@@ -708,6 +713,193 @@ void RSSreaderClass::checkFeedHealth()
   _lastHealthCheck = millis();
 
 } // checkFeedHealth()
+
+String RSSreaderClass::simplifyCharacters(const String& input)
+{
+  if (debug && doDebug) debug->printf("RSSreaderClass::simplifyCharacters(): Processing [%s]\n", input.c_str());
+  
+  String result = input;
+  
+  // Handle HTML entities
+  struct HtmlEntity {
+    const char* entity;
+    const char* replacement;
+  };
+  
+  const HtmlEntity htmlEntities[] = {
+    {"&amp;", "&"},
+    {"&lt;", "<"},
+    {"&gt;", ">"},
+    {"&quot;", "\""},
+    {"&apos;", "'"},
+    {"&nbsp;", " "},
+    {"&#39;", "'"},
+    {"&#34;", "\""},
+    {"&ndash;", "-"},
+    {"&mdash;", "-"},
+    {"&lsquo;", "'"},
+    {"&rsquo;", "'"},
+    {"&ldquo;", "\""},
+    {"&rdquo;", "\""},
+    {"&bull;", "*"},
+    {"&hellip;", "..."},
+    {"&trade;", "TM"},
+    {"&copy;", "(c)"},
+    {"&reg;", "(r)"},
+    {"&euro;", "EUR"},
+    {"&pound;", "GBP"},
+    {"&yen;", "JPY"},
+    {"&cent;", "c"},
+    {"&sect;", "S"},
+    {"&para;", "P"},
+    {"&deg;", "deg"},
+    {"&plusmn;", "+/-"},
+    {"&times;", "x"},
+    {"&divide;", "/"},
+    {"&frac14;", "1/4"},
+    {"&frac12;", "1/2"},
+    {"&frac34;", "3/4"}
+  };
+  
+  // Replace HTML entities
+  for (const auto& entity : htmlEntities) {
+    int pos = 0;
+    while ((pos = result.indexOf(entity.entity, pos)) != -1) {
+      result = result.substring(0, pos) + entity.replacement + result.substring(pos + strlen(entity.entity));
+      pos += strlen(entity.replacement);
+    }
+  }
+  
+  // Handle numeric HTML entities (&#xxxx;)
+  int pos = 0;
+  while ((pos = result.indexOf("&#", pos)) != -1) {
+    int end = result.indexOf(";", pos);
+    if (end == -1) break;
+    
+    String numericEntity = result.substring(pos, end + 1);
+    String numStr = result.substring(pos + 2, end);
+    
+    char replacement = ' ';
+    if (numStr.length() > 0) {
+      if (numStr[0] == 'x' || numStr[0] == 'X') {
+        // Hexadecimal entity (&#xXXXX;)
+        long num = strtol(numStr.substring(1).c_str(), NULL, 16);
+        replacement = (char)num;
+      } else {
+        // Decimal entity (&#XXXX;)
+        long num = numStr.toInt();
+        replacement = (char)num;
+      }
+    }
+    
+    result = result.substring(0, pos) + replacement + result.substring(end + 1);
+    pos += 1; // Move past the replacement character
+  }
+  
+  // Replace accented characters
+  struct CharReplacement {
+    const char* original;
+    const char* replacement;
+  };
+  
+  const CharReplacement charReplacements[] = {
+    // Accented A
+    {"à", "a"}, {"á", "a"}, {"â", "a"}, {"ã", "a"}, {"ä", "a"}, {"å", "a"}, {"ā", "a"}, {"ă", "a"}, {"ą", "a"},
+    // Accented C
+    {"ç", "c"}, {"ć", "c"}, {"č", "c"}, {"ĉ", "c"}, {"ċ", "c"},
+    // Accented D
+    {"ð", "d"}, {"ď", "d"}, {"đ", "d"},
+    // Accented E
+    {"è", "e"}, {"é", "e"}, {"ê", "e"}, {"ë", "e"}, {"ē", "e"}, {"ĕ", "e"}, {"ė", "e"}, {"ę", "e"}, {"ě", "e"},
+    // Accented G
+    {"ğ", "g"}, {"ģ", "g"}, {"ǧ", "g"}, {"ġ", "g"},
+    // Accented H
+    {"ĥ", "h"}, {"ħ", "h"},
+    // Accented I
+    {"ì", "i"}, {"í", "i"}, {"î", "i"}, {"ï", "i"}, {"ĩ", "i"}, {"ī", "i"}, {"ĭ", "i"}, {"į", "i"}, {"ı", "i"},
+    // Accented J
+    {"ĵ", "j"},
+    // Accented K
+    {"ķ", "k"}, {"ĸ", "k"},
+    // Accented L
+    {"ĺ", "l"}, {"ļ", "l"}, {"ľ", "l"}, {"ŀ", "l"}, {"ł", "l"},
+    // Accented N
+    {"ñ", "n"}, {"ń", "n"}, {"ņ", "n"}, {"ň", "n"}, {"ŉ", "n"}, {"ŋ", "n"},
+    // Accented O
+    {"ò", "o"}, {"ó", "o"}, {"ô", "o"}, {"õ", "o"}, {"ö", "o"}, {"ø", "o"}, {"ō", "o"}, {"ŏ", "o"}, {"ő", "o"},
+    // Accented R
+    {"ŕ", "r"}, {"ŗ", "r"}, {"ř", "r"},
+    // Accented S
+    {"ś", "s"}, {"ŝ", "s"}, {"ş", "s"}, {"š", "s"}, {"ſ", "s"},
+    // Accented T
+    {"ţ", "t"}, {"ť", "t"}, {"ŧ", "t"},
+    // Accented U
+    {"ù", "u"}, {"ú", "u"}, {"û", "u"}, {"ü", "u"}, {"ũ", "u"}, {"ū", "u"}, {"ŭ", "u"}, {"ů", "u"}, {"ű", "u"}, {"ų", "u"},
+    // Accented W
+    {"ŵ", "w"},
+    // Accented Y
+    {"ý", "y"}, {"ÿ", "y"}, {"ŷ", "y"},
+    // Accented Z
+    {"ź", "z"}, {"ż", "z"}, {"ž", "z"},
+    // Special characters
+    {"æ", "ae"}, {"œ", "oe"}, {"ß", "ss"}, {"þ", "th"},
+    // Currency symbols
+    {"€", "EUR"}, {"£", "GBP"}, {"¥", "JPY"}, {"¢", "c"},
+    // Punctuation and symbols
+    {"\xAB", "\""}, {"\xBB", "\""}, {"\x84", "\""}, {"\x93", "\""}, {"\x94", "\""}, {"\x91", "'"}, {"\x92", "'"}, {"\x82", ","},
+    {"\x85", "..."}, {"\x96", "-"}, {"\x97", "-"}, {"\x95", "*"}, {"\xA9", "(c)"}, {"\xAE", "(r)"}, {"\x99", "TM"},
+    {"\xA7", "S"}, {"\xB6", "P"}, {"\x86", "+"}, {"\x87", "++"}, {"\x89", "%"}, {"\x8B", "<"}, {"\x9B", ">"},
+    {"\xB5", "u"}, {"\xBF", "?"}, {"\xA1", "!"}, {"\xB1", "+/-"}, {"\xD7", "x"}, {"\xF7", "/"},
+    {"\xBC", "1/4"}, {"\xBD", "1/2"}, {"\xBE", "3/4"},{"\xB0", "*"}
+  };
+  
+  // Replace special characters
+  for (const auto& replacement : charReplacements) {
+    int pos = 0;
+    while ((pos = result.indexOf(replacement.original, pos)) != -1) {
+      result = result.substring(0, pos) + replacement.replacement + result.substring(pos + strlen(replacement.original));
+      pos += strlen(replacement.replacement);
+    }
+  }
+  
+  // Handle uppercase accented characters by converting to lowercase first
+  String upperResult = result;
+  upperResult.toUpperCase();
+  
+  if (upperResult != result) {
+    // There are uppercase characters, apply the same replacements to the uppercase version
+    String lowerResult = result;
+    lowerResult.toLowerCase();
+    
+    for (int i = 0; i < result.length(); i++) {
+      if (result[i] != lowerResult[i]) {
+        // This is an uppercase character
+        char lowerChar = lowerResult[i];
+        char upperChar = result[i];
+        
+        // Check if the lowercase version was replaced
+        for (int j = 0; j < i; j++) {
+          if (lowerResult[j] == lowerChar && result[j] != upperChar) {
+            // The lowercase version was replaced, apply the same replacement to uppercase
+            result[i] = toupper(result[j]);
+            break;
+          }
+        }
+      }
+    }
+  }
+  //-- last resort --
+  for (int i = 0; i < result.length(); i++) {
+    if (result[i] < 32 || result[i] > 126) {
+      // Replace non-printable or non-ASCII characters with a space
+      result[i] = ' ';
+    }
+  }
+  if (debug && doDebug) debug->printf("RSSreaderClass::simplifyCharacters(): Result [%s]\n", result.c_str());
+  
+  return result;
+
+} // simplifyCharacters()
 
 
 bool RSSreaderClass::hasSufficientWords(const String& title) 
