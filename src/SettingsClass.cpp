@@ -16,7 +16,7 @@ void SettingsClass::initializeSettingsContainers()
   // Device settings
   SettingsContainer deviceContainer("Device Settings", "/settings.ini", "deviceSettings");
   deviceContainer.addField({"hostname", "hostname", "s", 32, 0, 0, 0, &hostname});
-  deviceContainer.addField({"tickerSpeed", "Ticker Scroll Speed", "n", 0, 5, 200, 1, &tickerSpeed});
+  deviceContainer.addField({"tickerSpeed", "Ticker Scroll Speed", "n", 0, 5, 50, 1, &tickerSpeed});
   deviceContainer.addField({"LDRMinWaarde", "LDR Min. Waarde", "n", 0, 10, 100, 1, &LDRMinWaarde});
   deviceContainer.addField({"LDRMaxWaarde", "LDR Max. Waarde", "n", 0, 11, 101, 1, &LDRMaxWaarde});
   deviceContainer.addField({"maxIntensiteitLeds", "Max. Intensiteit LEDS", "n", 0, 10, 55, 1, &maxIntensiteitLeds});
@@ -42,8 +42,8 @@ void SettingsClass::initializeSettingsContainers()
 
   // Parola settings
   SettingsContainer parolaContainer("Parola Settings", "/parola.ini", "parolaSettings");
-  parolaContainer.addField({"hardwareType", "Type (1=PAROLA_HW, 2=FC16_HW, 3=GENERIC_HW)", "n", 0, 1, 3, 1, &parolaHardwareType});
-  parolaContainer.addField({"numDevices", "Aantal segmenten", "n", 0, 1, 22, 1, &parolaNumDevices});
+  parolaContainer.addField({"hardwareType", "Type (0=PAROLA_HW, 1=FC16_HW, 2=GENERIC_HW)", "n", 0, 0, 2, 1, &parolaHardwareType});
+  parolaContainer.addField({"numDevices", "Aantal segmenten", "n", 0, 1, 32, 1, &parolaNumDevices});
   parolaContainer.addField({"numZones", "Aantal rijen (Zones)", "n", 0, 1, 2, 1, &parolaNumZones});
   parolaContainer.addField({"pinDIN", "DIN/MOSI GPIO pin (0 = default)", "n", 0, 0, 23, 1, &parolaPinDIN});
   parolaContainer.addField({"pinCS", "CS/SS GPIO pin (default 5)", "n",     0, 1, 23, 1, &parolaPinCS});

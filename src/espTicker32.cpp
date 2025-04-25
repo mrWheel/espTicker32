@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* ESPTICKER32_VERSION = "v0.10.4";
+const char* ESPTICKER32_VERSION = "v0.10.5";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -155,7 +155,8 @@ std::string nextMessage()
     if (strcmp(newMessage.c_str(), "<weerlive>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): weerlive message");
-        newMessage = getWeerliveMessage().c_str();
+        //newMessage = getWeerliveMessage().c_str();
+        newMessage = rssReader.simplifyCharacters(getWeerliveMessage()).c_str();
     }
 #ifdef USE_MEDIASTACK
     else if (strcmp(newMessage.c_str(), "<mediastack>") == 0) 
@@ -1405,26 +1406,36 @@ void listFiles(const char * dirname, int numTabs)
 void setupParolaDisplay()
 {
     PAROLA config = {
-        .HARDWARE_TYPE = 1, // FC16_HW
-        .MAX_DEVICES = 16,
-        .MAX_ZONES = 1,
-        .MAX_SPEED = 10
+        .MY_HARDWARE_TYPE = (uint8_t)settings.parolaHardwareType, // FC16_HW
+        .MY_MAX_DEVICES = (uint8_t)settings.parolaNumDevices,
+        .MY_MAX_ZONES = (uint8_t)settings.parolaNumZones,
+        .MY_MAX_SPEED = 200 // Default speed
     };
+
+    Serial.printf("MY_HARDWARE_TYPE: [%d]\n", config.MY_HARDWARE_TYPE);
+    Serial.printf("  MY_MAX_DEVICES: [%d]\n", config.MY_MAX_DEVICES);
+    Serial.printf("    MY_MAX_ZONES: [%d]\n", config.MY_MAX_ZONES);
+    Serial.printf("    MY_MAX_SPEED: [%d]\n", config.MY_MAX_SPEED);
+
 
     //-- SPI1 : HSPI
     settings.parolaPinDIN = 23;
     settings.parolaPinCLK = 18;
     settings.parolaPinCS  =  5;
     //-- SPI1 : HSPI
-    config.MAX_SPEED = settings.tickerSpeed;
+    config.MY_MAX_SPEED = settings.tickerSpeed;
 
     if (debug) debug->printf("setupParolaDisplay(): Parola settings: DIN[%d], CLK[%d], CS[%d], MAX_DEVICES [%d]\n", 
                                               settings.parolaPinDIN,
                                               settings.parolaPinCLK,
                                               settings.parolaPinCS,
-                                              config.MAX_DEVICES);
-
-    max72xx.setDebug(debug);
+                                              config.MY_MAX_DEVICES);
+    else
+        Serial.printf("setupParolaDisplay(): Parola settings: DIN[%d], CLK[%d], CS[%d], MAX_DEVICES [%d]\n", 
+                                              settings.parolaPinDIN,
+                                              settings.parolaPinCLK,
+                                              settings.parolaPinCS,
+                                              config.MY_MAX_DEVICES);
     max72xx.begin(settings.parolaPinDIN, settings.parolaPinCLK, settings.parolaPinCS, config);
 
     max72xx.setRandomEffects({
@@ -1457,19 +1468,7 @@ void setupParolaDisplay()
 void setup()
 {
     Serial.begin(115200);
-    delay(3000);
-
-    //-- Connect to WiFi
-    network = new Networking();
-    
-    //-- Parameters: hostname, resetWiFi pin, serial object, baud rate
-    debug = network->begin(hostName, 0, Serial, 115200);
-    
-    if (debug) debug->println("\nespTicker32: setup(): WiFi connected");
-    if (debug) debug->print("espTicker32: setup(): IP address: ");
-    if (debug) debug->println(WiFi.localIP());
-
-    if (debug) debug->printf("espTicker32 Version: %s\n", ESPTICKER32_VERSION);
+    while (!Serial) { delay(100); } // Wait for Serial to be ready
 
     if (!LittleFS.begin()) 
     {
@@ -1477,12 +1476,32 @@ void setup()
       return;
     }
     //-test- listFiles("/", 0);
+    if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(parolaSettings)");
+    else                  Serial.println("espTicker32: setup(): readSettingFields(parolaSettings)");
+    settings.readSettingFields("parolaSettings");
+
+    setupParolaDisplay();
+    max72xx.animateBlocking("Start espTicker32 ["+String(ESPTICKER32_VERSION)+"] ...    ");
+
+    //-- Connect to WiFi
+    network = new Networking();
+    
+    max72xx.animateBlocking("Start WiFi setup ...    ");
+    //-- Parameters: hostname, resetWiFi pin, serial object, baud rate
+    debug = network->begin(hostName, 0, Serial, 115200);
+    
+    if (debug) debug->println("\nespTicker32: setup(): WiFi connected");
+    if (debug) debug->print("espTicker32: setup(): IP address: ");
+    if (debug) debug->println(WiFi.localIP());
+    max72xx.animateBlocking("IP: " + String(WiFi.localIP().toString().c_str()) + " ...    ");
+
+    if (debug) debug->printf("espTicker32 Version: %s\n", ESPTICKER32_VERSION);
+
+    max72xx.setDebug(debug);
 
     settings.setDebug(debug);
     if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(deviceSettings)");
     settings.readSettingFields("deviceSettings");
-    if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(parolaSettings)");
-    settings.readSettingFields("parolaSettings");
     if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(weerliveSettings)");
     settings.readSettingFields("weerliveSettings");
     if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(mediastackSettings)");
@@ -1587,7 +1606,8 @@ void setup()
 
     spa.activatePage("Main");
 
-    setupParolaDisplay();
+    max72xx.setScrollSpeed(settings.tickerSpeed);
+
     actMessage = nextMessage();
 
     if (debug) debug->println("espTicker32: Done with setup() ..\n");

@@ -20,6 +20,7 @@ public:
   void addToSkipWords(std::string noNoWord);
   void addWordStringToSkipWords(std::string wordList);
   void readSkipWordsFromFile();
+  String simplifyCharacters(const String& input);
 
 private:
   struct FeedItem {

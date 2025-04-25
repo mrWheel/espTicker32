@@ -7,18 +7,18 @@
 // Configuration structure for Parola display
 struct PAROLA
 {
-    uint8_t HARDWARE_TYPE;  // 0=PAROLA_HW, 1=FC16_HW, 2=GENERIC_HW
-    uint8_t MAX_DEVICES;    // Number of connected display modules
-    uint8_t MAX_ZONES;      // Number of display zones
-    uint8_t MAX_SPEED;      // Animation speed (lower = faster)
+    uint8_t MY_HARDWARE_TYPE;  // 0=PAROLA_HW, 1=FC16_HW, 2=GENERIC_HW
+    uint8_t MY_MAX_DEVICES;    // Number of connected display modules
+    uint8_t MY_MAX_ZONES;      // Number of display zones
+    uint8_t MY_MAX_SPEED;      // Animation speed (lower = faster)
 };
 
 // Display configuration for text animation
 struct DisplayConfig
 {
-    uint16_t speed;         // Animation speed (default: 50)
-    uint16_t pauseTime;     // Pause time in ms (default: 1000)
-    textPosition_t align;   // Text alignment (default: PA_CENTER)
+    uint16_t speed;         // Animation speed
+    uint16_t pauseTime;     // Pause time in ms
+    textPosition_t align;   // Text alignment
 };
 
 class ParolaClass
@@ -35,11 +35,13 @@ class ParolaClass
     void setRandomEffects(const std::vector<uint8_t> &effects);
     void setCallback(std::function<void(const std::string&)> callback);
     void setDisplayConfig(const DisplayConfig &config);
-    void setScrollSpeed(uint16_t speed);
+    void setScrollSpeed(int16_t speed);
     void setDebug(Stream* debugPort = &Serial);
     
     // Operation methods
     bool sendNextText(const std::string &text);
+    // Blocking fixed animation method (right to left)
+    bool animateBlocking(const String &text);
     void loop();
     
     // Status methods
