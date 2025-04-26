@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* ESPTICKER32_VERSION = "v0.10.6";
+const char* ESPTICKER32_VERSION = "v0.10.7";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -1405,62 +1405,88 @@ void listFiles(const char * dirname, int numTabs)
 
 void setupParolaDisplay()
 {
-    PAROLA config = {
-        .MY_HARDWARE_TYPE = (uint8_t)settings.parolaHardwareType, // FC16_HW
-        .MY_MAX_DEVICES = (uint8_t)settings.parolaNumDevices,
-        .MY_MAX_ZONES = (uint8_t)settings.parolaNumZones,
-        .MY_MAX_SPEED = 200 // Default speed
-    };
-
-    Serial.printf("MY_HARDWARE_TYPE: [%d]\n", config.MY_HARDWARE_TYPE);
-    Serial.printf("  MY_MAX_DEVICES: [%d]\n", config.MY_MAX_DEVICES);
-    Serial.printf("    MY_MAX_ZONES: [%d]\n", config.MY_MAX_ZONES);
-    Serial.printf("    MY_MAX_SPEED: [%d]\n", config.MY_MAX_SPEED);
-
-
-    //-- SPI1 : HSPI
+  if (settings.parolaPinDIN == (settings.parolaPinCLK || settings.parolaPinCS) )
+  {
     settings.parolaPinDIN = 23;
     settings.parolaPinCLK = 18;
     settings.parolaPinCS  =  5;
-    //-- SPI1 : HSPI
-    config.MY_MAX_SPEED = settings.tickerSpeed;
+  } 
+  if (settings.parolaPinCLK == (settings.parolaPinDIN || settings.parolaPinCS) )
+  {
+    settings.parolaPinDIN = 23;
+    settings.parolaPinCLK = 18;
+    settings.parolaPinCS  =  5;
+  } 
+  if (settings.parolaPinCS == (settings.parolaPinDIN || settings.parolaPinCLK) )
+  {
+    settings.parolaPinDIN = 23;
+    settings.parolaPinCLK = 18;
+    settings.parolaPinCS  =  5;
+  } 
 
-    if (debug) debug->printf("setupParolaDisplay(): Parola settings: DIN[%d], CLK[%d], CS[%d], MAX_DEVICES [%d]\n", 
-                                              settings.parolaPinDIN,
-                                              settings.parolaPinCLK,
-                                              settings.parolaPinCS,
-                                              config.MY_MAX_DEVICES);
-    else
-        Serial.printf("setupParolaDisplay(): Parola settings: DIN[%d], CLK[%d], CS[%d], MAX_DEVICES [%d]\n", 
-                                              settings.parolaPinDIN,
-                                              settings.parolaPinCLK,
-                                              settings.parolaPinCS,
-                                              config.MY_MAX_DEVICES);
-    max72xx.begin(settings.parolaPinDIN, settings.parolaPinCLK, settings.parolaPinCS, config);
+  if (settings.parolaPinDIN == 0) settings.parolaPinDIN = 23;
+  if (settings.parolaPinCLK == 0) settings.parolaPinCLK = 18;
+  if (settings.parolaPinCS  == 0) settings.parolaPinCS  = 5;
 
-    max72xx.setRandomEffects({
-        PA_NO_EFFECT,
-        PA_NO_EFFECT,
-        PA_NO_EFFECT,
-        PA_NO_EFFECT,
-        PA_NO_EFFECT,
-        PA_NO_EFFECT,
-        PA_NO_EFFECT,
-        PA_NO_EFFECT,
-        PA_SCROLL_UP,
-        PA_FADE,
-        PA_DISSOLVE,
-        PA_RANDOM,
-        PA_WIPE
-    });
+  PAROLA config = {
+      .MY_HARDWARE_TYPE = (uint8_t)settings.parolaHardwareType, // FC16_HW
+      .MY_MAX_DEVICES   = (uint8_t)settings.parolaNumDevices,
+      .MY_MAX_ZONES     = (uint8_t)settings.parolaNumZones,
+      .MY_MAX_SPEED     = 200 // Default speed
+  };
 
-    max72xx.setCallback([](const std::string& finishedText) 
-    {
-      if (debug && doDebug) debug->print("[FINISHED] ");
-      if (debug && doDebug) debug->println(finishedText.c_str());
-      max72xx.setScrollSpeed(settings.tickerSpeed);
-      actMessage = nextMessage();
-    });
+  // Use default pins if not specified in settings (0 value)
+  uint8_t dinPin = (settings.parolaPinDIN > 0) ? settings.parolaPinDIN : 23;  // Default DIN pin is 23
+  uint8_t clkPin = (settings.parolaPinCLK > 0) ? settings.parolaPinCLK : 18;  // Default CLK pin is 18
+  uint8_t csPin = (settings.parolaPinCS > 0) ? settings.parolaPinCS : 5;      // Default CS pin is 5
+
+  Serial.printf("MY_HARDWARE_TYPE: [%d]\n", config.MY_HARDWARE_TYPE);
+  Serial.printf("  MY_MAX_DEVICES: [%d]\n", config.MY_MAX_DEVICES);
+  Serial.printf("    MY_MAX_ZONES: [%d]\n", config.MY_MAX_ZONES);
+  Serial.printf("    MY_MAX_SPEED: [%d]\n", config.MY_MAX_SPEED);
+  Serial.printf("      MY_DIN_PIN: [%d]\n", dinPin);
+  Serial.printf("      MY_CLK_PIN: [%d]\n", clkPin);  
+  Serial.printf("       MY_CS_PIN: [%d]\n", csPin);
+
+  config.MY_MAX_SPEED = settings.tickerSpeed;
+
+  if (debug) debug->printf("setupParolaDisplay(): Parola settings: DIN[%d], CLK[%d], CS[%d], MAX_DEVICES [%d]\n", 
+                                            dinPin,
+                                            clkPin,
+                                            csPin,
+                                            config.MY_MAX_DEVICES);
+  else
+      Serial.printf("setupParolaDisplay(): Parola settings: DIN[%d], CLK[%d], CS[%d], MAX_DEVICES [%d]\n", 
+                                            dinPin,
+                                            clkPin,
+                                            csPin,
+                                            config.MY_MAX_DEVICES);
+  max72xx.begin(dinPin, clkPin, csPin, config);
+
+  // Rest of the function remains unchanged
+  max72xx.setRandomEffects({
+      PA_NO_EFFECT,
+      PA_NO_EFFECT,
+      PA_NO_EFFECT,
+      PA_NO_EFFECT,
+      PA_NO_EFFECT,
+      PA_NO_EFFECT,
+      PA_NO_EFFECT,
+      PA_NO_EFFECT,
+      PA_SCROLL_UP,
+      PA_FADE,
+      PA_DISSOLVE,
+      PA_RANDOM,
+      PA_WIPE
+  });
+
+  max72xx.setCallback([](const std::string& finishedText) 
+  {
+    if (debug && doDebug) debug->print("[FINISHED] ");
+    if (debug && doDebug) debug->println(finishedText.c_str());
+    max72xx.setScrollSpeed(settings.tickerSpeed);
+    actMessage = nextMessage();
+  });
 
 } // setupParolaDisplay()
 
@@ -1479,7 +1505,6 @@ void setup()
     if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(parolaSettings)");
     else                  Serial.println("espTicker32: setup(): readSettingFields(parolaSettings)");
     settings.readSettingFields("parolaSettings");
-
     setupParolaDisplay();
     max72xx.animateBlocking("Start espTicker32 ["+String(ESPTICKER32_VERSION)+"] ...    ");
 
