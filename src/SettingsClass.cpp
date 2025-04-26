@@ -19,7 +19,7 @@ void SettingsClass::initializeSettingsContainers()
   deviceContainer.addField({"tickerSpeed", "Ticker Scroll Speed", "n", 0, 5, 50, 1, &tickerSpeed});
   deviceContainer.addField({"LDRMinWaarde", "LDR Min. Waarde", "n", 0, 10, 100, 1, &LDRMinWaarde});
   deviceContainer.addField({"LDRMaxWaarde", "LDR Max. Waarde", "n", 0, 11, 101, 1, &LDRMaxWaarde});
-  deviceContainer.addField({"maxIntensiteitLeds", "Max. Intensiteit LEDS", "n", 0, 10, 55, 1, &maxIntensiteitLeds});
+  deviceContainer.addField({"maxIntensiteitLeds", "Max. Intensiteit LEDS", "n", 0, 0, 15, 1, &maxIntensiteitLeds});
   deviceContainer.addField({"skipWords", "Words to skip", "s", 250, 0, 0, 0, &skipWords});
   settingsContainers["deviceSettings"] = deviceContainer;
   

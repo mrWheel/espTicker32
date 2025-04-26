@@ -1,6 +1,7 @@
 #pragma once
 #include <MD_Parola.h>
 #include <MD_MAX72xx.h>
+#include "double_height_font.h" // dubbel hoog font
 #include <SPI.h>
 #include <vector>
 
@@ -36,6 +37,7 @@ class ParolaClass
     void setCallback(std::function<void(const std::string&)> callback);
     void setDisplayConfig(const DisplayConfig &config);
     void setScrollSpeed(int16_t speed);
+    void setIntensity(int16_t intensity);
     void setDebug(Stream* debugPort = &Serial);
     
     // Operation methods
@@ -53,6 +55,8 @@ class ParolaClass
     uint8_t csPin = 0;
     uint8_t dataPin = 0;
     uint8_t clkPin = 0;
+    uint8_t numZones = 1;  // Default to 1 zone
+
     bool initialized = false;
     bool spiInitialized = false;
     
@@ -72,4 +76,13 @@ class ParolaClass
     bool initSPI();
     void cleanup();
     textEffect_t getRandomEffect();
+
+
+  #ifdef PAROLA_DEBUG
+    bool doDebug = true;
+  #else
+    bool doDebug = false;
+  #endif
+
+
 };
