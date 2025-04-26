@@ -33,12 +33,15 @@ bool ParolaClass::begin(uint8_t dataPin, uint8_t clkPin, uint8_t csPin, const PA
   
   // Store pin configuration
   this->dataPin = dataPin;
-  this->clkPin = clkPin;
-  this->csPin = csPin;
+  this->clkPin  = clkPin;
+  this->csPin   = csPin;
+  this->numZones = config.MY_MAX_ZONES;
   
-  debugPrint("ParolaClass::begin() - dataPin[%d], clkPin[%d], csPin[%d], MAX_DEVICES[%d]", 
-             dataPin, clkPin, csPin, config.MY_MAX_DEVICES);
-  
+  debugPrint("ParolaClass::begin() - dataPin[%d], clkPin[%d], csPin[%d], MAX_DEVICES[%d], ZONES[%d]", 
+             dataPin, clkPin, csPin, config.MY_MAX_DEVICES, config.MY_MAX_ZONES);
+  Serial.printf("ParolaClass::begin() - dataPin[%d], clkPin[%d], csPin[%d], MAX_DEVICES[%d], ZONES[%d]\n", 
+             dataPin, clkPin, csPin, config.MY_MAX_DEVICES, config.MY_MAX_ZONES);
+   
   // Validate configuration
   if (config.MY_MAX_DEVICES == 0 || config.MY_MAX_DEVICES > 32)
   {
@@ -91,9 +94,43 @@ bool ParolaClass::begin(uint8_t dataPin, uint8_t clkPin, uint8_t csPin, const PA
       cleanup();
       return false;
     }
-    
+    if (config.MY_MAX_ZONES == 2)
+    {
+      parola->displaySuspend(true);  // <--- Freeze display updates
+      
+      parola->setZone(0, 0, (config.MY_MAX_DEVICES/2)-1);
+      parola->setZone(1, (config.MY_MAX_DEVICES/2), config.MY_MAX_DEVICES-1);
+
+      parola->setIntensity(5);       // Felheid 0-15
+      parola->displayClear();        // Schoonmaken
+      
+      // Fonts instellen
+    //  parola->setFont(0, double_height_font);
+    //  parola->setFont(1, double_height_font);
+      parola->setFont(0, nullptr);
+      parola->setFont(1, nullptr);
+
+      // Teksten instellen
+      parola->displayZoneText(0, "ABCDE", PA_CENTER, 100, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
+      parola->displayZoneText(1, "EFGHI", PA_CENTER, 100, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
+      delay(200);
+      parola->displayReset(0);
+      parola->displayReset(1);
+      parola->displaySuspend(false); // <--- Resume updates
+
+      while(parola->displayAnimate())
+      {
+        delay(20);
+      }
+    }
+    else
+    {
+      parola->setFont(nullptr);  // Standaard font
+    }
+
+    // Set the display configuration
     // Set animation speed
-    parola->setSpeed(206 - config.MY_MAX_SPEED);
+    parola->setSpeed((50 + 5) - config.MY_MAX_SPEED);
     
     // Set initial intensity (brightness)
     parola->setIntensity(7); // Medium brightness (0-15)
@@ -126,6 +163,14 @@ void ParolaClass::setScrollSpeed(int16_t speed)
   debugPrint("ParolaClass::setScrollSpeed() - Speed[%d] -> updated to [%d]", speed, displayConfig.speed);
 }
 
+
+void ParolaClass::setIntensity(int16_t intensity)
+{
+  parola->setIntensity(intensity);
+  debugPrint("ParolaClass::setSIntensity() - updated to [%d]", intensity);
+}
+
+
 bool ParolaClass::initSPI()
 {
   if (!spiInitialized) 
@@ -134,7 +179,7 @@ bool ParolaClass::initSPI()
     
     try
     {
-      SPI.setFrequency(1000000);
+      SPI.setFrequency(2000000);
       // Initialize SPI with the specified pins
       SPI.begin(clkPin, -1, dataPin, csPin);  // SCK, MISO, MOSI, SS
       spiInitialized = true;
@@ -211,26 +256,55 @@ bool ParolaClass::sendNextText(const std::string &text)
   
   currentText = text;
   
-  // Get random effects for entry and exit
-  //textEffect_t effectIn = getRandomEffect();
+  // Get effects for entry and exit
   textEffect_t effectIn = PA_SCROLL_LEFT;
   textEffect_t effectOut = getRandomEffect();
   
   debugPrint("ParolaClass::sendNextText() - Text: [%s], Effects: in=%d, out=%d", 
              currentText.c_str(), effectIn, effectOut);
   
-  // Display the text with the configured parameters
-  parola->displayText(
-    (char *)currentText.c_str(),
-    displayConfig.align,
-    displayConfig.speed,
-    displayConfig.pauseTime,
-    effectIn,
-    effectOut
-  );
+  debugPrint("ParolaClass::sendNextText() - Using %d zone(s)", numZones);
+  
+  if (numZones <= 1)
+  {
+    // Single zone configuration - use displayText
+    parola->displayText(
+      (char *)currentText.c_str(),
+      displayConfig.align,
+      displayConfig.speed,
+      displayConfig.pauseTime,
+      effectIn,
+      effectOut
+    );
+  }
+  else
+  {
+    // Multi-zone configuration - use displayZoneText for each zone
+    parola->displaySuspend(true);  // Freeze display updates while configuring
+    
+    // For a 2-zone setup, split the text between zones or duplicate it
+    // Here we're duplicating the same text in both zones
+    parola->displayZoneText(0, (char *)currentText.c_str(), 
+                           displayConfig.align,
+                           displayConfig.speed,
+                           displayConfig.pauseTime,
+                           effectIn, effectOut);
+    
+    parola->displayZoneText(1, (char *)currentText.c_str(), 
+                           displayConfig.align,
+                           displayConfig.speed,
+                           displayConfig.pauseTime,
+                           effectIn, effectOut);
+    
+    // Reset both zones to start the animation
+    parola->displayReset(0);
+    parola->displayReset(1);
+    
+    parola->displaySuspend(false);  // Resume display updates
+  }
   
   return true;
-}
+} // sendNextText()
 
 bool ParolaClass::animateBlocking(const String &text)
 {
@@ -247,23 +321,62 @@ bool ParolaClass::animateBlocking(const String &text)
 
   // DEBUG: show what we're about to display
   debugPrint("ParolaClass::animateBlocking() - Text: [%s]", text.c_str());
-
-  parola->displayText(
-    (char *)text.c_str(),  // <-- use input text directly
-    displayConfig.align,
-    5,
-    displayConfig.pauseTime,
-    PA_SCROLL_LEFT,
-    PA_NO_EFFECT
-  );
-
-  while (!parola->displayAnimate())
+  
+  debugPrint("ParolaClass::animateBlocking() - Using %d zone(s)", numZones);
+  
+  if (numZones <= 1)
   {
-    delay(10);
+    // Single zone configuration - use displayText
+    parola->displayText(
+      (char *)text.c_str(),
+      displayConfig.align,
+      5,  // Fixed speed for blocking animation
+      displayConfig.pauseTime,
+      PA_SCROLL_LEFT,
+      PA_NO_EFFECT
+    );
+    
+    // Wait for animation to complete
+    while (!parola->displayAnimate())
+    {
+      delay(10);
+    }
+  }
+  else
+  {
+    // Multi-zone configuration - use displayZoneText for each zone
+    parola->displaySuspend(true);  // Freeze display updates while configuring
+    
+    // For a 2-zone setup, split the text between zones or duplicate it
+    // Here we're duplicating the same text in both zones
+    parola->displayZoneText(0, (char *)text.c_str(), 
+                           displayConfig.align,
+                           5,  // Fixed speed for blocking animation
+                           displayConfig.pauseTime,
+                           PA_SCROLL_LEFT, PA_NO_EFFECT);
+    
+    parola->displayZoneText(1, (char *)text.c_str(), 
+                           displayConfig.align,
+                           5,  // Fixed speed for blocking animation
+                           displayConfig.pauseTime,
+                           PA_SCROLL_LEFT, PA_NO_EFFECT);
+    
+    // Reset both zones to start the animation
+    parola->displayReset(0);
+    parola->displayReset(1);
+    
+    parola->displaySuspend(false);  // Resume display updates
+    
+    // Wait for animation to complete on both zones
+    bool animating = true;
+    while (animating)
+    {
+      animating = parola->displayAnimate();
+      delay(10);
+    }
   }
 
   return true;
-
 } // animateBlocking()
 
 
@@ -308,7 +421,10 @@ void ParolaClass::debugPrint(const char* format, ...)
   vsnprintf(buffer, sizeof(buffer), format, args);
   va_end(args);
   
-  if (debug)  debug->println(buffer);
-  else        Serial.println(buffer);
+  if (doDebug)
+  {
+    if (debug)  debug->println(buffer);
+    else        Serial.println(buffer);
+  }
   
 } // debugPrint()

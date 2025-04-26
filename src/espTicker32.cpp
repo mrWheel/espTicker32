@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* ESPTICKER32_VERSION = "v0.10.7";
+const char* ESPTICKER32_VERSION = "v0.11.0";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -58,6 +58,7 @@ SPAmanager spa(80);
 FSmanager fsManager(spa.server);
 
 
+uint32_t systemUpTime = 0;
 uint32_t lastCounterUpdate = 0;
 
 const char *hostName = "espTicker32";
@@ -110,14 +111,14 @@ String getRSSfeedMessage()
     // Read the feed content
     snprintf(rssFeedMessage, sizeof(rssFeedMessage), "[%d][%d] %s"
                                             , feedIndex, itemIndex
-                                            , rssReader.readRssFeed(feedIndex, itemIndex).c_str());
+                                            , rssReader.readRSSfeed(feedIndex, itemIndex).c_str());
     
     // If we get an empty message, try again with the next indices
     if (strlen(rssFeedMessage) == 0 && rssReader.getNextFeedItem(feedIndex, itemIndex))
     {
       snprintf(rssFeedMessage, sizeof(rssFeedMessage), "[%d][%d] %s"
                                                   , feedIndex, itemIndex
-                                                  , rssReader.readRssFeed(feedIndex, itemIndex).c_str());
+                                                  , rssReader.readRSSfeed(feedIndex, itemIndex).c_str());
     }
   }
   
@@ -150,45 +151,66 @@ std::string nextMessage()
     std::string newMessage = "-";
     std::string tmpMessage = "";
     newMessage = getLocalMessage().c_str();
+    static uint8_t feedNr = 0;
 
 
-    if (strcmp(newMessage.c_str(), "<weerlive>") == 0) 
+    if (strcasecmp(newMessage.c_str(), "<weerlive>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): weerlive message");
         //newMessage = getWeerliveMessage().c_str();
         newMessage = rssReader.simplifyCharacters(getWeerliveMessage()).c_str();
     }
 #ifdef USE_MEDIASTACK
-    else if (strcmp(newMessage.c_str(), "<mediastack>") == 0) 
+    else if (strcasecmp(newMessage.c_str(), "<mediastack>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): mediastack message");
         newMessage = getMediastackMessage().c_str();
     }
 #endif
-    else if (strcmp(newMessage.c_str(), "<rssfeed>") == 0) 
+    else if (strcasecmp(newMessage.c_str(), "<rssfeed>") == 0) 
     {
         if (debug && doDebug) if (debug && doDebug) debug->println("nextMessage(): rssfeed message");
         newMessage = getRSSfeedMessage().c_str();
     }
-    else if (strcmp(newMessage.c_str(), "<date>") == 0) 
+    else if (strcasecmp(newMessage.c_str(), "<date>") == 0) 
     {
         if (debug && doDebug) if (debug && doDebug) debug->println("nextMessage(): The Date");
         newMessage = network->ntpGetDateDMY();
     }
-    else if (strcmp(newMessage.c_str(), "<time>") == 0) 
+    else if (strcasecmp(newMessage.c_str(), "<time>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): The Time");
         newMessage = network->ntpGetTime();
     }
-    else if (strcmp(newMessage.c_str(), "<datetime>") == 0) 
+    else if (strcasecmp(newMessage.c_str(), "<datetime>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): The Date & Time");
         newMessage = network->ntpGetDateTimeDMY();
     }
-    else if (strcmp(newMessage.c_str(), "<spaces>") == 0) 
+    else if (strcasecmp(newMessage.c_str(), "<spaces>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): spaces");
         newMessage = "                                                                                     ";
+    }
+    else if (strcasecmp(newMessage.c_str(), "<feedInfo>") == 0) 
+    {
+        if (debug && doDebug) debug->println("nextMessage(): feedInfo");
+        newMessage = rssReader.checkFeedHealth(feedNr).c_str();
+        feedNr++;
+        if (feedNr >= rssReader.getActiveFeedCount()) 
+        {
+            feedNr = 0;
+        }
+    }
+    else if (strcasecmp(newMessage.c_str(), "<spottest>") == 0) 
+    {
+        if (debug && doDebug) debug->println("nextMessage(): spotTest");
+        tmpMessage = {0};
+        for (int i=0; i< 40; i++)
+        {
+            tmpMessage += '\x7F';
+        }
+        newMessage = tmpMessage;  
     }
     //if (newMessage.length() < 1) 
     //{
@@ -1405,6 +1427,7 @@ void listFiles(const char * dirname, int numTabs)
 
 void setupParolaDisplay()
 {
+
   if (settings.parolaPinDIN == (settings.parolaPinCLK || settings.parolaPinCS) )
   {
     settings.parolaPinDIN = 23;
@@ -1493,6 +1516,7 @@ void setupParolaDisplay()
 
 void setup()
 {
+    systemUpTime = millis();
     Serial.begin(115200);
     while (!Serial) { delay(100); } // Wait for Serial to be ready
 
@@ -1506,7 +1530,9 @@ void setup()
     else                  Serial.println("espTicker32: setup(): readSettingFields(parolaSettings)");
     settings.readSettingFields("parolaSettings");
     setupParolaDisplay();
+    delay(500);
     max72xx.animateBlocking("Start espTicker32 ["+String(ESPTICKER32_VERSION)+"] ...    ");
+    delay(500);
 
     //-- Connect to WiFi
     network = new Networking();

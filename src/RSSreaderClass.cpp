@@ -13,7 +13,7 @@ RSSreaderClass::RSSreaderClass()
     _lastFeedUpdate[i] = 0;
   }
   // Initialize skipWords container
-  _skipWords = { "Voetbal" };
+  _skipWords = { "Voetbal", "Voetballer", "Voetballers", "Voetbalster", "Voetbalsters" };  
   //-- be aware: no debug set yes, so no print messages
   readSkipWordsFromFile();
 
@@ -36,7 +36,7 @@ bool RSSreaderClass::addRSSfeed(const char* url, const char* path, size_t maxFee
   _totalMaxFeeds += maxFeeds; // Update total max feeds
   _lastCheck = 0;
 
-  createRSSfeedMap();
+  createRSSfeedFolder();
 
   if (debug && doDebug) debug->printf("RSSreaderClass::addRSSfeed(): URL:[%s], Path:[%s], File:[%s], Max Feeds:[%d], Index: [%d]\n" 
                                                                   , _urls[feedIndex].c_str()
@@ -96,7 +96,7 @@ void RSSreaderClass::loop(struct tm timeNow)
   // Check feed health periodically
   if (millis() - _lastHealthCheck >= _healthCheckInterval) 
   {
-    checkFeedHealth();
+    checkAllFeedsHealth();
   }
   
   // If we're in the process of checking feeds, check one feed at a time
@@ -668,51 +668,63 @@ bool RSSreaderClass::getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex)
 } // getNextFeedItem()
 
 
-void RSSreaderClass::checkFeedHealth()
+String RSSreaderClass::checkFeedHealth(uint8_t feedNr)
+{
+  if (debug && doDebug) debug->printf("RSSreaderClass::checkFeedHealth(%d): Checking feed health...\n", feedNr);
+  
+  // Check if the feed file exists
+  LittleFS.begin();
+  String filePath = RSS_BASE_FOLDER + _filePaths[feedNr];
+  bool fileExists = LittleFS.exists(filePath);
+  
+  if (debug && doDebug) debug->printf("RSSreaderClass::checkFeedHealth(): Feed[%d] file [%s] exists: %s\n", 
+                          feedNr, filePath.c_str(), fileExists ? "Yes" : "No");
+  
+  // Get the stored lines and count them
+  std::vector<String> lines = getStoredLines(feedNr);
+  
+  if (debug && doDebug) debug->printf("RSSreaderClass::checkFeedHealth(): Feed[%d] has %d items, max allowed: [%d]\n", 
+                          feedNr, lines.size(), _maxFeedsPerFile[feedNr]);
+  
+  // Check read counts
+  if (debug && doDebug) debug->printf("RSSreaderClass::checkFeedHealth(): Feed[%d] read count: [%d]\n", 
+                          feedNr, _feedReadCounts[feedNr]);
+  
+  // Check current item index
+  if (debug && doDebug) debug->printf("RSSreaderClass::checkFeedHealth(): Feed[%d] current item index: [%d]\n", 
+                          feedNr, _currentItemIndices[feedNr]);
+  
+  // Print the first few items if any exist
+  if (!lines.empty())
+  {
+    if (debug && doDebug) debug->printf("RSSreaderClass::checkFeedHealth(): Feed[%d] first few items:\n", feedNr);
+    for (size_t j = 0; j < std::min(lines.size(), (size_t)3); j++)
+    {
+      if (debug && doDebug) debug->printf("  [%d]: %s\n", j, lines[j].c_str());
+    }
+  }
+  
+  //-- Print statistics
+  char _msg[100];
+  snprintf(_msg, sizeof(_msg), "feed[%d] has[%d] items, max Items [%d]", feedNr, lines.size(), _maxFeedsPerFile[feedNr]);
+  if (debug) debug->printf("RSSreaderClass::checkFeedHealth(): %s\n", _msg);
+  return String(_msg);
+
+} // checkFeedHealth()
+
+
+void RSSreaderClass::checkAllFeedsHealth()
 {
   if (debug && doDebug) debug->println("RSSreaderClass::checkFeedHealth(): Checking feed health...");
   
   for (uint8_t i = 0; i < _activeFeedCount; i++)
   {
-    // Check if the feed file exists
-    LittleFS.begin();
-    String filePath = RSS_BASE_FOLDER + _filePaths[i];
-    bool fileExists = LittleFS.exists(filePath);
-    
-    if (debug && doDebug) debug->printf("RSSreaderClass::checkFeedHealth(): Feed[%d] file [%s] exists: %s\n", 
-                            i, filePath.c_str(), fileExists ? "Yes" : "No");
-    
-    // Get the stored lines and count them
-    std::vector<String> lines = getStoredLines(i);
-    
-    if (debug && doDebug) debug->printf("RSSreaderClass::checkFeedHealth(): Feed[%d] has %d items, max allowed: %d\n", 
-                            i, lines.size(), _maxFeedsPerFile[i]);
-    
-    // Check read counts
-    if (debug && doDebug) debug->printf("RSSreaderClass::checkFeedHealth(): Feed[%d] read count: %d\n", 
-                            i, _feedReadCounts[i]);
-    
-    // Check current item index
-    if (debug && doDebug) debug->printf("RSSreaderClass::checkFeedHealth(): Feed[%d] current item index: %d\n", 
-                            i, _currentItemIndices[i]);
-    
-    // Print the first few items if any exist
-    if (!lines.empty())
-    {
-      if (debug && doDebug) debug->printf("RSSreaderClass::checkFeedHealth(): Feed[%d] first few items:\n", i);
-      for (size_t j = 0; j < std::min(lines.size(), (size_t)3); j++)
-      {
-        if (debug && doDebug) debug->printf("  [%d]: %s\n", j, lines[j].c_str());
-      }
-    }
+    checkFeedHealth(i);
   }
-  
-  // Print total max feeds
-  if (debug) debug->printf("RSSreaderClass::checkFeedHealth(): Total max feeds: %d\n", _totalMaxFeeds);
   
   _lastHealthCheck = millis();
 
-} // checkFeedHealth()
+} // checkAllFeedHealth()
 
 String RSSreaderClass::simplifyCharacters(const String& input)
 {
@@ -1089,34 +1101,34 @@ bool RSSreaderClass::hasNoSkipWords(const String& title)
 
 
 
-void RSSreaderClass::createRSSfeedMap()
+void RSSreaderClass::createRSSfeedFolder()
 {
   if (!LittleFS.exists(RSS_BASE_FOLDER)) 
   {
-    if (debug) debug->printf("RSSreaderClass::createRSSfeedMap(): Creating [%s] directory\n", RSS_BASE_FOLDER);
+    if (debug) debug->printf("RSSreaderClass::createRSSfeedFolder(): Creating [%s] directory\n", RSS_BASE_FOLDER);
     if (!LittleFS.mkdir(RSS_BASE_FOLDER)) 
     {
-      if (debug) debug->printf("RSSreaderClass::createRSSfeedMap(): Failed to create [%s] directory\n", RSS_BASE_FOLDER);
+      if (debug) debug->printf("RSSreaderClass::createRSSfeedFolder(): Failed to create [%s] directory\n", RSS_BASE_FOLDER);
     }
   }
 
-} // createRSSfeedMap()
+} // createRSSfeedFolder()
 
 
-String RSSreaderClass::readRssFeed(uint8_t feedIndex, size_t itemIndex) 
+String RSSreaderClass::readRSSfeed(uint8_t feedIndex, size_t itemIndex) 
 {
   if (feedIndex >= _activeFeedCount)
   {
-    if (debug) debug->printf("RSSreaderClass::readRssFeed(): Invalid feed index[%d]\n", feedIndex);
+    if (debug) debug->printf("RSSreaderClass::readRSSfeed(): Invalid feed index[%d]\n", feedIndex);
     return "";
   }
   
-  if (debug && doDebug) debug->printf("RSSreaderClass::readRssFeed(): FeedIndex[%d], ItemIndex[%d]\n", feedIndex, itemIndex);
+  if (debug && doDebug) debug->printf("RSSreaderClass::readRSSfeed(): FeedIndex[%d], ItemIndex[%d]\n", feedIndex, itemIndex);
   std::vector<String> lines = getStoredLines(feedIndex);
   
   if (itemIndex >= lines.size()) 
   {
-    if (debug) debug->printf("RSSreaderClass::readRssFeed(): Geen RSS-feed gevonden voor nummer [%d] in feed[%d]\n", 
+    if (debug) debug->printf("RSSreaderClass::readRSSfeed(): Geen RSS-feed gevonden voor nummer [%d] in feed[%d]\n", 
                             itemIndex, feedIndex);
     return "";
   }
@@ -1124,11 +1136,11 @@ String RSSreaderClass::readRssFeed(uint8_t feedIndex, size_t itemIndex)
   int sep = lines[itemIndex].indexOf('|');
   if (sep != -1) 
   {
-    if (debug && doDebug) debug->printf("RSSreaderClass::readRssFeed(): Feed[%d], Item[%d] - [%s]\n", 
+    if (debug && doDebug) debug->printf("RSSreaderClass::readRSSfeed(): Feed[%d], Item[%d] - [%s]\n", 
                             feedIndex, itemIndex, lines[itemIndex].c_str());
     return lines[itemIndex].substring(sep + 1);
   }
 
   return "";
 
-} // RSSreaderClass::readRssFeed()
+} // RSSreaderClass::readRSSfeed()
