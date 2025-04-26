@@ -71,63 +71,70 @@ bool Weerlive::loop(std::string& result)
  */
 void Weerlive::configureFilters()
 {
-  filter["liveweer"][0]["fout"]     = true;   //-- LEAVE THIS!!!
-  filter["liveweer"][0]["plaats"]   = true;
-  filter["liveweer"][0]["time"]     = false;
-  filter["liveweer"][0]["temp"]     = true;   //-- actuele temperatuur in graden Celsius
-  filter["liveweer"][0]["gtemp"]    = false;  //-- gevoeld temperatuur
-  filter["liveweer"][0]["samenv"]   = true;   //-- samenvatting
-  filter["liveweer"][0]["lv"]       = true;   //-- relatieve luchtvochtigheid
-  filter["liveweer"][0]["windr"]    = true;   //-- windrichting
-  filter["liveweer"][0]["windrgr"]  = false;  //-- windrichting in graden
-  filter["liveweer"][0]["windms"]   = false;  //-- windkracht in m/s
-  filter["liveweer"][0]["windbft"]  = true;   //-- windkracht in bft
-  filter["liveweer"][0]["windknp"]  = false;  //-- windsnelheid in knoppen
-  filter["liveweer"][0]["windkmh"]  = false;  //-- windsnelheid in km/h
-  filter["liveweer"][0]["luchtd"]   = true;   //-- luchtdruk
-  filter["liveweer"][0]["ldmmhg"]   = false;  //-- luchtdruk in mmHg
-  filter["liveweer"][0]["dauwp"]    = true;   //-- dauwpunt
-  filter["liveweer"][0]["zicht"]    = false;  //-- zicht in meters
-  filter["liveweer"][0]["gr"]       = true;   //-- globale (zonne)straling in Watt/M2
-  filter["liveweer"][0]["verw"]     = false;  //-- korte dagverwachting
-  filter["liveweer"][0]["sup"]      = false;  //-- zon op
-  filter["liveweer"][0]["sunder"]   = true;   //-- zon onder
-  filter["liveweer"][0]["image"]    = true;   //-- afbeeldingsnaam
-  filter["liveweer"][0]["alarm"]    = true;   //-- Geldt er een weerwaarschuwing? 1 = ja, 0 = nee
-  filter["liveweer"][0]["lkop"]     = true;   //-- Weerwaarschuwing korte omschrijving
-  filter["liveweer"][0]["ltekst"]   = false;  //-- Langere beschrijving van de waarschuwing
-  filter["liveweer"][0]["wrschklr"] = false;  //-- KNMI kleurcode voor jouw regio
-  filter["liveweer"][0]["wrsch_g"]  = false;  //-- Moment waarop de eerstkomende KNMI-waarschuwing geldt
-  filter["liveweer"][0]["wrsch_gts"]= false;  //-- Timestamp van wrsch_g
-  filter["liveweer"][0]["wrsch_gc"] = false;  //-- KNMI kleurcode voor de eerstkomende waarschuwing
-  //---- week verwachting ---
-  filter["wk_verw"][0]["dag"]       = true;   //-- datum van deze dag
-  filter["wk_verw"][0]["image"]     = false;  //-- afbeeldingsnaam
-  filter["wk_verw"][0]["max_temp"]  = true;   //-- maximum temperatuur voor de dag
-  filter["wk_verw"][0]["min_temp"]  = true;   //-- minimum temperatuur voor de dag
-  filter["wk_verw"][0]["windbft"]   = false;  //--  windkracht in Beaufort
-  filter["wk_verw"][0]["windkmh"]   = false;  //-- windkracht in km/h
-  filter["wk_verw"][0]["windms"]    = true;   //-- windkracht in m/s
-  filter["wk_verw"][0]["windknp"]   = false;  //-- windkracht in knopen
-  filter["wk_verw"][0]["windrgr"]   = false;  //-- windrichting in graden
-  filter["wk_verw"][0]["windr"]     = false;  //-- windrichting
-  filter["wk_verw"][0]["neersl_perc_dag"] = true;   //-- kans op neerslag per dag
-  filter["wk_verw"][0]["zond_perc_dag"]   = true;   //-- kans op zon per dag
+  JsonObject liveweer = filter["liveweer"].createNestedObject();
+  liveweer["fout"]     = true;   //-- LEAVE THIS!!!
+  liveweer["plaats"]   = true;   //-- plaatsnaam
+  liveweer["time"]     = false;
+  liveweer["temp"]     = true;   //-- actuele temperatuur in graden Celsius
+  liveweer["gtemp"]    = false;  //-- gevoelstemperatuur
+  liveweer["samenv"]   = true;   //-- samenvatting
+  liveweer["lv"]       = true;   //-- relatieve luchtvochtigheid
+  liveweer["windr"]    = true;   //-- windrichting
+  liveweer["windrgr"]  = false;  //-- windrichting in graden
+  liveweer["windms"]   = false;  //-- windkracht m/s
+  liveweer["windbft"]  = true;   //-- windkracht bft
+  liveweer["windknp"]  = false;  //-- windsnelheid knopen
+  liveweer["windkmh"]  = false;  //-- windsnelheid km/h
+  liveweer["luchtd"]   = true;   //-- luchtdruk
+  liveweer["ldmmhg"]   = false;  //-- luchtdruk mmHg
+  liveweer["dauwp"]    = true;   //-- dauwpunt
+  liveweer["zicht"]    = false;  //-- zicht in meters
+  liveweer["gr"]       = true;   //-- globale straling
+  liveweer["verw"]     = false;  //-- korte dagverwachting
+  liveweer["sup"]      = false;  //-- zon op
+  liveweer["sunder"]   = true;   //-- zon onder
+  liveweer["image"]    = true;   //-- afbeeldingsnaam
+  liveweer["alarm"]    = true;   //-- weerwaarschuwing
+  liveweer["lkop"]     = true;   //-- waarschuwing kort
+  liveweer["ltekst"]   = false;  //-- waarschuwing lang
+  liveweer["wrschklr"] = false;  //-- kleurcode regio
+  liveweer["wrsch_g"]  = false;  //-- eerstkomende waarschuwing
+  liveweer["wrsch_gts"]= false;  //-- timestamp
+  liveweer["wrsch_gc"] = false;  //-- kleurcode eerstkomende waarschuwing
 
-  for(int i = 1; i < 4; i++)
+  //--- Tweede dag van weekverwachting ---
+  JsonObject nextDay = filter["wk_verw"].createNestedObject();
+  nextDay["dag"]              = true;   //-- datum
+  nextDay["image"]            = false;  //-- afbeeldingsnaam
+  nextDay["max_temp"]         = true;   //-- maximum temperatuur
+  nextDay["min_temp"]         = true;   //-- minimum temperatuur
+  nextDay["windbft"]          = false;  //-- windkracht Beaufort
+  nextDay["windkmh"]          = false;  //-- windkracht km/h
+  nextDay["windms"]           = true;   //-- windkracht m/s
+  nextDay["windknp"]          = false;  //-- windkracht knopen
+  nextDay["windrgr"]          = false;  //-- windrichting graden
+  nextDay["windr"]            = false;  //-- windrichting
+  nextDay["neersl_perc_dag"]  = true;   //-- kans op neerslag
+  nextDay["zond_perc_dag"]    = true;   //-- kans op zon
+
+  //-- dag[0] is vandaag, dag[1] is morgen, dag[2] is overmorgen, dag[3] is 3 dagen verder
+  //--- Volgende dagen: alles uit ---
+  for (int i = 0; i < 4; i++) 
   {
-    filter["wk_verw"][i]["dag"]       = false;   //-- datum van deze dag
-    filter["wk_verw"][i]["image"]     = false;   //-- afbeeldingsnaam
-    filter["wk_verw"][i]["max_temp"]  = false;   //-- maximum temperatuur voor de dag
-    filter["wk_verw"][i]["min_temp"]  = false;   //-- minimum temperatuur voor de dag
-    filter["wk_verw"][i]["windbft"]   = false;   //--  windkracht in Beaufort
-    filter["wk_verw"][i]["windkmh"]   = false;   //-- windkracht in km/h
-    filter["wk_verw"][i]["windms"]    = false;   //-- windkracht in m/s
-    filter["wk_verw"][i]["windknp"]   = false;   //-- windkracht in knopen
-    filter["wk_verw"][i]["windrgr"]   = false;   //-- windrichting in graden
-    filter["wk_verw"][i]["windr"]     = false;   //-- windrichting
-    filter["wk_verw"][i]["neersl_perc_dag"] = false;   //-- kans op neerslag per dag
-    filter["wk_verw"][i]["zond_perc_dag"]   = false;   //-- kans op zon per dag
+    if (i == 1) continue; // Skip nextDay
+    JsonObject dag = filter["wk_verw"].createNestedObject();
+    dag["dag"]              = false;
+    dag["image"]            = false;
+    dag["max_temp"]         = false;
+    dag["min_temp"]         = false;
+    dag["windbft"]          = false;
+    dag["windkmh"]          = false;
+    dag["windms"]           = false;
+    dag["windknp"]          = false;
+    dag["windrgr"]          = false;
+    dag["windr"]            = false;
+    dag["neersl_perc_dag"]  = false;
+    dag["zond_perc_dag"]    = false;
   }
 
 } //  configureFilters()
@@ -142,7 +149,7 @@ void Weerlive::configureFilters()
 const char *Weerlive::request()
 {
   int   weerliveStatus = 0;
-  char  tmpMessage[30] = {};
+  char  tmpMessage[30] = {0};
   bool  gotData        = false;
   unsigned long requestTimeout = millis() + 10000; // 10 second timeout
 
@@ -300,9 +307,7 @@ const char *Weerlive::request()
 
   if (weerliveStatus == 200)
   {
-#ifdef DEBUG
     if (debug && doDebug) debug->printf("\nrequest(): jsonResponse ==[%d]===\n%s\nrequest(): =============\n\n", strlen(jsonResponse), jsonResponse);
-#endif  // DEBUG
     if (strlen(jsonResponse) == 0)
     {
       if (debug && doDebug) debug->println(" ... Bailout!!\n");
@@ -330,11 +335,9 @@ const char *Weerlive::request()
     {
       for (JsonPair kv : weather)
       {
-#ifdef DEBUG
         if (debug && doDebug) debug->print(kv.key().c_str());
         if (debug && doDebug) debug->print(": ");
         if (debug && doDebug) debug->println(kv.value().as<String>());
-#endif  // DEBUG
         if (kv.key() == "plaats")
         {
           weerliveText += kv.value().as<String>();
@@ -463,94 +466,93 @@ const char *Weerlive::request()
     if (debug && doDebug) debug->println("\nrequest(): Process wk_verw ......  \n");
     // Process the wk_verw array
     JsonArray wk_verwArray = doc["wk_verw"];
-    if (debug && doDebug) debug->printf("request(): After wk_verwArray: Free Heap [%d] bytes\n\n", ESP.getFreeHeap());
-    for (JsonVariant v : wk_verwArray)
-    {
-      JsonObject obj = v.as<JsonObject>();
-      for (JsonPair kv : obj)
-      {
-#ifdef DEBUG
-        if (debug && doDebug) debug->print(kv.key().c_str());
-        if (debug && doDebug) debug->print(": ");
-        if (debug && doDebug) debug->println(kv.value().as<String>());
-#endif  // DEBUG
+if (debug && doDebug) debug->printf("request(): After wk_verwArray: Free Heap [%d] bytes\n\n", ESP.getFreeHeap());
 
-        if (kv.key() == "dag" && filter["wk_verw"][0]["dag"])
-        {
-          weerliveText += " | "+ String(dateToDayName(kv.value().as<String>().c_str()));
-        }
-        else if (kv.key() == "image" )
-        {
-          weerliveText += " " + kv.value().as<String>();
-        }
-        else if (kv.key() == "max_temp" )
-        {
-          weerliveText += " max " + kv.value().as<String>() + "°C";
-        }
-        else if (kv.key() == "min_temp" )
-        {
-          weerliveText += " min " + kv.value().as<String>() + "°C";
-        }
-        else if (kv.key() == "windbft")
-        {
-          weerliveText += " " + kv.value().as<String>() + " bft";
-        }
-        else if (kv.key() == "windkmh")
-        {
-          weerliveText += " " + kv.value().as<String>() + " km/h";
-        }
-        else if (kv.key() == "windms")
-        {
-          weerliveText += " " + kv.value().as<String>() + " m/s";
-        }
-        else if (kv.key() == "windknp")
-        {
-          weerliveText += " " + kv.value().as<String>() + " kts";
-        }
-        else if (kv.key() == "windrgr")
-        {
-          weerliveText += " windrichting " + kv.value().as<String>() + "°";
-        }
-        else if (kv.key() == "windr")
-        {
-          weerliveText += " windrichting " + kv.value().as<String>();
-        }
-        else if (kv.key() == "neersl_perc_dag")
-        {
-          weerliveText += " neerslag kans " + kv.value().as<String>() + "%";
-        }
-        else if (kv.key() == "zond_perc_dag")
-        {
-          weerliveText += " zon kans " + kv.value().as<String>() + "%";
-        }
-        else
-        {
-          //weerliveText += ", [" + String(kv.key().c_str()) + "] = " + kv.value().as<String>();
-        }
-      }
+// Only process nextDay (index 1)
+if (wk_verwArray.size() > 1) {
+  JsonObject obj = wk_verwArray[1].as<JsonObject>();
+  
+  // Add a separator before the forecast
+  weerliveText += " | ";
+  
+  // Process nextDay fields
+  for (JsonPair kv : obj)
+  {
+    if (debug && doDebug) debug->print(kv.key().c_str());
+    if (debug && doDebug) debug->print(": ");
+    if (debug && doDebug) debug->println(kv.value().as<String>());
+
+    if (kv.key() == "dag")
+    {
+      weerliveText += String(dateToDayName(kv.value().as<String>().c_str()));
     }
-#ifdef DEBUG
+    else if (kv.key() == "image")
+    {
+      weerliveText += " " + kv.value().as<String>();
+    }
+    else if (kv.key() == "max_temp")
+    {
+      weerliveText += " max " + kv.value().as<String>() + "°C";
+    }
+    else if (kv.key() == "min_temp")
+    {
+      weerliveText += " min " + kv.value().as<String>() + "°C";
+    }
+    else if (kv.key() == "windbft")
+    {
+      weerliveText += " " + kv.value().as<String>() + " bft";
+    }
+    else if (kv.key() == "windkmh")
+    {
+      weerliveText += " " + kv.value().as<String>() + " km/h";
+    }
+    else if (kv.key() == "windms")
+    {
+      weerliveText += " " + kv.value().as<String>() + " m/s";
+    }
+    else if (kv.key() == "windknp")
+    {
+      weerliveText += " " + kv.value().as<String>() + " kts";
+    }
+    else if (kv.key() == "windrgr")
+    {
+      weerliveText += " windrichting " + kv.value().as<String>() + "°";
+    }
+    else if (kv.key() == "windr")
+    {
+      weerliveText += " windrichting " + kv.value().as<String>();
+    }
+    else if (kv.key() == "neersl_perc_dag")
+    {
+      weerliveText += " neerslag kans " + kv.value().as<String>() + "%";
+    }
+    else if (kv.key() == "zond_perc_dag")
+    {
+      weerliveText += " zon kans " + kv.value().as<String>() + "%";
+    }
+    else
+    {
+      //weerliveText += ", [" + String(kv.key().c_str()) + "] = " + kv.value().as<String>();
+    }
+  }
+}
     if (debug && doDebug) debug->printf("\nrequest(): weerliveText is [%s]\n\n", weerliveText.c_str());
-#endif  // DEBUG
   }
   else
   {
     weerliveText = "Error [" + String(weerliveStatus) + "] on HTTP request";
     if (debug && doDebug) debug->println(weerliveText);
-#ifdef DEBUG
     if (debug && doDebug) debug->printf("[HTTP] GET... code: %d\n", weerliveStatus);
-#endif  // DEBUG
     if (weerliveStatus == 429)
     {
       weerliveText = "request(): WeerliveClass: status [429] Too many requests";
-#ifdef DEBUG
       if (debug && doDebug) debug->println(weerliveText);
-#endif  // DEBUG
       return weerliveText.c_str();
     }
   }
 
   return weerliveText.c_str();
+
 } //  request()
 
 

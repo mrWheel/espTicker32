@@ -40,7 +40,7 @@ private:
 
 
     StaticJsonDocument<10000> doc;
-    StaticJsonDocument<1000> filter;
+    StaticJsonDocument<2000> filter;
 
     void configureFilters();
   #ifdef WEERLIVE_DEBUG
