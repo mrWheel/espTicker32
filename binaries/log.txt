@@ -63,3 +63,9 @@
 [2025-04-27 18:45:54] Copied firmware.bin to espTicker32_v0.11.1.bin
 [2025-04-27 18:46:22] Deleted existing file: espTicker32_v0.11.1.bin
 [2025-04-27 18:46:22] Copied firmware.bin to espTicker32_v0.11.1.bin
+[2025-04-27 18:50:15] Copied firmware.bin to espTicker32_v0.11.2.bin
+[2025-04-27 18:50:45] Deleted existing file: espTicker32_v0.11.2.bin
+[2025-04-27 18:50:45] Copied firmware.bin to espTicker32_v0.11.2.bin
+[2025-04-27 18:51:22] Deleted existing file: espTicker32_v0.11.2.bin
+[2025-04-27 18:51:22] Copied firmware.bin to espTicker32_v0.11.2.bin
+[2025-04-27 18:51:22] Deleted old file: espTicker32_v0.11.1.bin
