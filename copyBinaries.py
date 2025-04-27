@@ -9,7 +9,7 @@ from SCons.Script import DefaultEnvironment
 env = DefaultEnvironment()
 
 # === Settings ===
-versionsToKeep = 2  # Number of versions to keep (minimum = 1)
+versionsToKeep = 1  # Number of versions to keep (minimum = 1)
 enableLogging = True  # Enable or disable log file
 # ==================
 

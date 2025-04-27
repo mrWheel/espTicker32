@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v0.11.0";
+const char* PROG_VERSION = "v0.11.2";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -1511,8 +1511,26 @@ void setupParolaDisplay()
     actMessage = nextMessage();
   });
 
+  delay(1000);
+
 } // setupParolaDisplay()
 
+
+void callbackWiFiPortal()
+{
+    if (debug) debug->println("callbackWiFiPortal(): WiFi portal callback triggered");
+    else       Serial.println("callbackWiFiPortal(): WiFi portal callback triggered");
+
+    max72xx.animateBlocking("WiFi portal callback triggered ... ");
+    max72xx.animateBlocking("connect to espTicker32 portal ... ");
+    max72xx.animateBlocking("go to 192.168.4.1 ... ");
+
+    //delay(200000);
+
+    //spa.activatePage("mainSettingsPage");
+    //spa.callJsFunction("isEspTicker32Loaded");
+
+} // callbackWiFiPortal()
 
 void setup()
 {
@@ -1526,9 +1544,40 @@ void setup()
       return;
     }
     //-test- listFiles("/", 0);
-    if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(parolaSettings)");
-    else                  Serial.println("espTicker32: setup(): readSettingFields(parolaSettings)");
+    if (doDebug)
+    { 
+      if (debug) debug->println("espTicker32: setup(): readSettingFields(deviceSettings)");
+      else Serial.println("espTicker32: setup(): readSettingFields(deviceSettings)");
+    }
+    settings.readSettingFields("deviceSettings");
+
+    if (doDebug) 
+    {
+      if (debug) debug->println("espTicker32: setup(): readSettingFields(parolaSettings)");
+      else       Serial.println("espTicker32: setup(): readSettingFields(parolaSettings)");
+    }
     settings.readSettingFields("parolaSettings");
+
+    if (doDebug) 
+    {
+      if (debug) debug->println("espTicker32: setup(): readSettingFields(weerliveSettings)");
+      else       Serial.println("espTicker32: setup(): readSettingFields(weerliveSettings)");
+    }
+    settings.readSettingFields("weerliveSettings");
+
+    if (doDebug) 
+    {
+      if (debug) debug->println("espTicker32: setup(): readSettingFields(mediastackSettings)");
+      else       Serial.println("espTicker32: setup(): readSettingFields(mediastackSettings)");
+    }
+    settings.readSettingFields("mediastackSettings");
+    
+    { 
+      if (debug) debug->println("espTicker32: setup(): readSettingFields(rssfeedSettings)");
+      else       Serial.println("espTicker32: setup(): readSettingFields(rssfeedSettings)");
+    }
+    settings.readSettingFields("rssfeedSettings");
+
     setupParolaDisplay();
     delay(500);
     max72xx.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"] ...    ");
@@ -1538,27 +1587,19 @@ void setup()
     network = new Networking();
     
     max72xx.animateBlocking("Start WiFi setup ...    ");
-    //-- Parameters: hostname, resetWiFi pin, serial object, baud rate
-    debug = network->begin(hostName, 0, Serial, 115200);
+    //-- Parameters: hostname, resetWiFi pin, serial object, baud rate, wifiCallback
+    pinMode(settings.resetWiFiPin, INPUT_PULLUP);
+    debug = network->begin(hostName, settings.resetWiFiPin, Serial, 115200, callbackWiFiPortal);
+    settings.setDebug(debug);
     
     if (debug) debug->println("\nespTicker32: setup(): WiFi connected");
     if (debug) debug->print("espTicker32: setup(): IP address: ");
     if (debug) debug->println(WiFi.localIP());
-    max72xx.animateBlocking("IP: " + String(WiFi.localIP().toString().c_str()) + " ...    ");
+    max72xx.animateBlocking("IP: " + String(WiFi.localIP().toString().c_str()) + " ");
 
     if (debug) debug->printf("espTicker32 Version: %s\n", PROG_VERSION);
 
     max72xx.setDebug(debug);
-
-    settings.setDebug(debug);
-    if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(deviceSettings)");
-    settings.readSettingFields("deviceSettings");
-    if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(weerliveSettings)");
-    settings.readSettingFields("weerliveSettings");
-    if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(mediastackSettings)");
-    settings.readSettingFields("mediastackSettings");
-    if (debug && doDebug) debug->println("espTicker32: setup(): readSettingFields(rssfeedSettings)");
-    settings.readSettingFields("rssfeedSettings");
 
     if (settings.hostname.empty()) 
     {

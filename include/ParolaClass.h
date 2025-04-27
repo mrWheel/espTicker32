@@ -1,9 +1,12 @@
 #pragma once
 #include <MD_Parola.h>
 #include <MD_MAX72xx.h>
-#include "double_height_font.h" // dubbel hoog font
+#include "BigFont.h" // dubbel hoog font
 #include <SPI.h>
 #include <vector>
+
+#define ZONE_UPPER  1
+#define ZONE_LOWER  0
 
 // Configuration structure for Parola display
 struct PAROLA
@@ -67,6 +70,7 @@ class ParolaClass
     // State tracking
     std::string currentText = "";
     std::function<void(const std::string&)> onFinished = nullptr;
+    std::string upperZoneText; // For storing the high-bit version of text
     
     // Debug support
     Stream* debug = nullptr;
@@ -76,6 +80,7 @@ class ParolaClass
     bool initSPI();
     void cleanup();
     textEffect_t getRandomEffect();
+    const char* setHighBits(const std::string &text);
 
 
   #ifdef PAROLA_DEBUG
