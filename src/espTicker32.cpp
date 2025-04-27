@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* ESPTICKER32_VERSION = "v0.11.0";
+const char* PROG_VERSION = "v0.11.0";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -1531,7 +1531,7 @@ void setup()
     settings.readSettingFields("parolaSettings");
     setupParolaDisplay();
     delay(500);
-    max72xx.animateBlocking("Start espTicker32 ["+String(ESPTICKER32_VERSION)+"] ...    ");
+    max72xx.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"] ...    ");
     delay(500);
 
     //-- Connect to WiFi
@@ -1546,7 +1546,7 @@ void setup()
     if (debug) debug->println(WiFi.localIP());
     max72xx.animateBlocking("IP: " + String(WiFi.localIP().toString().c_str()) + " ...    ");
 
-    if (debug) debug->printf("espTicker32 Version: %s\n", ESPTICKER32_VERSION);
+    if (debug) debug->printf("espTicker32 Version: %s\n", PROG_VERSION);
 
     max72xx.setDebug(debug);
 

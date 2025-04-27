@@ -18,11 +18,11 @@ jobs:
         uses: actions/checkout@v3
 
       # Step 2: Extract version from espTicker32.cpp
-      # Expected format: const char* ESPTICKER32_VERSION = "v1.2.3";
+      # Expected format: const char* PROG_VERSION = "v1.2.3";
       - name: Get version from espTicker32.cpp
         id: get_version
         run: |
-          VERSION=$(grep 'const char\* ESPTICKER32_VERSION' src/espTicker32.cpp | sed -E 's/.*"([^"]+)".*/\1/')
+          VERSION=$(grep 'const char\* PROG_VERSION' src/espTicker32.cpp | sed -E 's/.*"([^"]+)".*/\1/')
           echo "Extracted version: $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 

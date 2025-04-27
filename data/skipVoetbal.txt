@@ -2,6 +2,7 @@ Ajax,PSV,Feyenoord,AZ,FC Twente,FC Utrecht,Ahead Eagles, Go Ahead
 Manchester City,Manchester United,Liverpool,Arsenal,
 Chelsea,Tottenham Hotspur,Newcastle United,
 Borussia Dortmund,RB Leipzig,Bayer Leverkusen,
+Real Madrid,
 Eintracht Frankfurt,VfL Wolfsburg,Inter,AC Milan,
 Juventus,Napoli,AS Roma,Lazio,Atalanta,
 Paris Saint-Germain,PSG,Olympique Marseille,
