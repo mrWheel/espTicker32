@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v0.11.1";
+const char* PROG_VERSION = "v0.11.2";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -1519,16 +1519,18 @@ void setupParolaDisplay()
 void callbackWiFiPortal()
 {
     if (debug) debug->println("callbackWiFiPortal(): WiFi portal callback triggered");
-    else Serial.println("callbackWiFiPortal(): WiFi portal callback triggered");
+    else       Serial.println("callbackWiFiPortal(): WiFi portal callback triggered");
 
     max72xx.animateBlocking("WiFi portal callback triggered ... ");
     max72xx.animateBlocking("connect to espTicker32 portal ... ");
     max72xx.animateBlocking("go to 192.168.4.1 ... ");
 
-    spa.activatePage("mainSettingsPage");
-    spa.callJsFunction("isEspTicker32Loaded");
+    //delay(200000);
 
-  } // callbackWiFiPortal()
+    //spa.activatePage("mainSettingsPage");
+    //spa.callJsFunction("isEspTicker32Loaded");
+
+} // callbackWiFiPortal()
 
 void setup()
 {
@@ -1593,7 +1595,7 @@ void setup()
     if (debug) debug->println("\nespTicker32: setup(): WiFi connected");
     if (debug) debug->print("espTicker32: setup(): IP address: ");
     if (debug) debug->println(WiFi.localIP());
-    max72xx.animateBlocking("IP: " + String(WiFi.localIP().toString().c_str()) + " ...    ");
+    max72xx.animateBlocking("IP: " + String(WiFi.localIP().toString().c_str()) + " ");
 
     if (debug) debug->printf("espTicker32 Version: %s\n", PROG_VERSION);
 

@@ -315,8 +315,8 @@ bool ParolaClass::sendNextText(const std::string &text)
                            effectIn, effectOut);
     
     // Reset both zones to start the animation
-    //-?-parola->displayReset(0);
-    //-?-parola->displayReset(1);
+    parola->displayReset(ZONE_LOWER);
+    parola->displayReset(ZONE_UPPER);
     
     parola->displaySuspend(false);  // Resume display updates
   }
@@ -359,7 +359,7 @@ bool ParolaClass::animateBlocking(const String &text)
     // Wait for animation to complete
     while (!parola->displayAnimate())
     {
-      delay(10);
+      delay(1);
     }
   }
   else
@@ -375,28 +375,26 @@ bool ParolaClass::animateBlocking(const String &text)
     // ZONE_UPPER 1 (top) gets the text with high bit set for each character
     parola->displayZoneText(ZONE_LOWER, (char *)text.c_str(), 
                            displayConfig.align,
-                           5,  // Fixed speed for blocking animation
+                           10,  // Fixed speed for blocking animation
                            displayConfig.pauseTime,
                            PA_SCROLL_LEFT, PA_NO_EFFECT);
     
     parola->displayZoneText(ZONE_UPPER, setHighBits(stdText), 
                            displayConfig.align,
-                           5,  // Fixed speed for blocking animation
+                           10,  // Fixed speed for blocking animation
                            displayConfig.pauseTime,
                            PA_SCROLL_LEFT, PA_NO_EFFECT);
     
     // Reset both zones to start the animation
-    //parola->displayReset(ZONE_LOWER);
-    //parola->displayReset(ZONE_UPPER);
+    parola->displayReset(ZONE_LOWER);
+    parola->displayReset(ZONE_UPPER);
     
     parola->displaySuspend(false);  // Resume display updates
     
     // Wait for animation to complete on both zones
-    bool animating = true;
-    while (animating)
+    while (!parola->displayAnimate())
     {
-      animating = parola->displayAnimate();
-      delay(10);
+      delay(1);
     }
   }
 
