@@ -110,6 +110,7 @@ public:
   int16_t LDRMaxWaarde;
   int16_t maxIntensiteitLeds;
   std::string skipWords;
+  int16_t resetWiFiPin;
   int16_t tickerSpeed;
   
   // Weerlive settings data

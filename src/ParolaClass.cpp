@@ -98,18 +98,16 @@ bool ParolaClass::begin(uint8_t dataPin, uint8_t clkPin, uint8_t csPin, const PA
     {
       parola->displaySuspend(true);  // <--- Freeze display updates
       
-      parola->setZone(0, 0, (config.MY_MAX_DEVICES/2)-1);
-      parola->setZone(1, (config.MY_MAX_DEVICES/2), config.MY_MAX_DEVICES-1);
+      parola->setZone(ZONE_LOWER, 0, (config.MY_MAX_DEVICES/2)-1);
+      parola->setZone(ZONE_UPPER, (config.MY_MAX_DEVICES/2), config.MY_MAX_DEVICES-1);
 
       parola->setIntensity(5);       // Felheid 0-15
       parola->displayClear();        // Schoonmaken
       
       // Fonts instellen
-    //  parola->setFont(0, double_height_font);
-    //  parola->setFont(1, double_height_font);
-      parola->setFont(0, nullptr);
-      parola->setFont(1, nullptr);
-
+      parola->setFont(BigFont);
+      //parola->setFont(1, BigFont);
+/**
       // Teksten instellen
       parola->displayZoneText(0, "ABCDE", PA_CENTER, 100, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
       parola->displayZoneText(1, "EFGHI", PA_CENTER, 100, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
@@ -122,6 +120,7 @@ bool ParolaClass::begin(uint8_t dataPin, uint8_t clkPin, uint8_t csPin, const PA
       {
         delay(20);
       }
+**/
     }
     else
     {
@@ -147,6 +146,7 @@ bool ParolaClass::begin(uint8_t dataPin, uint8_t clkPin, uint8_t csPin, const PA
     return false;
   }
 } // begin()
+
 
 void ParolaClass::setScrollSpeed(int16_t speed)
 {
@@ -241,6 +241,23 @@ textEffect_t ParolaClass::getRandomEffect()
   return static_cast<textEffect_t>(effectList[index]);
 }
 
+
+const char* ParolaClass::setHighBits(const std::string &text)
+{
+  upperZoneText.clear();
+  upperZoneText.reserve(text.length() + 1);
+  
+  for (char c : text)
+  {
+    upperZoneText.push_back(c | 0x80);
+  }
+  
+  return upperZoneText.c_str();
+
+} // setHighBits()
+
+
+
 bool ParolaClass::sendNextText(const std::string &text)
 {
   if (!initialized || parola == nullptr)
@@ -282,29 +299,32 @@ bool ParolaClass::sendNextText(const std::string &text)
     // Multi-zone configuration - use displayZoneText for each zone
     parola->displaySuspend(true);  // Freeze display updates while configuring
     
-    // For a 2-zone setup, split the text between zones or duplicate it
-    // Here we're duplicating the same text in both zones
-    parola->displayZoneText(0, (char *)currentText.c_str(), 
+    // For a 2-zone setup:
+    // ZONE_LOWER 0 (bottom) gets the original text
+    // ZONE_UPPER 1 (top) gets the text with high bit set for each character
+    parola->displayZoneText(ZONE_LOWER, (char *)currentText.c_str(), 
                            displayConfig.align,
                            displayConfig.speed,
                            displayConfig.pauseTime,
                            effectIn, effectOut);
     
-    parola->displayZoneText(1, (char *)currentText.c_str(), 
+    parola->displayZoneText(ZONE_UPPER, setHighBits(currentText), 
                            displayConfig.align,
                            displayConfig.speed,
                            displayConfig.pauseTime,
                            effectIn, effectOut);
     
     // Reset both zones to start the animation
-    parola->displayReset(0);
-    parola->displayReset(1);
+    //-?-parola->displayReset(0);
+    //-?-parola->displayReset(1);
     
     parola->displaySuspend(false);  // Resume display updates
   }
   
   return true;
+
 } // sendNextText()
+
 
 bool ParolaClass::animateBlocking(const String &text)
 {
@@ -346,24 +366,28 @@ bool ParolaClass::animateBlocking(const String &text)
   {
     // Multi-zone configuration - use displayZoneText for each zone
     parola->displaySuspend(true);  // Freeze display updates while configuring
+  
+    // Convert String to std::string for our setHighBits method
+    std::string stdText(text.c_str());
     
-    // For a 2-zone setup, split the text between zones or duplicate it
-    // Here we're duplicating the same text in both zones
-    parola->displayZoneText(0, (char *)text.c_str(), 
+    // For a 2-zone setup:
+    // ZONE_LOWER 0 (bottom) gets the original text
+    // ZONE_UPPER 1 (top) gets the text with high bit set for each character
+    parola->displayZoneText(ZONE_LOWER, (char *)text.c_str(), 
                            displayConfig.align,
                            5,  // Fixed speed for blocking animation
                            displayConfig.pauseTime,
                            PA_SCROLL_LEFT, PA_NO_EFFECT);
     
-    parola->displayZoneText(1, (char *)text.c_str(), 
+    parola->displayZoneText(ZONE_UPPER, setHighBits(stdText), 
                            displayConfig.align,
                            5,  // Fixed speed for blocking animation
                            displayConfig.pauseTime,
                            PA_SCROLL_LEFT, PA_NO_EFFECT);
     
     // Reset both zones to start the animation
-    parola->displayReset(0);
-    parola->displayReset(1);
+    //parola->displayReset(ZONE_LOWER);
+    //parola->displayReset(ZONE_UPPER);
     
     parola->displaySuspend(false);  // Resume display updates
     
@@ -377,6 +401,7 @@ bool ParolaClass::animateBlocking(const String &text)
   }
 
   return true;
+
 } // animateBlocking()
 
 

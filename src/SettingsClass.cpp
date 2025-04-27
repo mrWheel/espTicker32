@@ -21,6 +21,7 @@ void SettingsClass::initializeSettingsContainers()
   deviceContainer.addField({"LDRMaxWaarde", "LDR Max. Waarde", "n", 0, 11, 101, 1, &LDRMaxWaarde});
   deviceContainer.addField({"maxIntensiteitLeds", "Max. Intensiteit LEDS", "n", 0, 0, 15, 1, &maxIntensiteitLeds});
   deviceContainer.addField({"skipWords", "Words to skip", "s", 250, 0, 0, 0, &skipWords});
+  deviceContainer.addField({"resetWiFiPin", "Reset WiFi GPIO pin", "n", 0, 1, 23, 1, &resetWiFiPin});
   settingsContainers["deviceSettings"] = deviceContainer;
   
   // Weerlive settings
