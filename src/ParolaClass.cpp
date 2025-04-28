@@ -160,7 +160,7 @@ void ParolaClass::setScrollSpeed(int16_t speed)
     parola->setSpeed((displayConfig.speed));
   }
   
-  debugPrint("ParolaClass::setScrollSpeed() - Speed[%d] -> updated to [%d]", speed, displayConfig.speed);
+  debugPrint("ParolaClass::setScrollSpeed() - Speed -> updated to [%d]", displayConfig.speed);
 }
 
 
@@ -364,6 +364,7 @@ bool ParolaClass::animateBlocking(const String &text)
   }
   else
   {
+    parola->setIntensity(2);  // Set intensity for both zones
     // Multi-zone configuration - use displayZoneText for each zone
     parola->displaySuspend(true);  // Freeze display updates while configuring
   
@@ -388,15 +389,19 @@ bool ParolaClass::animateBlocking(const String &text)
     // Reset both zones to start the animation
     parola->displayReset(ZONE_LOWER);
     parola->displayReset(ZONE_UPPER);
+    delay(500);  // Allow time for display to update
     
     parola->displaySuspend(false);  // Resume display updates
     
+    delay(500);  // Allow time for display to update
     // Wait for animation to complete on both zones
     while (!parola->displayAnimate())
     {
-      delay(1);
+      delay(10);
     }
-  }
+    delay(1000);
+
+  } // numZones == 2
 
   return true;
 

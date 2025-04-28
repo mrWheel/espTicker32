@@ -465,11 +465,13 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
     titlesToSave.erase(titlesToSave.begin());
   }
 
+  _actFeedsPerFile[feedIndex] = 0; // Reset the count for this feed
+
   // Always open the file in "w" mode to empty it first
   LittleFS.begin();
   File file = LittleFS.open(RSS_BASE_FOLDER + _filePaths[feedIndex], "w"); 
   if (file) 
-  {
+  {    
     for (const auto& line : titlesToSave) 
     {
 //      simplifyCharacters(line);
@@ -478,6 +480,7 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
       String simplifiedLine = simplifyCharacters(line);
       file.println(simplifiedLine);
       if (debug && doDebug) debug->printf("[%s]\n", simplifiedLine.c_str());
+      _actFeedsPerFile[feedIndex]++;
     }
     file.close();
     

@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v0.11.2";
+const char* PROG_VERSION = "v0.11.3";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -109,8 +109,9 @@ String getRSSfeedMessage()
   if (rssReader.getNextFeedItem(feedIndex, itemIndex))
   {
     // Read the feed content
-    snprintf(rssFeedMessage, sizeof(rssFeedMessage), "[%d][%d] %s"
+    snprintf(rssFeedMessage, sizeof(rssFeedMessage), "[%d][%d/%d] %s"
                                             , feedIndex, itemIndex
+                                            , rssReader.getActiveFeedCount(feedIndex)
                                             , rssReader.readRSSfeed(feedIndex, itemIndex).c_str());
     
     // If we get an empty message, try again with the next indices
@@ -202,11 +203,22 @@ std::string nextMessage()
             feedNr = 0;
         }
     }
-    else if (strcasecmp(newMessage.c_str(), "<spottest>") == 0) 
+    else if (strcasecmp(newMessage.c_str(), "<clear>") == 0) 
     {
-        if (debug && doDebug) debug->println("nextMessage(): spotTest");
+        if (debug && doDebug) debug->println("nextMessage(): clear");
+        max72xx.displayClear();
         tmpMessage = {0};
-        for (int i=0; i< 40; i++)
+        for(int i=0; i<MAX_ZONES; i++)
+        {
+            tmpMessage += " ";
+        }
+        newMessage = tmpMessage;
+    }
+    else if (strcasecmp(newMessage.c_str(), "<pixeltest>") == 0) 
+    {
+        if (debug && doDebug) debug->println("nextMessage(): pixelTest");
+        tmpMessage = {0};
+        for (int i=0; i<MAX_ZONES; i++)
         {
             tmpMessage += '\x7F';
         }
@@ -1486,6 +1498,9 @@ void setupParolaDisplay()
                                             config.MY_MAX_DEVICES);
   max72xx.begin(dinPin, clkPin, csPin, config);
 
+  max72xx.setScrollSpeed(settings.tickerSpeed);
+  max72xx.setIntensity(settings.maxIntensiteitLeds);
+
   // Rest of the function remains unchanged
   max72xx.setRandomEffects({
       PA_NO_EFFECT,
@@ -1508,6 +1523,7 @@ void setupParolaDisplay()
     if (debug && doDebug) debug->print("[FINISHED] ");
     if (debug && doDebug) debug->println(finishedText.c_str());
     max72xx.setScrollSpeed(settings.tickerSpeed);
+    max72xx.setIntensity(settings.maxIntensiteitLeds);
     actMessage = nextMessage();
   });
 
@@ -1521,6 +1537,7 @@ void callbackWiFiPortal()
     if (debug) debug->println("callbackWiFiPortal(): WiFi portal callback triggered");
     else       Serial.println("callbackWiFiPortal(): WiFi portal callback triggered");
 
+    max72xx.setIntensity(2);
     max72xx.animateBlocking("WiFi portal callback triggered ... ");
     max72xx.animateBlocking("connect to espTicker32 portal ... ");
     max72xx.animateBlocking("go to 192.168.4.1 ... ");
@@ -1579,14 +1596,14 @@ void setup()
     settings.readSettingFields("rssfeedSettings");
 
     setupParolaDisplay();
-    delay(500);
+    delay(2000);
     max72xx.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"] ...    ");
     delay(500);
 
     //-- Connect to WiFi
     network = new Networking();
     
-    max72xx.animateBlocking("Start WiFi setup ...    ");
+    max72xx.animateBlocking("Start WiFi ...    ");
     //-- Parameters: hostname, resetWiFi pin, serial object, baud rate, wifiCallback
     pinMode(settings.resetWiFiPin, INPUT_PULLUP);
     debug = network->begin(hostName, settings.resetWiFiPin, Serial, 115200, callbackWiFiPortal);

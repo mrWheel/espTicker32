@@ -44,7 +44,7 @@ void SettingsClass::initializeSettingsContainers()
   // Parola settings
   SettingsContainer parolaContainer("Parola Settings", "/parola.ini", "parolaSettings");
   parolaContainer.addField({"hardwareType", "Type (0=PAROLA_HW, 1=FC16_HW, 2=GENERIC_HW)", "n", 0, 0, 2, 1, &parolaHardwareType});
-  parolaContainer.addField({"numDevices", "Aantal segmenten", "n", 0, 1, 32, 1, &parolaNumDevices});
+  parolaContainer.addField({"numDevices", "Aantal segmenten", "n", 0, 1, MAX_ZONES, 1, &parolaNumDevices});
   parolaContainer.addField({"numZones", "Aantal rijen (Zones)", "n", 0, 1, 2, 1, &parolaNumZones});
   parolaContainer.addField({"pinDIN", "DIN/MOSI GPIO pin (0 = default[23])", "n", 0, 0, 23, 1, &parolaPinDIN});
   parolaContainer.addField({"pinCLK", "CLK/SCK GPIO pin (0 = default[18])", "n",  0, 0, 23, 1, &parolaPinCLK});

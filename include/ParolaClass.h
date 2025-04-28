@@ -39,6 +39,7 @@ class ParolaClass
     void setRandomEffects(const std::vector<uint8_t> &effects);
     void setCallback(std::function<void(const std::string&)> callback);
     void setDisplayConfig(const DisplayConfig &config);
+    void displayClear() { parola->displayClear(); }
     void setScrollSpeed(int16_t speed);
     void setIntensity(int16_t intensity);
     void setDebug(Stream* debugPort = &Serial);

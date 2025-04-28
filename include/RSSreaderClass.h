@@ -22,7 +22,7 @@ public:
   void          addWordStringToSkipWords(std::string wordList);
   void          readSkipWordsFromFile();
   String        simplifyCharacters(const String& input);
-  uint8_t       getActiveFeedCount() { return _activeFeedCount; }
+  uint8_t       getActiveFeedCount(int8_t feedNr = 0) { return _actFeedsPerFile[feedNr]; }
 
 private:
   struct FeedItem {
@@ -36,6 +36,7 @@ private:
   String        _filePaths[10];
   uint8_t       _activeFeedCount = 0;
   size_t        _maxFeedsPerFile[10] = {0};
+  size_t        _actFeedsPerFile[10] = {0};
   uint32_t      _interval = 12000000; // standaard 20 min
   uint32_t      _lastCheck = 0;
   void          createRSSfeedFolder();
