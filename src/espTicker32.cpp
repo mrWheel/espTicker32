@@ -203,6 +203,12 @@ std::string nextMessage()
             feedNr = 0;
         }
     }
+    else if (strcasecmp(newMessage.c_str(), "<feedInfoReset>") == 0) 
+    {
+        if (debug && doDebug) debug->println("nextMessage(): feedInfoReset");
+        newMessage = "reset feedInfo";
+        feedNr = 0;
+    }
     else if (strcasecmp(newMessage.c_str(), "<clear>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): clear");
