@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v0.11.3";
+const char* PROG_VERSION = "v0.11.4";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -1504,8 +1504,10 @@ void setupParolaDisplay()
                                             config.MY_MAX_DEVICES);
   max72xx.begin(dinPin, clkPin, csPin, config);
 
+  max72xx.setIntensity(0);
+
   max72xx.setScrollSpeed(settings.tickerSpeed);
-  max72xx.setIntensity(settings.maxIntensiteitLeds);
+  //-?-max72xx.setIntensity(settings.maxIntensiteitLeds);
 
   // Rest of the function remains unchanged
   max72xx.setRandomEffects({
@@ -1602,6 +1604,7 @@ void setup()
     settings.readSettingFields("rssfeedSettings");
 
     setupParolaDisplay();
+    
     delay(2000);
     max72xx.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"] ...    ");
     delay(500);

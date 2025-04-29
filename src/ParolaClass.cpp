@@ -182,6 +182,9 @@ bool ParolaClass::initSPI()
       SPI.setFrequency(2000000);
       // Initialize SPI with the specified pins
       SPI.begin(clkPin, -1, dataPin, csPin);  // SCK, MISO, MOSI, SS
+      SPI.setFrequency(2000000);
+      SPI.setHwCs(false);
+
       spiInitialized = true;
       debugPrint("ParolaClass::initSPI() - SPI initialization successful");
       return true;
@@ -390,7 +393,7 @@ bool ParolaClass::animateBlocking(const String &text)
     parola->displayReset(ZONE_LOWER);
     parola->displayReset(ZONE_UPPER);
     delay(500);  // Allow time for display to update
-    
+
     parola->displaySuspend(false);  // Resume display updates
     
     delay(500);  // Allow time for display to update
@@ -406,6 +409,7 @@ bool ParolaClass::animateBlocking(const String &text)
   return true;
 
 } // animateBlocking()
+
 
 
 void ParolaClass::loop()
@@ -438,11 +442,6 @@ void ParolaClass::setDebug(Stream* debugPort)
 
 void ParolaClass::debugPrint(const char* format, ...)
 {
-  if (debug == nullptr)
-  {
-    return;
-  }
-  
   char buffer[256];
   va_list args;
   va_start(args, format);
