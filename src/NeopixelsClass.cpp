@@ -15,7 +15,7 @@ NeopixelsClass::NeopixelsClass()
   blue = 0;
   text = "Easy Tech";
   pixelPerChar = 6;
-  scrollDelay = 50;
+  scrollDelay = 2;
   brightness = 50;
   x = 0;
   pass = 0;
@@ -26,11 +26,11 @@ NeopixelsClass::NeopixelsClass()
 // Destructor implementation
 NeopixelsClass::~NeopixelsClass()
 {
-  if (debug) debug->println("NeopixelsClass: Destructor called");
+  if (debug) debugPrint("NeopixelsClass: Destructor called");
   
   if (matrix != nullptr)
   {
-    if (debug) debug->println("NeopixelsClass: Deleting matrix object");
+    if (debug) debugPrint("NeopixelsClass: Deleting matrix object");
     delete matrix;
     matrix = nullptr;
   }
@@ -41,8 +41,7 @@ void NeopixelsClass::setPixelType(neoPixelType pixelType)
 {
   if (debug)
   {
-    debug->print("NeopixelsClass: Setting pixel type to 0x");
-    debug->println((uint32_t)pixelType, HEX);
+    debugPrint("NeopixelsClass: Setting pixel type to 0x%02d\n", (uint32_t)pixelType, HEX);
   }
   
   this->pixelType = pixelType;
@@ -53,10 +52,7 @@ void NeopixelsClass::setMatrixSize(int width, int height)
 {
   if (debug)
   {
-    debug->print("NeopixelsClass: Setting matrix size to ");
-    debug->print(width);
-    debug->print("x");
-    debug->println(height);
+    debugPrint("NeopixelsClass: Setting matrix size to %d x %d\n", width, height);
   }
   
   this->width = width;
@@ -68,8 +64,7 @@ void NeopixelsClass::setPixelsPerChar(int pixels)
 {
   if (debug)
   {
-    debug->print("NeopixelsClass: Setting pixels per character to ");
-    debug->println(pixels);
+    debugPrint("NeopixelsClass: Setting pixels per character to %d\n", pixels);
   }
   
   this->pixelPerChar = pixels;
@@ -87,33 +82,32 @@ void NeopixelsClass::begin(uint8_t pin)
 
   if (debug)
   {
-    debug->println("NeopixelsClass: Initializing NeoPixel matrix...");
-    debug->print("  neopixelPin: "); debug->println(neopixelPin);
-    debug->print("  Width: "); debug->println(width);
-    debug->print("  Height: "); debug->println(height);
-    debug->print("  Matrix Type: 0x"); debug->println(matrixType, HEX);
-    debug->print("  Matrix Layout: 0x"); debug->println(matrixLayout, HEX);
-    debug->print("  Matrix Direction: 0x"); debug->println(matrixDirection, HEX);
-    debug->print("  Matrix Sequence: 0x"); debug->println(matrixSequence, HEX);
-    debug->print("  Pixel Type: 0x"); debug->println((uint32_t)pixelType, HEX);
+    debugPrint("NeopixelsClass: Initializing NeoPixel matrix...");
+    debugPrint("  neopixelPin       : %d", neopixelPin);
+    debugPrint("  Width             : %d", width);
+    debugPrint("  Height            : %d", height);
+    debugPrint("  Matrix Type       : 0x%02x", matrixType);
+    debugPrint("  Matrix Layout     : 0x%02x", matrixLayout);
+    debugPrint("  Matrix Direction  : 0x%02x", matrixDirection);
+    debugPrint("  Matrix Sequence   : 0x%02x", matrixSequence);
+    debugPrint("  Pixel Type        : 0x%02x", (uint32_t)pixelType);
   }
   
   if (matrix != nullptr)
   {
-    if (debug) debug->println("NeopixelsClass: Deleting existing matrix object");
+    if (debug) debugPrint("NeopixelsClass: Deleting existing matrix object");
     delete matrix;
     matrix = nullptr;
   }
   
-  if (debug) debug->println("NeopixelsClass: Creating new matrix object");
+  if (debug) debugPrint("NeopixelsClass: Creating new matrix object");
   
   // Combine matrix configuration parameters
   uint8_t matrixConfig = matrixType + matrixDirection + matrixLayout + matrixSequence;
   
   if (debug)
   {
-    debug->print("NeopixelsClass: Combined matrix config: 0x");
-    debug->println(matrixConfig, HEX);
+    debugPrint("NeopixelsClass: Combined matrix config: 0x%02x", matrixConfig);
   }
   
   // Create the matrix object with the specified parameters
@@ -124,14 +118,14 @@ void NeopixelsClass::begin(uint8_t pin)
   
   if (matrix == nullptr)
   {
-    if (debug) debug->println("NeopixelsClass: ERROR - Failed to create matrix object!");
+    if (debug) debugPrint("NeopixelsClass: ERROR - Failed to create matrix object!");
     return;
   }
   
-  if (debug) debug->println("NeopixelsClass: Calling matrix->begin()");
+  if (debug) debugPrint("NeopixelsClass: Calling matrix->begin()");
   matrix->begin();
   
-  if (debug) debug->println("NeopixelsClass: Setting matrix parameters");
+  if (debug) debugPrint("NeopixelsClass: Setting matrix parameters");
   matrix->setTextWrap(false);
   matrix->setBrightness(brightness);
   matrix->setTextColor(matrix->Color(red, green, blue));
@@ -139,9 +133,8 @@ void NeopixelsClass::begin(uint8_t pin)
   x = matrix->width(); // Initialize x position
   if (debug)
   {
-    debug->print("NeopixelsClass: Initial x position set to: ");
-    debug->println(x);
-    debug->println("NeopixelsClass: Initialization complete");
+    debugPrint("NeopixelsClass: Initial x position set to: %d", x);
+    debugPrint("NeopixelsClass: Initialization complete");
   }
   
   // Show an initial blank display
@@ -154,11 +147,11 @@ void NeopixelsClass::setup(uint8_t matrixType, uint8_t matrixLayout, uint8_t mat
 {
   if (debug)
   {
-    debug->println("NeopixelsClass: Setting up matrix configuration");
-    debug->print("  Matrix Type: 0x"); debug->println(matrixType, HEX);
-    debug->print("  Matrix Layout: 0x"); debug->println(matrixLayout, HEX);
-    debug->print("  Matrix Direction: 0x"); debug->println(matrixDirection, HEX);
-    debug->print("  Matrix Sequence: 0x"); debug->println(matrixSequence, HEX);
+    debugPrint("NeopixelsClass: Setting up matrix configuration");
+    debugPrint("  Matrix Type      : 0x%02x", matrixType);
+    debugPrint("  Matrix Layout    : 0x%02x", matrixLayout);
+    debugPrint("  Matrix Direction : 0x%02x", matrixDirection);
+    debugPrint("  Matrix Sequence  : 0x%02x", matrixSequence);
   }
   
   this->matrixType = matrixType;
@@ -166,7 +159,7 @@ void NeopixelsClass::setup(uint8_t matrixType, uint8_t matrixLayout, uint8_t mat
   this->matrixDirection = matrixDirection;
   this->matrixSequence = matrixSequence;
   
-  if (debug) debug->println("NeopixelsClass: Matrix configuration set");
+  if (debug) debugPrint("NeopixelsClass: Matrix configuration set");
 }
 
 // Set the RGB color for the text
@@ -174,10 +167,10 @@ void NeopixelsClass::setColor(int r, int g, int b)
 {
   if (debug)
   {
-    debug->println("NeopixelsClass: Setting color");
-    debug->print("  Red: "); debug->println(r);
-    debug->print("  Green: "); debug->println(g);
-    debug->print("  Blue: "); debug->println(b);
+    debugPrint("NeopixelsClass: Setting color");
+    debugPrint("  Red  : %3d", r);
+    debugPrint("  Green: %3d", g);
+    debugPrint("  Blue : %3d", b);
   }
   
   this->red = r;
@@ -186,12 +179,12 @@ void NeopixelsClass::setColor(int r, int g, int b)
   
   if (matrix != nullptr)
   {
-    if (debug) debug->println("NeopixelsClass: Applying color to matrix");
+    if (debug) debugPrint("NeopixelsClass: Applying color to matrix");
     matrix->setTextColor(matrix->Color(red, green, blue));
   }
   else if (debug)
   {
-    debug->println("NeopixelsClass: Warning - matrix is null, color will be applied when matrix is initialized");
+    debugPrint("NeopixelsClass: Warning - matrix is null, color will be applied when matrix is initialized");
   }
 }
 
@@ -203,21 +196,20 @@ void NeopixelsClass::setIntensity(int brightness)
   
   if (debug)
   {
-    debug->print("NeopixelsClass: Setting intensity to ");
-    debug->println(brightness);
+    debugPrint("NeopixelsClass: Setting intensity to %d", brightness);
   }
   
   this->brightness = brightness;
   
   if (matrix != nullptr)
   {
-    if (debug) debug->println("NeopixelsClass: Applying brightness to matrix");
+    if (debug) debugPrint("NeopixelsClass: Applying brightness to matrix");
     matrix->setBrightness(brightness);
     matrix->show(); // Update the display with new brightness
   }
   else if (debug)
   {
-    debug->println("NeopixelsClass: Warning - matrix is null, brightness will be applied when matrix is initialized");
+    debugPrint("NeopixelsClass: Warning - matrix is null, brightness will be applied when matrix is initialized");
   }
 }
 
@@ -226,8 +218,7 @@ void NeopixelsClass::setScrollSpeed(int speed)
 {
   if (debug)
   {
-    debug->print("NeopixelsClass: Setting speed to ");
-    debug->println(speed);
+    debugPrint("NeopixelsClass: Setting speed to %d", speed);
   }
   
   // Convert speed (0-100) to delay value
@@ -238,13 +229,12 @@ void NeopixelsClass::setScrollSpeed(int speed)
     
     if (debug)
     {
-      debug->print("NeopixelsClass: Calculated scroll delay: ");
-      debug->println(scrollDelay);
+      debugPrint("NeopixelsClass: Calculated scroll delay: %d", scrollDelay);
     }
   }
   else if (debug)
   {
-    debug->println("NeopixelsClass: Warning - speed out of range (1-100), not changing");
+    debugPrint("NeopixelsClass: Warning - speed out of range (1-100), not changing");
   }
 }
 
@@ -253,9 +243,9 @@ void NeopixelsClass::sendNextText(const std::string& text)
 {
   if (debug)
   {
-    debug->print("NeopixelsClass: Setting text to display: '");
-    debug->print(text.c_str());
-    debug->println("'");
+    debugPrint("NeopixelsClass: Setting text to display: '");
+    debugPrint(text.c_str());
+    debugPrint("'");
   }
   
   this->text = text;
@@ -265,19 +255,19 @@ void NeopixelsClass::sendNextText(const std::string& text)
     this->x = matrix->width(); // Reset position
     if (debug)
     {
-      debug->print("NeopixelsClass: Reset x position to ");
-      debug->println(x);
+      debugPrint("NeopixelsClass: Reset x position to %d", x);
     }
   }
   else if (debug)
   {
-    debug->println("NeopixelsClass: Warning - matrix is null, x position will be reset when matrix is initialized");
+    debugPrint("NeopixelsClass: Warning - matrix is null, x position will be reset when matrix is initialized");
   }
   
   this->pass = 0;
   this->textComplete = false;
   
-  if (debug) debug->println("NeopixelsClass: Text set successfully");
+  Serial.printf("NeopixelsClass: Text send: [%s]\n", text.c_str());
+  if (debug) debugPrint("NeopixelsClass: Text set successfully");
 }
 
 // Clear the display
@@ -285,14 +275,14 @@ void NeopixelsClass::tickerClear()
 {
   if (matrix == nullptr)
   {
-    if (debug) debug->println("NeopixelsClass: tickerClear - matrix is null, returning");
+    if (debug) debugPrint("NeopixelsClass: tickerClear - matrix is null, returning");
     return;
   }
   
   matrix->fillScreen(0);
   matrix->show();
   
-  if (debug) debug->println("NeopixelsClass: Display cleared");
+  if (debug) debugPrint("NeopixelsClass: Display cleared");
 }
 
 // Update the display
@@ -300,7 +290,7 @@ void NeopixelsClass::show()
 {
   if (matrix == nullptr)
   {
-    if (debug) debug->println("NeopixelsClass: show - matrix is null, returning");
+    if (debug) debugPrint("NeopixelsClass: show - matrix is null, returning");
     return;
   }
   
@@ -308,11 +298,11 @@ void NeopixelsClass::show()
 }
 
 // Perform one step of the animation, return true when complete
-bool NeopixelsClass::animateNeopixels()
+bool NeopixelsClass::animateNeopixels(bool triggerCallback)
 {
   if (matrix == nullptr)
   {
-    if (debug) debug->println("NeopixelsClass: animateNeopixels - matrix is null, returning");
+    if (debug) debugPrint("NeopixelsClass: animateNeopixels - matrix is null, returning");
     return true;
   }
   
@@ -321,12 +311,7 @@ bool NeopixelsClass::animateNeopixels()
   
   if (debug && x % 10 == 0)  // Only log every 10 steps to avoid flooding
   {
-    debug->print("NeopixelsClass: Animating - x=");
-    debug->print(x);
-    debug->print(", pass=");
-    debug->print(pass);
-    debug->print(", maxDisplacement=");
-    debug->println(maxDisplacement);
+    debugPrint("NeopixelsClass: Animating - x=%d, pass=%d, maxDisplacement=%d", x, pass, maxDisplacement);
   }
   
   // Clear the display and set the cursor position
@@ -339,18 +324,20 @@ bool NeopixelsClass::animateNeopixels()
   // Move the text position for the next frame
   if (--x < -maxDisplacement)
   {
-    if (debug) debug->println("NeopixelsClass: Reached end of text, resetting position");
+    if (debug) debugPrint("NeopixelsClass: Reached end of text, resetting position");
     
     x = matrix->width();
     
     if (++pass >= 1)
     {
-      if (debug) debug->println("NeopixelsClass: Animation complete");
+      if (debug) debugPrint("NeopixelsClass: Animation complete");
       
       pass = 0;
       matrix->setTextColor(matrix->Color(red, green, blue));
       textComplete = true;
-      if (textComplete && onFinished)
+      
+      // Only call the callback if triggerCallback is true
+      if (textComplete && onFinished && triggerCallback)
       {
         onFinished(text);
       }
@@ -362,40 +349,54 @@ bool NeopixelsClass::animateNeopixels()
   matrix->show();
   
   return textComplete;
+
 }
 
 // Block until the entire text is displayed
 void NeopixelsClass::animateBlocking(const String &text)
 {
-  if (debug) debug->println("NeopixelsClass: Starting blocking animation");
+  if (debug) debugPrint("NeopixelsClass: Starting blocking animation for text: %s", text.c_str());
+  Serial.printf("NeopixelsClass: Starting blocking animation for text: %s\n", text.c_str()); 
   
-  textComplete = false;
+  // Set the text to be displayed
+  this->text = text.c_str();
+  
+  // Reset animation state
+  if (matrix != nullptr) {
+    this->x = matrix->width();
+  } else {
+    this->x = width; // Use the stored width if matrix is null
+  }
+  this->pass = 0;
+  this->textComplete = false;
+  
   int animationStep = 0;
   
-  while (!animateNeopixels())
+  // Now animate until complete - pass false to prevent callback triggering
+  while (!animateNeopixels(false))
   {
-    if (debug && animationStep % 20 == 0)  // Log every 20 steps
+    if (animationStep % 20 == 0)
     {
-      debug->print("NeopixelsClass: Blocking animation step ");
-      debug->println(animationStep);
+      if (debug) debugPrint("NeopixelsClass: Blocking animation step %d", animationStep);
     }
     
-    delay(scrollDelay);
+    delay(5);
     animationStep++;
   }
   
-  if (debug) debug->println("NeopixelsClass: Blocking animation complete");
+  if (debug) debugPrint("NeopixelsClass: Blocking animation complete");
+
 }
 
 void NeopixelsClass::setRandomEffects(const std::vector<uint8_t> &effects)
 {
   // This can be a no-op or log that it was called
-  if (debug) debug->println("NeopixelsClass: setRandomEffects called (no effect)");
+  if (debug) debugPrint("NeopixelsClass: setRandomEffects called (no effect)");
 }
 
 void NeopixelsClass::setCallback(std::function<void(const std::string&)> callback)
 {
-  if (debug) debug->println("NeopixelsClass: Setting callback function");
+  if (debug) debugPrint("NeopixelsClass: Setting callback function");
   this->onFinished = callback;
 }
 
@@ -403,9 +404,9 @@ void NeopixelsClass::setDisplayConfig(const DisplayConfig &config)
 {
   if (debug)
   {
-    debug->println("NeopixelsClass: Setting display config");
-    debug->print("  Speed: "); debug->println(config.speed);
-    debug->print("  Pause Time: "); debug->println(config.pauseTime);
+    debugPrint("NeopixelsClass: Setting display config");
+    debugPrint("  Speed       : %d", config.speed);
+    debugPrint("  Pause Time  : %d", config.pauseTime);
   }
   
   // Map the DisplayConfig parameters to NeopixelsClass parameters
@@ -418,7 +419,7 @@ void NeopixelsClass::loop()
 {
   if (matrix == nullptr)
   {
-    if (debug) debug->println("NeopixelsClass: loop - matrix is null, returning");
+    if (debug) debugPrint("NeopixelsClass: loop - matrix is null, returning");
     return;
   }
   
@@ -431,3 +432,28 @@ void NeopixelsClass::loop()
     lastUpdateTime = currentTime;
   }
 }
+
+void NeopixelsClass::setDebug(Stream* debugPort)
+{
+  debug = debugPort;
+  if (debug) 
+  {
+    debugPrint("ParolaClass::setDebug() - Debugging enabled");
+  }
+}
+
+void NeopixelsClass::debugPrint(const char* format, ...)
+{
+  char buffer[256];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(buffer, sizeof(buffer), format, args);
+  va_end(args);
+  
+  if (doDebug)
+  {
+    if (debug)  debug->println(buffer);
+    else        Serial.println(buffer);
+  }
+  
+} // debugPrint()

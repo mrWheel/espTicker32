@@ -90,5 +90,4 @@ class ParolaClass
     bool doDebug = false;
   #endif
 
-
 };

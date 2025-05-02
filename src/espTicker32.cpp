@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v0.11.5";
+const char* PROG_VERSION = "v0.12.0";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -247,6 +247,7 @@ std::string nextMessage()
     //  //return newMessage; 
     //}
     if (debug && doDebug) debug->printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
+    Serial.printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
     ticker.sendNextText(("** "+newMessage+" **").c_str());
     spa.callJsFunction("queueMessageToMonitor", ("* "+newMessage+" *").c_str());
 
@@ -1644,6 +1645,9 @@ void setupNeopixelsDisplay()
   uint8_t matrixDirection = NEO_MATRIX_LEFT; // Changed from RIGHT to LEFT
   uint8_t matrixSequence = NEO_MATRIX_PROGRESSIVE; // Changed from ZIGZAG to PROGRESSIVE
   
+  
+  // Initialize the matrix with the correct pin
+  ticker.begin(pin);
   ticker.setDebug(debug);
   
   // Set matrix size
@@ -1658,17 +1662,11 @@ void setupNeopixelsDisplay()
   // Set pixel type - try different combinations if one doesn't work
   ticker.setPixelType(NEO_GRB + NEO_KHZ800);  // Most common for WS2812 LEDs
   
-  // Initialize the matrix with the correct pin
-  ticker.begin(pin);
-  
   // Set display properties
   ticker.setColor(255, 0, 0); // Red text
   ticker.setIntensity(20);    // Medium brightness
   ticker.setScrollSpeed(75);        // Medium-high speed
   
-  // Set the text to display
-  ticker.sendNextText("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-
   //ticker.setScrollSpeed(settings.devTickerSpeed);
   //ticker.setIntensity(settings.devMaxIntensiteitLeds);
 
@@ -1678,7 +1676,7 @@ void setupNeopixelsDisplay()
     if (debug && doDebug) debug->println(finishedText.c_str());
     ticker.setScrollSpeed(settings.devTickerSpeed);
     ticker.setIntensity(settings.devMaxIntensiteitLeds);
-    actMessage = nextMessage();
+    actMessage = nextMessage(); 
   });
 
   delay(1000);
@@ -1760,6 +1758,8 @@ void setup()
     //-- Parameters: devHostname, resetWiFi pin, serial object, baud rate, wifiCallback
     pinMode(settings.devResetWiFiPin, INPUT_PULLUP);
     debug = network->begin(hostName, settings.devResetWiFiPin, Serial, 115200, callbackWiFiPortal);
+    ticker.animateBlocking(" ... Done! ");
+
     settings.setDebug(debug);
     
     if (debug) 
@@ -1778,7 +1778,7 @@ void setup()
 
     if (debug) debug->printf("espTicker32 Version: %s\n", PROG_VERSION);
 
-    ticker.setDebug(debug);
+    //ticker.setDebug(debug); is set in setupNeopixelsDisplay() and setupParolaDisplay()
 
     if (settings.devHostname.empty()) 
     {

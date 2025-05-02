@@ -40,6 +40,10 @@ private:
   unsigned long lastUpdateTime;
   bool initialized = false;
   std::function<void(const std::string&)> onFinished = nullptr;
+  // Debug support
+  Stream* debug = nullptr;
+  void debugPrint(const char* format, ...);
+ 
 
   
 public:
@@ -47,22 +51,20 @@ public:
   NeopixelsClass();
   ~NeopixelsClass();
   
-  Stream* debug; // Debug output stream
-
   // Configuration methods
   void begin(uint8_t pin);
   void setup(uint8_t matrixType, uint8_t matrixLayout, uint8_t matrixDirection, uint8_t matrixSequence);
   void setPixelType(neoPixelType pixelType);
   void setMatrixSize(int width, int height);
   void setPixelsPerChar(int pixels);
-  void setDebug(Stream* debugOutput = &Serial) { debug = debugOutput; }
+  void setDebug(Stream* debugPort = &Serial);
   
   // Display control methods
   void setColor(int r, int g, int b);
   void setIntensity(int brightness);
   void setScrollSpeed(int speed);
   void sendNextText(const std::string& text);
-  bool animateNeopixels();
+  bool animateNeopixels(bool triggerCallback = true);  
   void animateBlocking(const String &text);
   void loop();
   void tickerClear();
@@ -71,6 +73,13 @@ public:
   void setCallback(std::function<void(const std::string&)> callback);
   void setDisplayConfig(const DisplayConfig &config);
   bool isInitialized() const { return initialized; }
+
+
+#ifdef NEOPIXELS_DEBUG
+    bool doDebug = true;
+#else
+    bool doDebug = false;
+#endif
 
 };
 
