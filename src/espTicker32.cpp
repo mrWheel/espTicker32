@@ -1506,15 +1506,8 @@ void setupParolaDisplay()
                                             config.MY_MAX_DEVICES);
   ticker.begin(dinPin, clkPin, csPin, config);
 
-<<<<<<< HEAD
-  max72xx.setIntensity(0);
-
-  max72xx.setScrollSpeed(settings.tickerSpeed);
-  //-?-max72xx.setIntensity(settings.maxIntensiteitLeds);
-=======
   ticker.setScrollSpeed(settings.devTickerSpeed);
   ticker.setIntensity(settings.devMaxIntensiteitLeds);
->>>>>>> 544fcfe (Naming deive and parola settings)
 
   // Rest of the function remains unchanged
   ticker.setRandomEffects({
