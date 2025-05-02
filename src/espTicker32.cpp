@@ -221,20 +221,24 @@ std::string nextMessage()
         if (debug && doDebug) debug->println("nextMessage(): clear");
         ticker.tickerClear();
         tmpMessage = {0};
+#ifdef USE_PAROLA
         for(int i=0; i<MAX_ZONES; i++)
         {
             tmpMessage += " ";
         }
+#endif  // USE_PAROLA
         newMessage = tmpMessage;
     }
     else if (strcasecmp(newMessage.c_str(), "<pixeltest>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): pixelTest");
         tmpMessage = {0};
+#ifdef USE_PAROLA
         for (int i=0; i<MAX_ZONES; i++)
         {
             tmpMessage += '\x7F';
         }
+#endif
         newMessage = tmpMessage;  
     }
     //if (newMessage.length() < 1) 
@@ -568,10 +572,10 @@ void sendWeerliveFieldsToClient()
 
 #ifdef USE_MEDIASTACK
 // Function to send the JSON string to the client when mediastackSettingsPage is activated
-void sendMediastackFieldsToClient()
-{
-  sendSettingFieldToClient("mediastackSettings");
-}
+  void sendMediastackFieldsToClient()
+  {
+    sendSettingFieldToClient("mediastackSettings");
+  }
 #endif
 
 
@@ -1628,8 +1632,45 @@ void setupParolaDisplay()
 #ifdef USE_NEOPIXELS
 void setupNeopixelsDisplay()
 {
-  ticker.setScrollSpeed(settings.devTickerSpeed);
-  ticker.setIntensity(settings.devMaxIntensiteitLeds);
+  int pin = 5; // Pin connected to the NeoPixel strip
+  int width = 16; // Width of the matrix
+  int height = 8; // Height of the matrix
+  int pixelPerChar = 6; // Number of pixels per character
+  
+  // Use the proper matrix configuration values from Adafruit_NeoMatrix.h
+  // These should be uint8_t, not int
+  uint8_t matrixType = NEO_MATRIX_TOP; // Changed from BOTTOM to TOP
+  uint8_t matrixLayout = NEO_MATRIX_COLUMNS; // Changed from ROWS to COLUMNS
+  uint8_t matrixDirection = NEO_MATRIX_LEFT; // Changed from RIGHT to LEFT
+  uint8_t matrixSequence = NEO_MATRIX_PROGRESSIVE; // Changed from ZIGZAG to PROGRESSIVE
+  
+  ticker.setDebug(debug);
+  
+  // Set matrix size
+  ticker.setMatrixSize(width, height);
+  
+  // Set pixels per character
+  ticker.setPixelsPerChar(pixelPerChar);
+  
+  // Configure matrix parameters
+  ticker.setup(matrixType, matrixLayout, matrixDirection, matrixSequence);
+  
+  // Set pixel type - try different combinations if one doesn't work
+  ticker.setPixelType(NEO_GRB + NEO_KHZ800);  // Most common for WS2812 LEDs
+  
+  // Initialize the matrix with the correct pin
+  ticker.begin(pin);
+  
+  // Set display properties
+  ticker.setColor(255, 0, 0); // Red text
+  ticker.setIntensity(20);    // Medium brightness
+  ticker.setScrollSpeed(75);        // Medium-high speed
+  
+  // Set the text to display
+  ticker.sendNextText("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+
+  //ticker.setScrollSpeed(settings.devTickerSpeed);
+  //ticker.setIntensity(settings.devMaxIntensiteitLeds);
 
   ticker.setCallback([](const std::string& finishedText) 
   {
@@ -1667,55 +1708,48 @@ void setup()
     systemUpTime = millis();
     Serial.begin(115200);
     while (!Serial) { delay(100); } // Wait for Serial to be ready
+    Serial.println("\nLets get started!!\n");
 
     if (!LittleFS.begin()) 
     {
       if (debug) debug->println("espTicker32: setup(): LittleFS Mount Failed");
+      else       Serial.println("espTicker32: setup(): LittleFS Mount Failed");
       return;
     }
     //-test- listFiles("/", 0);
-    if (doDebug)
-    { 
-      if (debug) debug->println("espTicker32: setup(): readSettingFields(deviceSettings)");
-      else Serial.println("espTicker32: setup(): readSettingFields(deviceSettings)");
-    }
+    if (debug) debug->println("espTicker32: setup(): readSettingFields(deviceSettings)");
+    else Serial.println("espTicker32: setup(): readSettingFields(deviceSettings)");
     settings.readSettingFields("deviceSettings");
 
-    if (doDebug) 
-    {
-      if (debug) debug->println("espTicker32: setup(): readSettingFields(parolaSettings)");
-      else       Serial.println("espTicker32: setup(): readSettingFields(parolaSettings)");
-    }
-    settings.readSettingFields("parolaSettings");
-
-    if (doDebug) 
-    {
-      if (debug) debug->println("espTicker32: setup(): readSettingFields(weerliveSettings)");
-      else       Serial.println("espTicker32: setup(): readSettingFields(weerliveSettings)");
-    }
+    if (debug) debug->println("espTicker32: setup(): readSettingFields(weerliveSettings)");
+    else       Serial.println("espTicker32: setup(): readSettingFields(weerliveSettings)");
     settings.readSettingFields("weerliveSettings");
 
-    if (doDebug) 
-    {
+#ifdef USE_MEDIASTACK
       if (debug) debug->println("espTicker32: setup(): readSettingFields(mediastackSettings)");
       else       Serial.println("espTicker32: setup(): readSettingFields(mediastackSettings)");
-    }
-    settings.readSettingFields("mediastackSettings");
-    
-    { 
+      settings.readSettingFields("mediastackSettings");
+#endif // USE_MEDIASTACK  
       if (debug) debug->println("espTicker32: setup(): readSettingFields(rssfeedSettings)");
       else       Serial.println("espTicker32: setup(): readSettingFields(rssfeedSettings)");
-    }
-    settings.readSettingFields("rssfeedSettings");
+      settings.readSettingFields("rssfeedSettings");
 
 #ifdef USE_PAROLA
-    setupParolaDisplay();
+      if (debug) debug->println("espTicker32: setup(): readSettingFields(parolaSettings)");
+      else       Serial.println("espTicker32: setup(): readSettingFields(parolaSettings)");
+      settings.readSettingFields("parolaSettings");
+      setupParolaDisplay();
 #endif // USE_PAROLA
+
 #ifdef USE_NEOPIXELS
-    setupNeopixelsDisplay();
+      if (debug) debug->println("espTicker32: setup(): readSettingFields(neopixelsSettings)");
+      else       Serial.println("espTicker32: setup(): readSettingFields(neopixelsSettings)");
+      settings.readSettingFields("neopixelsSettings");
+      setupNeopixelsDisplay();
 #endif // USE_NEOPIXELS
     
     delay(2000);
+    Serial.printf("espTicker32: setup(): Start espTicker32 [%s] ...\n", PROG_VERSION);
     ticker.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"] ...    ");
     delay(500);
 
@@ -1728,9 +1762,18 @@ void setup()
     debug = network->begin(hostName, settings.devResetWiFiPin, Serial, 115200, callbackWiFiPortal);
     settings.setDebug(debug);
     
-    if (debug) debug->println("\nespTicker32: setup(): WiFi connected");
-    if (debug) debug->print("espTicker32: setup(): IP address: ");
-    if (debug) debug->println(WiFi.localIP());
+    if (debug) 
+    {
+      debug->println("\nespTicker32: setup(): WiFi connected");
+      debug->print("espTicker32: setup(): IP address: ");
+      debug->println(WiFi.localIP());
+    }
+    else
+    {
+      Serial.println("\nespTicker32: setup(): WiFi connected");
+      Serial.print("espTicker32: setup(): IP address: ");
+      Serial.println(WiFi.localIP());
+    }
     ticker.animateBlocking("IP: " + String(WiFi.localIP().toString().c_str()) + " ");
 
     if (debug) debug->printf("espTicker32 Version: %s\n", PROG_VERSION);
@@ -1838,7 +1881,8 @@ void setup()
 
     actMessage = nextMessage();
 
-    if (debug) debug->println("espTicker32: Done with setup() ..\n");
+    if (debug) debug->println("\nespTicker32: Done with setup() ..\n");
+    else       Serial.println("\nespTicker32: Done with setup() ..\n");
 
 } // setup()
 

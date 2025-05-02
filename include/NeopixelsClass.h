@@ -6,6 +6,15 @@
 #include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
 #include <string>
+#include <vector>
+
+//-- needed to have a true dropin replacement for the ParolaClass
+struct DisplayConfig
+{
+    uint16_t speed;         // Animation speed
+    uint16_t pauseTime;     // Pause time in ms
+    uint8_t align;          // Text alignment
+};
 
 class NeopixelsClass 
 {
@@ -29,6 +38,9 @@ private:
   int pass;
   bool textComplete;
   unsigned long lastUpdateTime;
+  bool initialized = false;
+  std::function<void(const std::string&)> onFinished = nullptr;
+
   
 public:
   // Constructor and destructor
@@ -51,10 +63,15 @@ public:
   void setScrollSpeed(int speed);
   void sendNextText(const std::string& text);
   bool animateNeopixels();
-  void animateBlocking();
+  void animateBlocking(const String &text);
   void loop();
   void tickerClear();
   void show();
+  void setRandomEffects(const std::vector<uint8_t> &effects);
+  void setCallback(std::function<void(const std::string&)> callback);
+  void setDisplayConfig(const DisplayConfig &config);
+  bool isInitialized() const { return initialized; }
+
 };
 
 #endif // NEOPIXELS_CLASS_H

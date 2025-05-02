@@ -78,6 +78,8 @@ void NeopixelsClass::setPixelsPerChar(int pixels)
 // Initialize the NeoPixel matrix with previously set parameters
 void NeopixelsClass::begin(uint8_t pin)
 {
+  initialized = true;
+
   this->neopixelPin = pin;
   
   pinMode(this->neopixelPin, OUTPUT);
@@ -348,6 +350,10 @@ bool NeopixelsClass::animateNeopixels()
       pass = 0;
       matrix->setTextColor(matrix->Color(red, green, blue));
       textComplete = true;
+      if (textComplete && onFinished)
+      {
+        onFinished(text);
+      }
       return true;
     }
   }
@@ -359,7 +365,7 @@ bool NeopixelsClass::animateNeopixels()
 }
 
 // Block until the entire text is displayed
-void NeopixelsClass::animateBlocking()
+void NeopixelsClass::animateBlocking(const String &text)
 {
   if (debug) debug->println("NeopixelsClass: Starting blocking animation");
   
@@ -379,6 +385,32 @@ void NeopixelsClass::animateBlocking()
   }
   
   if (debug) debug->println("NeopixelsClass: Blocking animation complete");
+}
+
+void NeopixelsClass::setRandomEffects(const std::vector<uint8_t> &effects)
+{
+  // This can be a no-op or log that it was called
+  if (debug) debug->println("NeopixelsClass: setRandomEffects called (no effect)");
+}
+
+void NeopixelsClass::setCallback(std::function<void(const std::string&)> callback)
+{
+  if (debug) debug->println("NeopixelsClass: Setting callback function");
+  this->onFinished = callback;
+}
+
+void NeopixelsClass::setDisplayConfig(const DisplayConfig &config)
+{
+  if (debug)
+  {
+    debug->println("NeopixelsClass: Setting display config");
+    debug->print("  Speed: "); debug->println(config.speed);
+    debug->print("  Pause Time: "); debug->println(config.pauseTime);
+  }
+  
+  // Map the DisplayConfig parameters to NeopixelsClass parameters
+  this->setScrollSpeed(config.speed);
+
 }
 
 // Main loop function that calls animateNeopixels with timing control
