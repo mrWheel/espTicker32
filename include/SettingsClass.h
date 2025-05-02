@@ -13,7 +13,7 @@ struct FieldDescriptor
 {
   std::string fieldName;      // Name of the field in the settings struct
   std::string fieldPrompt;    // Display name for the field
-  std::string fieldType;      // "s" for string, "n" for numeric
+  std::string fieldType;      // "s" for string, "n" for numeric, "b" for boolean
   
   // For string fields
   size_t fieldLen;            // Maximum length for string fields (only used if fieldType is "s")
@@ -82,6 +82,12 @@ private:
     return *static_cast<int16_t*>(ptr);
   }
   
+  // Helper method to get a boolean value from a void pointer
+  bool getBooleanValue(void* ptr) 
+  {
+    return *static_cast<bool*>(ptr);
+  }
+  
   // Helper method to set a string value
   void setStringValue(void* ptr, const std::string& value) 
   {
@@ -94,12 +100,18 @@ private:
       debug->printf("setStringValue(): Set value: [%s], actual stored: [%s]\n", 
                   value.c_str(), strPtr->c_str());
     }
-}
+  }
   
   // Helper method to set a numeric value
   void setNumericValue(void* ptr, int value) 
   {
     *static_cast<int16_t*>(ptr) = static_cast<int16_t>(value);
+  }
+  
+  // Helper method to set a boolean value
+  void setBooleanValue(void* ptr, bool value) 
+  {
+    *static_cast<bool*>(ptr) = value;
   }
 
 public:
@@ -124,6 +136,7 @@ public:
   int16_t mediastackRequestInterval;
   int16_t mediastackOnlyDuringDay;
   
+#ifdef USE_PAROLA
   // Parola settings data
   int16_t parolaHardwareType;
   int16_t parolaNumDevices;
@@ -131,7 +144,14 @@ public:
   int16_t parolaPinDIN;
   int16_t parolaPinCS;
   int16_t parolaPinCLK;
-  
+#endif
+
+#ifdef USE_NEOPIXELS
+  // Neopixel settings data
+  bool neopixF1;
+  bool neopixF2;
+#endif
+
   // rssfeed settings data
   int16_t requestInterval = 60; // Default request interval in minutes
   std::string domain0 = {};

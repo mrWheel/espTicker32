@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v0.11.4";
+const char* PROG_VERSION = "v0.11.5";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -28,6 +28,11 @@ const char* PROG_VERSION = "v0.11.4";
   #include "ParolaClass.h"
 
   ParolaClass ticker; //-- constructor for the ParolaClass
+#endif
+#ifdef USE_NEOPIXELS
+  #include "NeopixelsClass.h"
+
+  NeopixelsClass ticker; //-- constructor for the NeopixelsClass
 #endif
 
 #define CLOCK_UPDATE_INTERVAL  1000
@@ -214,7 +219,7 @@ std::string nextMessage()
     else if (strcasecmp(newMessage.c_str(), "<clear>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): clear");
-        ticker.displayClear();
+        ticker.tickerClear();
         tmpMessage = {0};
         for(int i=0; i<MAX_ZONES; i++)
         {
@@ -576,11 +581,21 @@ void sendRssfeedFieldsToClient()
   sendSettingFieldToClient("rssfeedSettings");
 }
 
+#ifdef USE_PAROLA
 // Function to send the JSON string to the client when parolaSettingsPage is activated
-void sendParolaFieldsToClient()
-{
-  sendSettingFieldToClient("parolaSettings");
-}
+  void sendParolaFieldsToClient()
+  {
+    sendSettingFieldToClient("parolaSettings");
+  }
+#endif
+
+#ifdef USE_NEOPIXELS
+// Function to send the JSON string to the client when neopixelsSettingsPage is activated
+  void sendNeopixelsFieldsToClient()
+  {
+    sendSettingFieldToClient("neopixelsSettings");
+  }
+#endif
 
 //=============================================================================
 
@@ -759,14 +774,22 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
       sendDeviceFieldsToClient();
       return;
     }
-    
+#ifdef USE_PAROLA
     // Check if this is a requestParolaSettings message
     if (doc["type"] == "requestParolaSettings") {
       if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling requestParolaSettings message");
       sendParolaFieldsToClient();
       return;
     }
-    
+#endif
+#ifdef USE_NEOPIXELS
+    // Check if this is a requestNeopixelsSettings message
+    if (doc["type"] == "requestNeopixelsSettings") {
+      if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling requestNeopixelsSettings message");
+      sendNeopixelsFieldsToClient();
+      return;
+    }
+#endif
     // Check if this is a requestWeerliveSettings message
     if (doc["type"] == "requestWeerliveSettings") {
       if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling requestWeerliveSettings message");
@@ -833,6 +856,7 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
           if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): No deviceSettingsData found in the message");
         }
       } // saveDeviceSettings
+#ifdef USE_PAROLA
       else if (strcmp(processType, "saveParolaSettings") == 0) 
       {
         if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling saveParolaSettings message");
@@ -851,6 +875,27 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
           if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): No parolaSettingsData found in the message");
         }
       } // saveParolaSettings
+#endif
+#ifdef USE_NEOPIXELS
+      else if (strcmp(processType, "saveNeopixelsSettings") == 0) 
+      {
+        if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling saveNeopixelsSettings message");
+        
+        // Check if inputValues exists and contains neopixelsSettingsData
+        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("neopixelsSettingsData")) 
+        {
+          // Get the neopixelsSettingsData as a string
+          const char* neopixelsSettingsData = doc["inputValues"]["neopixelsSettingsData"];
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Received neopixels settings data:");
+          if (debug && doDebug) debug->println(neopixelsSettingsData);
+          
+          // Process the neopixels settings data using the generic function
+          processSettings(neopixelsSettingsData, "neopixelsSettings");
+        } else {
+          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): No neopixelsSettingsData found in the message");
+        }
+      } // saveNeopixelsSettings
+#endif
       else if (strcmp(processType, "saveWeerliveSettings") == 0) 
       {
         if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling saveWeerliveSettings message");
@@ -970,7 +1015,7 @@ void mainCallbackDeviceSettings()
 
 } //  mainCallbackDeviceSettings()
 
-
+#ifdef USE_PAROLA
 void mainCallbackParolaSettings()
 {
   spa.setMessage("Main Menu Parola Settings] clicked!", 0);
@@ -983,7 +1028,22 @@ void mainCallbackParolaSettings()
   sendParolaFieldsToClient();
 
 } // mainCallbackParolaSettings()
+#endif
 
+#ifdef USE_NEOPIXELS
+void mainCallbackNeopixelsSettings()
+{
+  spa.setMessage("Main Menu Neopixels Settings] clicked!", 0);
+  spa.activatePage("neopixelsSettingsPage");
+  
+  // Call the JavaScript function to set up event handlers
+  spa.callJsFunction("isEspTicker32Loaded");
+  
+  // Send the weerlive settings to the client
+  sendNeopixelsFieldsToClient();
+
+} // mainCallbackNeopixelsSettings()
+#endif
 
 void mainCallbackWeerliveSettings()
 {
@@ -1318,12 +1378,18 @@ void setupMySettingsPage()
   spa.setPageTitle("deviceSettingsPage", "Device Settings");
   spa.addMenu("deviceSettingsPage", "Device Settings");
   spa.addMenuItem("deviceSettingsPage", "Device Settings", "Exit", handleMenuItem, "SET-UP");
-  
+#ifdef USE_PAROLA
   spa.addPage("parolaSettingsPage", settingsPage);
   spa.setPageTitle("parolaSettingsPage", "Parola Settings");
   spa.addMenu("parolaSettingsPage", "Parola Settings");
   spa.addMenuItem("parolaSettingsPage", "Parola Settings", "Exit", handleMenuItem, "SET-UP");
-
+#endif
+#ifdef USE_NEOPIXELS
+  spa.addPage("neopixelsSettingsPage", settingsPage);
+  spa.setPageTitle("neopixelsSettingsPage", "Neopixels Settings");
+  spa.addMenu("neopixelsSettingsPage", "Neopixels Settings");
+  spa.addMenuItem("neopixelsSettingsPage", "Neopixels Settings", "Exit", handleMenuItem, "SET-UP");
+#endif
   spa.addPage("weerliveSettingsPage", settingsPage);
   spa.setPageTitle("weerliveSettingsPage", "Weerlive Settings");
   spa.addMenu("weerliveSettingsPage", "Weerlive Settings");
@@ -1360,6 +1426,7 @@ void setupMainSettingsPage()
     </ul> 
     )HTML";
 #else
+#ifdef USE_PAROLA
   const char *settingsPage = R"HTML(
   <div style="font-size: 48px; text-align: center; font-weight: bold;">Settings</div>
   <br>You can modify system settings here that influence the operation of the device.
@@ -1370,6 +1437,19 @@ void setupMainSettingsPage()
   <li>RSS feed settings</li>
   </ul> 
   )HTML";
+#endif
+#ifdef USE_NEOPIXELS
+  const char *settingsPage = R"HTML(
+  <div style="font-size: 48px; text-align: center; font-weight: bold;">Settings</div>
+  <br>You can modify system settings here that influence the operation of the device.
+  <ul>
+  <li>Device settings</li>
+  <li>Neopixels settings</li>
+  <li>Weerlive settings</li>
+  <li>RSS feed settings</li>
+  </ul> 
+  )HTML";
+#endif
 #endif
 /**
   const char *settingsPage = R"HTML(
@@ -1390,7 +1470,12 @@ void setupMainSettingsPage()
   //-- Add Settings menu
   spa.addMenu("mainSettingsPage", "Settings");
   spa.addMenuItem("mainSettingsPage", "Settings", "Device Settings", mainCallbackDeviceSettings);
+#ifdef USE_PAROLA
   spa.addMenuItem("mainSettingsPage", "Settings", "Parola Settings", mainCallbackParolaSettings);
+#endif
+#ifdef USE_NEOPIXELS
+  spa.addMenuItem("mainSettingsPage", "Settings", "Neopixels Settings", mainCallbackNeopixelsSettings);
+#endif
   spa.addMenuItem("mainSettingsPage", "Settings", "Weerlive Settings", mainCallbackWeerliveSettings);
 #ifdef USE_MEDIASTACK
   spa.addMenuItem("mainSettingsPage", "Settings", "Mediastack Settings", mainCallbackMediastackSettings);
@@ -1444,7 +1529,7 @@ void listFiles(const char * dirname, int numTabs)
 
 } // listFiles()  
 
-
+#ifdef USE_PAROLA
 void setupParolaDisplay()
 {
 
@@ -1538,7 +1623,27 @@ void setupParolaDisplay()
   delay(1000);
 
 } // setupParolaDisplay()
+#endif // USE_PAROLA
 
+#ifdef USE_NEOPIXELS
+void setupNeopixelsDisplay()
+{
+  ticker.setScrollSpeed(settings.devTickerSpeed);
+  ticker.setIntensity(settings.devMaxIntensiteitLeds);
+
+  ticker.setCallback([](const std::string& finishedText) 
+  {
+    if (debug && doDebug) debug->print("[FINISHED] ");
+    if (debug && doDebug) debug->println(finishedText.c_str());
+    ticker.setScrollSpeed(settings.devTickerSpeed);
+    ticker.setIntensity(settings.devMaxIntensiteitLeds);
+    actMessage = nextMessage();
+  });
+
+  delay(1000);
+
+} // setupNeopixelsDisplay()
+#endif // USE_NEOPIXELS
 
 void callbackWiFiPortal()
 {
@@ -1603,7 +1708,12 @@ void setup()
     }
     settings.readSettingFields("rssfeedSettings");
 
+#ifdef USE_PAROLA
     setupParolaDisplay();
+#endif // USE_PAROLA
+#ifdef USE_NEOPIXELS
+    setupNeopixelsDisplay();
+#endif // USE_NEOPIXELS
     
     delay(2000);
     ticker.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"] ...    ");

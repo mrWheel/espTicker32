@@ -1,3 +1,6 @@
+/*
+**  SettingsClass.cpp
+*/
 #include "SettingsClass.h"
 
 SettingsClass::SettingsClass() 
@@ -51,6 +54,13 @@ void SettingsClass::initializeSettingsContainers()
   parolaContainer.addField({"parolaPinCLK", "CLK/SCK GPIO pin (0 = default[18])", "n",  0, 0, 23, 1, &parolaPinCLK});
   parolaContainer.addField({"parolaPinCS", "CS/SS GPIO pin (0 = default [5])", "n",     0, 0, 23, 1, &parolaPinCS});
   settingsContainers["parolaSettings"] = parolaContainer;
+#endif
+
+#ifdef USE_NEOPIXELS
+  // Neopixel settings
+  SettingsContainer neopixelsContainer("Neopixels Settings", "/neopixels.ini", "neopixelsSettings");
+  neopixelsContainer.addField({"neopixF1", "Field1 (false=Not, true=Yes)", "b", 0, 0, 0, 0, &neopixF1});
+  neopixelsContainer.addField({"neopixF2", "Field2 (false=Not, true=Yes)", "b", 0, 0, 0, 0, &neopixF2});
 #endif
 
   // rssfeed settings
@@ -145,6 +155,20 @@ std::string SettingsClass::buildJsonFieldsString(const std::string& settingsType
       jsonField["fieldMax"] = field.fieldMax;
       jsonField["fieldStep"] = field.fieldStep;
     }
+    else if (field.fieldType == "b") 
+    {
+      // Boolean field
+      bool value = getBooleanValue(field.fieldValue);
+      
+      if (debug && doDebug) 
+      {
+        debug->printf("buildJsonFieldsString(): Field [%s], value: %s\n", 
+                     field.fieldName.c_str(), value ? "true" : "false");
+      }
+      
+      jsonField["fieldValue"] = value;
+      jsonField["fieldType"] = "b";
+    }
   }
   
   // Serialize to a string and return it
@@ -228,6 +252,20 @@ void SettingsClass::readSettingFields(const std::string& settingsType)
           }
           setNumericValue(field.fieldValue, numValue);
         }
+        else if (field.fieldType == "b") 
+        {
+          // Convert string to boolean (true/false, 1/0, yes/no)
+          bool boolValue = false;
+          value.toLowerCase();
+          if (value == "true" || value == "1" || value == "yes") {
+            boolValue = true;
+          }
+          
+          if (debug && doDebug) {
+            debug->printf("readSettingFields(): Converting to bool: %s\n", boolValue ? "true" : "false");
+          }
+          setBooleanValue(field.fieldValue, boolValue);
+        }
         break;
       }
     }
@@ -304,6 +342,18 @@ void SettingsClass::writeSettingFields(const std::string& settingsType)
       file.print(field.fieldName.c_str());
       file.print("=");
       file.println(value);
+    }
+    else if (field.fieldType == "b") 
+    {
+      bool value = getBooleanValue(field.fieldValue);
+      
+      if (debug && doDebug) debug->printf("writeSettingFields(): Writing field [%s], value: %s\n", 
+                                         field.fieldName.c_str(), value ? "true" : "false");
+      
+      // Use a more explicit approach to write the field
+      file.print(field.fieldName.c_str());
+      file.print("=");
+      file.println(value ? "true" : "false");
     }
   }
   
