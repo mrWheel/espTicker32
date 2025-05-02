@@ -104,14 +104,14 @@ private:
 
 public:
   // Device settings data
-  std::string hostname;
+  std::string devHostname;
   int16_t scrollSnelheid;
-  int16_t LDRMinWaarde;
-  int16_t LDRMaxWaarde;
-  int16_t maxIntensiteitLeds;
-  std::string skipWords;
-  int16_t resetWiFiPin;
-  int16_t tickerSpeed;
+  int16_t devLDRMinWaarde;
+  int16_t devLDRMaxWaarde;
+  int16_t devMaxIntensiteitLeds;
+  std::string devSkipWords;
+  int16_t devResetWiFiPin;
+  int16_t devTickerSpeed;
   
   // Weerlive settings data
   std::string weerliveAuthToken;

@@ -21,12 +21,14 @@ const char* PROG_VERSION = "v0.11.4";
   #include "MediastackClass.h"
 #endif
 #include "RSSreaderClass.h"
-//#include <MD_Parola.h>
-//#include <MD_MAX72xx.h>
-//#include <SPI.h>
-#include "ParolaClass.h"
+#ifdef USE_PAROLA
+  //#include <MD_Parola.h>
+  //#include <MD_MAX72xx.h>
+  //#include <SPI.h>
+  #include "ParolaClass.h"
 
-ParolaClass max72xx; //-- constructor for the ParolaClass
+  ParolaClass ticker; //-- constructor for the ParolaClass
+#endif
 
 #define CLOCK_UPDATE_INTERVAL  1000
 #define LOCAL_MESSAGES_PATH      "/localMessages.txt"
@@ -212,7 +214,7 @@ std::string nextMessage()
     else if (strcasecmp(newMessage.c_str(), "<clear>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): clear");
-        max72xx.displayClear();
+        ticker.displayClear();
         tmpMessage = {0};
         for(int i=0; i<MAX_ZONES; i++)
         {
@@ -236,7 +238,7 @@ std::string nextMessage()
     //  //return newMessage; 
     //}
     if (debug && doDebug) debug->printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
-    max72xx.sendNextText(("** "+newMessage+" **").c_str());
+    ticker.sendNextText(("** "+newMessage+" **").c_str());
     spa.callJsFunction("queueMessageToMonitor", ("* "+newMessage+" *").c_str());
 
     return newMessage;
@@ -1489,7 +1491,7 @@ void setupParolaDisplay()
   Serial.printf("      MY_CLK_PIN: [%d]\n", clkPin);  
   Serial.printf("       MY_CS_PIN: [%d]\n", csPin);
 
-  config.MY_MAX_SPEED = settings.tickerSpeed;
+  config.MY_MAX_SPEED = settings.devTickerSpeed;
 
   if (debug) debug->printf("setupParolaDisplay(): Parola settings: DIN[%d], CLK[%d], CS[%d], MAX_DEVICES [%d]\n", 
                                             dinPin,
@@ -1502,15 +1504,20 @@ void setupParolaDisplay()
                                             clkPin,
                                             csPin,
                                             config.MY_MAX_DEVICES);
-  max72xx.begin(dinPin, clkPin, csPin, config);
+  ticker.begin(dinPin, clkPin, csPin, config);
 
+<<<<<<< HEAD
   max72xx.setIntensity(0);
 
   max72xx.setScrollSpeed(settings.tickerSpeed);
   //-?-max72xx.setIntensity(settings.maxIntensiteitLeds);
+=======
+  ticker.setScrollSpeed(settings.devTickerSpeed);
+  ticker.setIntensity(settings.devMaxIntensiteitLeds);
+>>>>>>> 544fcfe (Naming deive and parola settings)
 
   // Rest of the function remains unchanged
-  max72xx.setRandomEffects({
+  ticker.setRandomEffects({
       PA_NO_EFFECT,
       PA_NO_EFFECT,
       PA_NO_EFFECT,
@@ -1526,12 +1533,12 @@ void setupParolaDisplay()
       PA_WIPE
   });
 
-  max72xx.setCallback([](const std::string& finishedText) 
+  ticker.setCallback([](const std::string& finishedText) 
   {
     if (debug && doDebug) debug->print("[FINISHED] ");
     if (debug && doDebug) debug->println(finishedText.c_str());
-    max72xx.setScrollSpeed(settings.tickerSpeed);
-    max72xx.setIntensity(settings.maxIntensiteitLeds);
+    ticker.setScrollSpeed(settings.devTickerSpeed);
+    ticker.setIntensity(settings.devMaxIntensiteitLeds);
     actMessage = nextMessage();
   });
 
@@ -1545,10 +1552,10 @@ void callbackWiFiPortal()
     if (debug) debug->println("callbackWiFiPortal(): WiFi portal callback triggered");
     else       Serial.println("callbackWiFiPortal(): WiFi portal callback triggered");
 
-    max72xx.setIntensity(2);
-    max72xx.animateBlocking("WiFi portal callback triggered ... ");
-    max72xx.animateBlocking("connect to espTicker32 portal ... ");
-    max72xx.animateBlocking("go to 192.168.4.1 ... ");
+    ticker.setIntensity(3);
+    ticker.animateBlocking("WiFi portal callback triggered ... ");
+    ticker.animateBlocking("connect to espTicker32 portal ... ");
+    ticker.animateBlocking("go to 192.168.4.1 ... ");
 
     //delay(200000);
 
@@ -1606,31 +1613,31 @@ void setup()
     setupParolaDisplay();
     
     delay(2000);
-    max72xx.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"] ...    ");
+    ticker.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"] ...    ");
     delay(500);
 
     //-- Connect to WiFi
     network = new Networking();
     
-    max72xx.animateBlocking("Start WiFi ...    ");
-    //-- Parameters: hostname, resetWiFi pin, serial object, baud rate, wifiCallback
-    pinMode(settings.resetWiFiPin, INPUT_PULLUP);
-    debug = network->begin(hostName, settings.resetWiFiPin, Serial, 115200, callbackWiFiPortal);
+    ticker.animateBlocking("Start WiFi ...    ");
+    //-- Parameters: devHostname, resetWiFi pin, serial object, baud rate, wifiCallback
+    pinMode(settings.devResetWiFiPin, INPUT_PULLUP);
+    debug = network->begin(hostName, settings.devResetWiFiPin, Serial, 115200, callbackWiFiPortal);
     settings.setDebug(debug);
     
     if (debug) debug->println("\nespTicker32: setup(): WiFi connected");
     if (debug) debug->print("espTicker32: setup(): IP address: ");
     if (debug) debug->println(WiFi.localIP());
-    max72xx.animateBlocking("IP: " + String(WiFi.localIP().toString().c_str()) + " ");
+    ticker.animateBlocking("IP: " + String(WiFi.localIP().toString().c_str()) + " ");
 
     if (debug) debug->printf("espTicker32 Version: %s\n", PROG_VERSION);
 
-    max72xx.setDebug(debug);
+    ticker.setDebug(debug);
 
-    if (settings.hostname.empty()) 
+    if (settings.devHostname.empty()) 
     {
-        if (debug) debug->println("espTicker32: setup(): No hostname found in settings, using default");
-        settings.hostname = std::string(hostName);
+        if (debug) debug->println("espTicker32: setup(): No devHostname found in settings, using default");
+        settings.devHostname = std::string(hostName);
         settings.writeSettingFields("deviceSettings");
     }
 
@@ -1698,7 +1705,7 @@ void setup()
 #endif
 
     rssReader.setDebug(debug);
-    rssReader.addWordStringToSkipWords(settings.skipWords.c_str());
+    rssReader.addWordStringToSkipWords(settings.devSkipWords.c_str());
     
     if (!settings.domain0.empty() && !settings.path0.empty() && settings.maxFeeds0 > 0) 
               rssReader.addRSSfeed(settings.domain0.c_str(), settings.path0.c_str(), settings.maxFeeds0);
@@ -1724,7 +1731,7 @@ void setup()
 
     spa.activatePage("Main");
 
-    max72xx.setScrollSpeed(settings.tickerSpeed);
+    ticker.setScrollSpeed(settings.devTickerSpeed);
 
     actMessage = nextMessage();
 
@@ -1766,7 +1773,7 @@ void loop()
   static uint32_t lastDisplay = 0;
   //if (millis() - lastDisplay >= 3000)
   {
-    max72xx.loop();
+    ticker.loop();
     lastDisplay = millis();
   }
 

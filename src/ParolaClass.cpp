@@ -179,7 +179,7 @@ bool ParolaClass::initSPI()
     
     try
     {
-      SPI.setFrequency(2000000);
+      SPI.setFrequency(1000000);
       // Initialize SPI with the specified pins
       SPI.begin(clkPin, -1, dataPin, csPin);  // SCK, MISO, MOSI, SS
       SPI.setFrequency(2000000);

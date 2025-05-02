@@ -15,13 +15,13 @@ void SettingsClass::initializeSettingsContainers()
 {
   // Device settings
   SettingsContainer deviceContainer("Device Settings", "/settings.ini", "deviceSettings");
-  deviceContainer.addField({"hostname", "hostname", "s", 32, 0, 0, 0, &hostname});
-  deviceContainer.addField({"tickerSpeed", "Ticker Scroll Speed", "n", 0, 5, 50, 1, &tickerSpeed});
-  deviceContainer.addField({"LDRMinWaarde", "LDR Min. Waarde", "n", 0, 10, 100, 1, &LDRMinWaarde});
-  deviceContainer.addField({"LDRMaxWaarde", "LDR Max. Waarde", "n", 0, 11, 101, 1, &LDRMaxWaarde});
-  deviceContainer.addField({"maxIntensiteitLeds", "Max. Intensiteit LEDS", "n", 0, 0, 15, 1, &maxIntensiteitLeds});
-  deviceContainer.addField({"skipWords", "Words to skip", "s", 250, 0, 0, 0, &skipWords});
-  deviceContainer.addField({"resetWiFiPin", "Reset WiFi GPIO pin", "n", 0, 1, 23, 1, &resetWiFiPin});
+  deviceContainer.addField({"devHostname", "devHostname", "s", 32, 0, 0, 0, &devHostname});
+  deviceContainer.addField({"devTickerSpeed", "Ticker Scroll Speed", "n", 0, 5, 50, 1, &devTickerSpeed});
+  deviceContainer.addField({"devLDRMinWaarde", "LDR Min. Waarde", "n", 0, 10, 100, 1, &devLDRMinWaarde});
+  deviceContainer.addField({"devLDRMaxWaarde", "LDR Max. Waarde", "n", 0, 11, 101, 1, &devLDRMaxWaarde});
+  deviceContainer.addField({"devMaxIntensiteitLeds", "Max. Intensiteit LEDS", "n", 0, 0, 15, 1, &devMaxIntensiteitLeds});
+  deviceContainer.addField({"devSkipWords", "Words to skip", "s", 250, 0, 0, 0, &devSkipWords});
+  deviceContainer.addField({"devResetWiFiPin", "Reset WiFi GPIO pin", "n", 0, 1, 23, 1, &devResetWiFiPin});
   settingsContainers["deviceSettings"] = deviceContainer;
   
   // Weerlive settings
@@ -31,25 +31,27 @@ void SettingsClass::initializeSettingsContainers()
   weerliveContainer.addField({"requestInterval", "Request Interval (minuten)", "n", 0, 10, 120, 1, &weerliveRequestInterval});
   settingsContainers["weerliveSettings"] = weerliveContainer;
   
-  #ifdef USE_MEDIASTACK
-  // Mediastack settings
-    SettingsContainer mediastackContainer("Mediastack Settings", "/Mediastack.ini", "mediastackSettings");
-    mediastackContainer.addField({"authToken", "mediastack Auth. Token", "s", 32, 0, 0, 0, &mediastackAuthToken});
-    mediastackContainer.addField({"maxMessages", "Max. Messages to save", "n", 0, 0, 50, 1, &mediastackMaxMessages});
-    mediastackContainer.addField({"requestInterval", "Request Interval (minuten)", "n", 0, 60, 240, 1, &mediastackRequestInterval});
-    mediastackContainer.addField({"onlyDuringDay", "Update alleen tussen 08:00 en 18:00", "n", 0, 0, 1, 1, &mediastackOnlyDuringDay});
-    settingsContainers["mediastackSettings"] = mediastackContainer;
-  #endif
+#ifdef USE_MEDIASTACK
+// Mediastack settings
+  SettingsContainer mediastackContainer("Mediastack Settings", "/Mediastack.ini", "mediastackSettings");
+  mediastackContainer.addField({"authToken", "mediastack Auth. Token", "s", 32, 0, 0, 0, &mediastackAuthToken});
+  mediastackContainer.addField({"maxMessages", "Max. Messages to save", "n", 0, 0, 50, 1, &mediastackMaxMessages});
+  mediastackContainer.addField({"requestInterval", "Request Interval (minuten)", "n", 0, 60, 240, 1, &mediastackRequestInterval});
+  mediastackContainer.addField({"onlyDuringDay", "Update alleen tussen 08:00 en 18:00", "n", 0, 0, 1, 1, &mediastackOnlyDuringDay});
+  settingsContainers["mediastackSettings"] = mediastackContainer;
+#endif
 
+#ifdef USE_PAROLA
   // Parola settings
   SettingsContainer parolaContainer("Parola Settings", "/parola.ini", "parolaSettings");
-  parolaContainer.addField({"hardwareType", "Type (0=PAROLA_HW, 1=FC16_HW, 2=GENERIC_HW)", "n", 0, 0, 2, 1, &parolaHardwareType});
+  parolaContainer.addField({"parolaHardwareType", "Type (0=PAROLA_HW, 1=FC16_HW, 2=GENERIC_HW)", "n", 0, 0, 2, 1, &parolaHardwareType});
   parolaContainer.addField({"numDevices", "Aantal segmenten", "n", 0, 1, MAX_ZONES, 1, &parolaNumDevices});
-  parolaContainer.addField({"numZones", "Aantal rijen (Zones)", "n", 0, 1, 2, 1, &parolaNumZones});
-  parolaContainer.addField({"pinDIN", "DIN/MOSI GPIO pin (0 = default[23])", "n", 0, 0, 23, 1, &parolaPinDIN});
-  parolaContainer.addField({"pinCLK", "CLK/SCK GPIO pin (0 = default[18])", "n",  0, 0, 23, 1, &parolaPinCLK});
-  parolaContainer.addField({"pinCS", "CS/SS GPIO pin (0 = default [5])", "n",     0, 0, 23, 1, &parolaPinCS});
+  parolaContainer.addField({"parolaNumZones", "Aantal rijen (Zones)", "n", 0, 1, 2, 1, &parolaNumZones});
+  parolaContainer.addField({"parolaPinDIN", "DIN/MOSI GPIO pin (0 = default[23])", "n", 0, 0, 23, 1, &parolaPinDIN});
+  parolaContainer.addField({"parolaPinCLK", "CLK/SCK GPIO pin (0 = default[18])", "n",  0, 0, 23, 1, &parolaPinCLK});
+  parolaContainer.addField({"parolaPinCS", "CS/SS GPIO pin (0 = default [5])", "n",     0, 0, 23, 1, &parolaPinCS});
   settingsContainers["parolaSettings"] = parolaContainer;
+#endif
 
   // rssfeed settings
   SettingsContainer rssfeedContainer("RSSfeed Settings", "/rssFeeds.ini", "rssfeedSettings");
