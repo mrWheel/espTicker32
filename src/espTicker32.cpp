@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v0.12.0";
+const char* PROG_VERSION = "v0.12.1";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -247,9 +247,9 @@ std::string nextMessage()
     //  //return newMessage; 
     //}
     if (debug && doDebug) debug->printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
-    Serial.printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
-    ticker.sendNextText(("** "+newMessage+" **").c_str());
+    else                  Serial.printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
     spa.callJsFunction("queueMessageToMonitor", ("* "+newMessage+" *").c_str());
+    ticker.sendNextText(("** "+newMessage+" **").c_str());
 
     return newMessage;
 
@@ -1648,7 +1648,6 @@ void setupNeopixelsDisplay()
   
   // Initialize the matrix with the correct pin
   ticker.begin(pin);
-  ticker.setDebug(debug);
   
   // Set matrix size
   ticker.setMatrixSize(width, height);
@@ -1665,7 +1664,7 @@ void setupNeopixelsDisplay()
   // Set display properties
   ticker.setColor(255, 0, 0); // Red text
   ticker.setIntensity(20);    // Medium brightness
-  ticker.setScrollSpeed(75);        // Medium-high speed
+  ticker.setScrollSpeed(15);        // Medium-high speed
   
   //ticker.setScrollSpeed(settings.devTickerSpeed);
   //ticker.setIntensity(settings.devMaxIntensiteitLeds);
@@ -1747,20 +1746,29 @@ void setup()
 #endif // USE_NEOPIXELS
     
     delay(2000);
-    Serial.printf("espTicker32: setup(): Start espTicker32 [%s] ...\n", PROG_VERSION);
+    Serial.printf("espTicker32: setup()[S]: Start espTicker32 [%s] ...\n", PROG_VERSION);
     ticker.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"] ...    ");
     delay(500);
 
     //-- Connect to WiFi
+    Serial.println("network = new Networking();");
     network = new Networking();
     
     ticker.animateBlocking("Start WiFi ...    ");
     //-- Parameters: devHostname, resetWiFi pin, serial object, baud rate, wifiCallback
     pinMode(settings.devResetWiFiPin, INPUT_PULLUP);
+    Serial.printf("debug = network.begin(%s, %d, Serial, 115200, callbackWiFiPortal)\n",  hostName, settings.devResetWiFiPin);
     debug = network->begin(hostName, settings.devResetWiFiPin, Serial, 115200, callbackWiFiPortal);
-    ticker.animateBlocking(" ... Done! ");
+    //-??-Stream* tempDebug = network->begin(hostName, settings.devResetWiFiPin, Serial, 115200, callbackWiFiPortal);
 
+    ticker.animateBlocking(" ... Done! ");
+    Serial.println(" ... Done! ");
+
+    Serial.println("settings.setDebug(debug);");
     settings.setDebug(debug);
+    Serial.println("ticker.setDebug(debug);");
+    ticker.setDebug(debug);
+    Serial.println("setDebug() done ..");
     
     if (debug) 
     {
@@ -1778,7 +1786,7 @@ void setup()
 
     if (debug) debug->printf("espTicker32 Version: %s\n", PROG_VERSION);
 
-    //ticker.setDebug(debug); is set in setupNeopixelsDisplay() and setupParolaDisplay()
+    ticker.setDebug(debug); 
 
     if (settings.devHostname.empty()) 
     {

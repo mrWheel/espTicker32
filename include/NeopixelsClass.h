@@ -39,12 +39,16 @@ private:
   bool textComplete;
   unsigned long lastUpdateTime;
   bool initialized = false;
+  bool matrixInitialized = false;
+  bool configInitialized = false;
   std::function<void(const std::string&)> onFinished = nullptr;
+  
   // Debug support
   Stream* debug = nullptr;
   void debugPrint(const char* format, ...);
- 
-
+  
+  // Private helper methods
+  void cleanup();
   
 public:
   // Constructor and destructor
@@ -73,7 +77,7 @@ public:
   void setCallback(std::function<void(const std::string&)> callback);
   void setDisplayConfig(const DisplayConfig &config);
   bool isInitialized() const { return initialized; }
-
+  void reset();
 
 #ifdef NEOPIXELS_DEBUG
     bool doDebug = true;
