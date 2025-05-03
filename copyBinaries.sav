@@ -2,7 +2,6 @@ import os
 import shutil
 import re
 import glob
-import time  # Added for sleep function
 from datetime import datetime
 from SCons.Script import DefaultEnvironment
 
@@ -129,20 +128,8 @@ def manage_binaries(source_file, program_name, version_str, postfix):
     
     print(f"DEBUG: manage_binaries called with source_file: {source_rel_path}, program_name: {program_name}, version: {version_str}, postfix: {postfix}")
     
-    # Add retry mechanism to wait for the file to be created
-    max_retries = 10  # Maximum number of retry attempts
-    retry_delay = 2   # Seconds to wait between retries
-    
-    for attempt in range(max_retries):
-        if os.path.exists(source_file):
-            print(f"DEBUG: Source file found on attempt {attempt+1}: {source_rel_path}")
-            break
-        else:
-            print(f"DEBUG: Source file not found on attempt {attempt+1}, waiting {retry_delay} seconds...")
-            time.sleep(retry_delay)
-    
     if not os.path.exists(source_file):
-        print(f"WARNING: Source file not found after {max_retries} attempts: {source_rel_path}")
+        print(f"WARNING: Source file not found: {source_rel_path}")
         print(f"This is normal during the first build or if the build hasn't completed yet.")
         return
 
@@ -367,20 +354,15 @@ def register_post_actions(env):
         print(f"DEBUG: BUILD_DIR: {build_rel_dir}")
         print(f"DEBUG: PROGNAME: {progname}")
         
-        # CHANGE: Add post-action to the firmware.bin file directly instead of the .elf file
-        # This ensures the action runs after the binary is created
-        env.AddPostAction("$BUILD_DIR/firmware.bin", handle_firmware)
+        env.AddPostAction("$BUILD_DIR/${PROGNAME}.elf", handle_firmware)
         env.AddPostAction("upload", handle_firmware)
         
-        # For filesystem - only add if the project has filesystem support
-        fs_type = env.GetProjectOption("board_build.filesystem", "")
-        if fs_type:  # Only add filesystem post-action if filesystem type is defined
-            fs_bin_path = f"$BUILD_DIR/{fs_type}.bin"
-            fs_rel_bin_path = os.path.join(build_rel_dir, f"{fs_type}.bin")
-            print(f"DEBUG: Adding post-action for filesystem binary: {fs_rel_bin_path}")
-            env.AddPostAction(fs_bin_path, handle_filesystem)
-        else:
-            print("DEBUG: Skipping filesystem post-action (no filesystem type defined)")
+        # For filesystem - directly target the filesystem binary
+        fs_type = env.GetProjectOption("board_build.filesystem", "littlefs")
+        fs_bin_path = f"$BUILD_DIR/{fs_type}.bin"
+        fs_rel_bin_path = os.path.join(build_rel_dir, f"{fs_type}.bin")
+        print(f"DEBUG: Adding post-action for filesystem binary: {fs_rel_bin_path}")
+        env.AddPostAction(fs_bin_path, handle_filesystem)
         
         print("DEBUG: Post-build actions registered successfully")
     else:
