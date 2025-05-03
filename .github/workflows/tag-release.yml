@@ -9,8 +9,9 @@
 # 4. Determine the latest semver-style tag starting with "v".
 # 5. Compare the current version with the latest tag.
 # 6. If the current version is greater than the latest tag, create or update the tag to point to the latest commit.
-# 7. If the current version is the same or older than the latest tag, skip tagging and log a warning.
-# 8. If no tags exist, create the first tag.
+# 7. If the current version is older than the latest tag, skip tagging and log a warning.
+# 8. If the current version is equal to the latest tag, force update the tag to point to the latest commit.
+# 9. If no tags exist, create the first tag.
 
 name: Auto Tag Release
 
