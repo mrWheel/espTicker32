@@ -438,7 +438,7 @@ void ParolaClass::setDebug(Stream* debugPort)
   {
     debug->println("ParolaClass::setDebug() - Debugging enabled");
   }
-}
+} //  setDebug()
 
 void ParolaClass::debugPrint(const char* format, ...)
 {
