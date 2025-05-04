@@ -62,6 +62,7 @@ public:
   void setMatrixSize(int width, int height);
   void setPixelsPerChar(int pixels);
   void setDebug(Stream* debugPort = &Serial);
+  void testLayout();
   
   // Display control methods
   void setColor(int r, int g, int b);

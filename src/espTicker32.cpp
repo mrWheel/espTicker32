@@ -1633,18 +1633,20 @@ void setupParolaDisplay()
 #ifdef USE_NEOPIXELS
 void setupNeopixelsDisplay()
 {
-  int pin = 5; // Pin connected to the NeoPixel strip
-  int width = 16; // Width of the matrix
-  int height = 8; // Height of the matrix
+  int pin    =  5; // Pin connected to the NeoPixel strip
+  int width  = 32; // Width of the matrix
+  int height =  8; // Height of the matrix
   int pixelPerChar = 6; // Number of pixels per character
   
   // Use the proper matrix configuration values from Adafruit_NeoMatrix.h
-  // These should be uint8_t, not int
-  uint8_t matrixType = NEO_MATRIX_TOP; // Changed from BOTTOM to TOP
-  uint8_t matrixLayout = NEO_MATRIX_COLUMNS; // Changed from ROWS to COLUMNS
-  uint8_t matrixDirection = NEO_MATRIX_LEFT; // Changed from RIGHT to LEFT
-  uint8_t matrixSequence = NEO_MATRIX_PROGRESSIVE; // Changed from ZIGZAG to PROGRESSIVE
-  
+  //-- select BOTTOM or TOP
+  uint8_t matrixType      = NEO_MATRIX_BOTTOM; 
+  //-- select RIGHT or LEFT
+  uint8_t matrixDirection = NEO_MATRIX_RIGHT; 
+  //-- select ROWS or COLUMNS
+  uint8_t matrixLayout    = NEO_MATRIX_COLUMNS;
+  // select ZIGZAG or PROGRESSIVE
+  uint8_t matrixSequence  = NEO_MATRIX_ZIGZAG;
   
   // Initialize the matrix with the correct pin
   ticker.begin(pin);
@@ -1743,6 +1745,7 @@ void setup()
       else       Serial.println("espTicker32: setup(): readSettingFields(neopixelsSettings)");
       settings.readSettingFields("neopixelsSettings");
       setupNeopixelsDisplay();
+      ticker.testLayout();
 #endif // USE_NEOPIXELS
     
     delay(2000);

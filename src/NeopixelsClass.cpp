@@ -138,6 +138,18 @@ void NeopixelsClass::begin(uint8_t pin)
     debugPrint("  Matrix Sequence   : 0x%02x", matrixSequence);
     debugPrint("  Pixel Type        : 0x%02x", (uint32_t)pixelType);
   }
+  else
+  {
+    Serial.println("NeopixelsClass: Initializing NeoPixel matrix...");
+    Serial.printf("  neopixelPin       : %d\n", neopixelPin);
+    Serial.printf("  Width             : %d\n", width);
+    Serial.printf("  Height            : %d\n", height);
+    Serial.printf("  Matrix Type       : 0x%02x\n", matrixType);
+    Serial.printf("  Matrix Layout     : 0x%02x\n", matrixLayout);
+    Serial.printf("  Matrix Direction  : 0x%02x\n", matrixDirection);
+    Serial.printf("  Matrix Sequence   : 0x%02x\n", matrixSequence);
+    Serial.printf("  Pixel Type        : 0x%02x\n", (uint32_t)pixelType);
+  }
   
   // Add a delay to ensure pin is ready
   delay(100);
@@ -147,10 +159,8 @@ void NeopixelsClass::begin(uint8_t pin)
     // Combine matrix configuration parameters
     uint8_t matrixConfig = matrixType + matrixDirection + matrixLayout + matrixSequence;
     
-    if (debug)
-    {
-      debugPrint("NeopixelsClass: Combined matrix config: 0x%02x", matrixConfig);
-    }
+    if (debug)  debugPrint("NeopixelsClass: Combined matrix config: 0x%02x", matrixConfig);
+    else     Serial.printf("Combined matrix config: 0x%02x\n", matrixConfig);
     
     // Create the matrix object with the specified parameters
     matrix = new Adafruit_NeoMatrix(
@@ -647,3 +657,30 @@ void NeopixelsClass::debugPrint(const char* format, ...)
     }
   }
 } // debugPrint()
+
+
+void NeopixelsClass::testLayout()
+{
+  matrix->setBrightness(40);
+  matrix->setTextWrap(false);
+  matrix->setTextSize(1); // Use 5x7 font
+  matrix->setTextColor(matrix->Color(0, 255, 0)); // Green
+  matrix->setRotation(0);
+
+  for (uint16_t i = 0; i < matrix->width() * matrix->height(); i++) {
+    matrix->fillScreen(0);
+
+    // Draw red pixel at current index
+    uint8_t x = i % matrix->width();
+    uint8_t y = i / matrix->width();
+    matrix->drawPixel(x, y, matrix->Color(255, 0, 0));
+
+    // Print pixel index in top-left
+    matrix->setCursor(0, 0);
+    matrix->print(i);
+
+    matrix->show();
+    delay(50);
+  }
+
+}

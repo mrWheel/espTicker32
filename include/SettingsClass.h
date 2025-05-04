@@ -148,8 +148,16 @@ public:
 
 #ifdef USE_NEOPIXELS
   // Neopixel settings data
-  bool neopixF1;
-  bool neopixF2;
+  int16_t neopixDataPin;
+  int16_t neopixWidth;
+  int16_t neopixHeight;
+  int16_t neopixTYPE;
+  int16_t neopixCOLOR;
+  int16_t neopixFREQ;
+  bool neopixMATRIXTYPEV;
+  bool neopixMATRIXTYPEH;
+  bool neopixMATRIXORDER;
+  bool neopixMATRIXSEQUENCE;
 #endif
 
   // rssfeed settings data

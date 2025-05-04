@@ -59,8 +59,16 @@ void SettingsClass::initializeSettingsContainers()
 #ifdef USE_NEOPIXELS
   // Neopixel settings
   SettingsContainer neopixelsContainer("Neopixels Settings", "/neopixels.ini", "neopixelsSettings");
-  neopixelsContainer.addField({"neopixF1", "Field1 (false=Not, true=Yes)", "b", 0, 0, 0, 0, &neopixF1});
-  neopixelsContainer.addField({"neopixF2", "Field2 (false=Not, true=Yes)", "b", 0, 0, 0, 0, &neopixF2});
+  neopixelsContainer.addField({"neopixDataPin", "Neopixels Data GPIO pin", "n", 0, 0, 23, 1, &neopixDataPin});
+  neopixelsContainer.addField({"neopixWidth", "Neopixels Width", "n", 0, 1, 128, 1, &neopixWidth});
+  neopixelsContainer.addField({"neopixHeight", "Neopixels Height", "n", 0, 1, 16, 1, &neopixHeight});
+  neopixelsContainer.addField({"neopixTYPE", "NEOPIXELS TYPE (false=TOP, true=BOTTOM)", "n", 0, 0, 0, 0, &neopixTYPE});
+  neopixelsContainer.addField({"neopixCOLOR", "NEOPIXELS COLOR (0=RGB, 1=RBG, 2= GRB, 3=GBR, 4=BRG, 5=BGR)", "n", 0, 0, 0, 0, &neopixCOLOR});
+  neopixelsContainer.addField({"neopixFREQ", "NEOPIXELS SIGNAL FREQ. (0=800kHz, 1=400kjHz)", "n", 0, 0, 0, 0, &neopixFREQ});
+  neopixelsContainer.addField({"neopixMATRIXTYPEV", "MATRIX TYPE (false=TOP, true=BOTTOM)", "b", 0, 0, 0, 0, &neopixMATRIXTYPEV});
+  neopixelsContainer.addField({"neopixMATRIXTYPEH", "MATRIX TYPE (false=LEFT, true=RIGHT)", "b", 0, 0, 0, 0, &neopixMATRIXTYPEH});
+  neopixelsContainer.addField({"neopixMATRIXORDER", "MATRIX LAYOUT (false=ROWS, true=COLUMNS)", "b", 0, 0, 0, 0, &neopixMATRIXORDER});
+  neopixelsContainer.addField({"neopixMATRIXSEQUENCE", "MATRIX SEQUENCE (false=PROGRESSIVE, true=ZIGZAG)", "b", 0, 0, 0, 0, &neopixMATRIXSEQUENCE});
 #endif
 
   // rssfeed settings
