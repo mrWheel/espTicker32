@@ -2,11 +2,17 @@
 
 let isRequestingRssfeedSettings = false;
 let isRequestingParolaSettings = false;
+let isRequestingNeopixelsSettings = false;
 let isRequestingWeerliveSettings = false;
 let isRequestingMediastackSettings = false;
 let isRequestingDeviceSettings = false;
 let renderDebounceTimer = null;
 let lastReceivedData = null;
+let deviceSettings = null;
+let parolaSettings = null;
+let neopixelsSettings = null;
+let weerliveSettings = null;
+let mediasstackSettings = null;
 
 // Array to store input field values
 let LocalMessages = [];
@@ -276,6 +282,26 @@ function isEspTicker32Loaded()
           initializeParolaSettings(lastReceivedData.data);
         }, 100);
       }
+      // Check if this is our custom neopixelsSettingsData message
+      else if (data.type === 'custom' && data.action === 'neopixelsSettingsData') {
+        console.log('Received neopixels settings data');
+        
+        // Reset the request flag
+        isRequestingNeopixelsSettings = false;
+        
+        // Store the data and debounce the rendering
+        lastReceivedData = {
+          type: 'neopixelsSettings',
+          data: data.data
+        };
+        
+        // Debounce the rendering
+        clearTimeout(renderDebounceTimer);
+        renderDebounceTimer = setTimeout(() => {
+          // Initialize with the data
+          initializeNeopixelsSettings(lastReceivedData.data);
+        }, 100);
+      }
       // Check if this is our custom weerliveSettingsData message
       else if (data.type === 'custom' && data.action === 'weerliveSettingsData') {
         console.log('Received weerlive settings data');
@@ -391,7 +417,15 @@ function isEspTicker32Loaded()
     isRequestingParolaSettings = true;
     requestParolaSettings();
   }
-  
+
+  // Check if the page is ready for neopixels settings (only for Neopixels Settings page)
+  if (pageTitle.includes("Neopixels Settings") && isPageReadyForNeopixelsSettings() && !isRequestingNeopixelsSettings) 
+    {
+      console.log("Page is ready for neopixels settings, requesting data from server");
+      isRequestingNeopixelsSettings = true;
+      requestNeopixelsSettings();
+    }
+    
   // Check if the page is ready for weerlive settings (only for Weerlive Settings page)
   if (pageTitle.includes("Weerlive Settings") && isPageReadyForWeerliveSettings() && !isRequestingWeerliveSettings) 
   {
@@ -883,7 +917,7 @@ function initializeParolaSettings(jsonString)
     parolaSettings = { fields: [] };
   }
 
-} // initializeparolaSettings()
+} // initializeParolaSettings()
 
 
 // Function to render the parola settings in the table
@@ -1010,11 +1044,194 @@ function requestParolaSettings()
 
 } // requestParolaSettings()
 
-// Device Settings variables and functions
-let deviceSettings = null;
-let parolaSettings = null;
-let weerliveSettings = null;
-let mediasstackSettings = null;
+
+//===========[Neopixels]==================================================================
+// Function to check if the page is ready for neopixels settings
+function isPageReadyForNeopixelsSettings() 
+{
+  // Check if the settingsTableBody element exists
+  const tableBody = document.getElementById('settingsTableBody');
+  return !!tableBody;
+
+} // isPageReadyForNeopixelsSettings()
+
+// Function to initialize the neopixels settings from JSON
+function initializeNeopixelsSettings(jsonString) 
+{
+  console.log('initializeNeopixelsSettings called with:', jsonString);
+  try {
+    neopixelsSettings = JSON.parse(jsonString) || { fields: [] };
+    renderNeopixelsSettings();
+  } catch (e) {
+    console.error('Error parsing JSON:', e);
+    neopixelsSettings = { fields: [] };
+  }
+
+} // initializeNeopixelsSettings()
+
+
+// Function to render the neopixels settings in the table
+function renderNeopixelsSettings() 
+{
+  console.log('renderNeopixelsSettings called');
+  
+  // Check if the page is ready
+  if (!isPageReadyForNeopixelsSettings()) {
+    console.error('neopixels settings table body not found in DOM, page not ready yet');
+    return;
+  }
+  
+  const tableBody = document.getElementById('settingsTableBody');
+  
+  // Clear the table body
+  tableBody.innerHTML = '';
+  
+  if (neopixelsSettings && neopixelsSettings.fields) {
+    neopixelsSettings.fields.forEach((field) => {
+      const row = document.createElement('tr');
+      
+      // Field prompt cell
+      const promptCell = document.createElement('td');
+      promptCell.style.padding = '8px';
+      promptCell.style.textAlign = 'right'; 
+      promptCell.textContent = field.fieldPrompt;
+      
+      // Field value cell
+      const valueCell = document.createElement('td');
+      valueCell.style.padding = '8px';
+      
+      // Create input element based on field type
+      if (field.fieldType === 's') {
+        // String input
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = field.fieldValue;
+        input.maxLength = field.fieldLen;
+        input.style.width = '100%';
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('input', updateNeopixelsSettings);
+        
+        valueCell.appendChild(input);
+      } else if (field.fieldType === 'n') {
+        // Numeric input
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.value = field.fieldValue;
+        input.min = field.fieldMin;
+        input.max = field.fieldMax;
+        input.step = field.fieldStep;
+        
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('input', updateNeopixelsSettings);
+
+        // Create a container for the input and range text
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        
+        // Add the input to the container
+        container.appendChild(input);
+        
+        // Add the range text
+        const rangeText = document.createElement('span');
+        rangeText.textContent = ` (${field.fieldMin} .. ${field.fieldMax})`;
+        rangeText.style.marginLeft = '8px';
+        rangeText.style.fontSize = '0.9em';
+        rangeText.style.color = '#666';
+        container.appendChild(rangeText);
+        
+        // Add the container to the cell
+        valueCell.appendChild(container);
+      } else if (field.fieldType === 'b') {
+        // Boolean input (checkbox)
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        
+        // Create checkbox input
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = field.fieldValue;
+        console.log("Checkbox value:", field.fieldValue);
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('change', updateNeopixelsSettings);
+        
+        // Add the checkbox to the container
+        container.appendChild(input);
+        
+        // Add a label to explain the boolean values
+        const label = document.createElement('span');
+        label.textContent = field.fieldValue ? ' true' : ' false';
+        label.style.marginLeft = '8px';
+        container.appendChild(label);
+        
+        // Update the label when the checkbox changes
+        input.addEventListener('change', function() {
+          label.textContent = this.checked ? ' true' : ' false';
+        });
+        
+        // Add the container to the cell
+        valueCell.appendChild(container);
+      }
+      
+      row.appendChild(promptCell);
+      row.appendChild(valueCell);
+      tableBody.appendChild(row);
+    });
+  }
+  
+  // Update the settings name
+  const settingsNameElement = document.getElementById('settingsName');
+  if (settingsNameElement) {
+    settingsNameElement.textContent = 'Neopixels Settings';
+  }
+} // renderNeopixelsSettings()
+
+
+// Function to update a neopixels setting
+function updateNeopixelsSettings(event) 
+{
+  const input = event.target || this;
+  const fieldName = input.dataset.fieldName;
+  const fieldType = input.dataset.fieldType;
+  
+  // Use different properties based on field type
+  let value;
+  if (fieldType === 'n') {
+    value = parseFloat(input.value);
+  } else if (fieldType === 'b') {
+    value = input.checked; // Use checked property for boolean fields
+    console.log("Checkbox value:", value);
+  } else {
+    value = input.value;
+  }
+  
+  console.log(`Updating neopixels setting: ${fieldName} = ${value}`);
+  
+  // Find and update the field in the neopixelsSettings object
+  if (neopixelsSettings && neopixelsSettings.fields) {
+    const field = neopixelsSettings.fields.find(f => f.fieldName === fieldName);
+    if (field) {
+      field.fieldValue = value;
+    }
+  }
+} // updateNeopixelsSettings()
+
+
+// Function to request neopixels settings data from the server
+function requestNeopixelsSettings() 
+{
+  console.log("Requesting neopixels settings data from server");
+  window.ws.send(JSON.stringify({
+    type: 'requestNeopixelsSettings'
+  }));
+
+} // requestNeopixelsSettings()
+
+
 
 //===========[Device Settings]=========================================================
 // Function to check if the page is ready for device settings
@@ -1180,6 +1397,10 @@ function saveSettings()
     settingsObj = parolaSettings;
     processType = 'saveParolaSettings';
     dataKey = 'parolaSettingsData';
+  } else if (settingsName === 'Neopixels Settings') {
+    settingsObj = neopixelsSettings;
+    processType = 'saveNeopixelsSettings';
+    dataKey = 'neopixelsSettingsData';
   } else if (settingsName === 'Weerlive Settings') {
     settingsObj = weerliveSettings;
     processType = 'saveWeerliveSettings';
@@ -1200,10 +1421,19 @@ function saveSettings()
   if (window.ws && window.ws.readyState === WebSocket.OPEN && settingsObj) {
     // Create a copy of the settings object with the correct structure
     const formattedSettings = {
-      fields: settingsObj.fields.map(field => ({
-        fieldName: field.fieldName,
-        value: field.fieldValue  // Change fieldValue to value to match what C++ expects
-      }))
+      fields: settingsObj.fields.map(field => {
+        let value = field.fieldValue;
+        
+        // Convert boolean values to "on" or "off" strings
+        if (field.fieldType === 'b') {
+          value = value ? "true" : "false";
+        }
+        
+        return {
+          fieldName: field.fieldName,
+          value: value
+        };
+      })
     };
     
     const inputValues = {};
@@ -1217,6 +1447,7 @@ function saveSettings()
   } else {
     console.error('WebSocket is not connected or settings object is null');
   }
+
 } // saveSettings()
 
 // Variable to track if a message is currently being displayed
@@ -1464,6 +1695,12 @@ function isEspTicker32Loaded()
         // Initialize with the data
         initializeParolaSettings(data.data);
       }
+      // Check if this is our custom neopixelsSettingsData message
+      else if (data.type === 'custom' && data.action === 'neopixelsSettingsData') {
+        console.log('Received neopixels settings data');
+        // Initialize with the data
+        initializeNeopixelsSettings(data.data);
+      }
       // Check if this is our custom weerliveSettingsData message
       else if (data.type === 'custom' && data.action === 'weerliveSettingsData') {
         console.log('Received weerlive settings data');
@@ -1533,7 +1770,14 @@ function isEspTicker32Loaded()
     console.log("Page is ready for parola settings, requesting data from server");
     requestParolaSettings();
   }
-  
+
+  // Check if the page is ready for parola settings (only for Neopixels Settings page)
+  if (pageTitle.includes("Neopixels Settings") && isPageReadyForNeopixelsSettings()) 
+    {
+      console.log("Page is ready for neopixels settings, requesting data from server");
+      requestNeopixelsSettings();
+    }
+    
   // Check if the page is ready for weerlive settings (only for Weerlive Settings page)
   if (pageTitle.includes("Weerlive Settings") && isPageReadyForWeerliveSettings()) 
   {

@@ -62,13 +62,14 @@ void SettingsClass::initializeSettingsContainers()
   neopixelsContainer.addField({"neopixDataPin", "Neopixels Data GPIO pin", "n", 0, 0, 23, 1, &neopixDataPin});
   neopixelsContainer.addField({"neopixWidth", "Neopixels Width", "n", 0, 1, 128, 1, &neopixWidth});
   neopixelsContainer.addField({"neopixHeight", "Neopixels Height", "n", 0, 1, 16, 1, &neopixHeight});
-  neopixelsContainer.addField({"neopixTYPE", "NEOPIXELS TYPE (false=TOP, true=BOTTOM)", "n", 0, 0, 0, 0, &neopixTYPE});
-  neopixelsContainer.addField({"neopixCOLOR", "NEOPIXELS COLOR (0=RGB, 1=RBG, 2= GRB, 3=GBR, 4=BRG, 5=BGR)", "n", 0, 0, 0, 0, &neopixCOLOR});
-  neopixelsContainer.addField({"neopixFREQ", "NEOPIXELS SIGNAL FREQ. (0=800kHz, 1=400kjHz)", "n", 0, 0, 0, 0, &neopixFREQ});
+  neopixelsContainer.addField({"neopixPixPerChar", "Pixels per Charackter", "n", 0, 1, 16, 1, &neopixPixPerChar});
+  neopixelsContainer.addField({"neopixCOLOR", "NEOPIXELS COLOR (0=RGB, 1=RBG, 2= GRB(!), 3=GBR, 4=BRG, 5=BGR)", "n", 0, 0, 5, 0, &neopixCOLOR});
+  neopixelsContainer.addField({"neopixFREQ", "NEOPIXELS SIGNAL FREQ. (false=800kHz(!), true=400kjHz)", "b", 0, 0, 0, 0, &neopixFREQ});
   neopixelsContainer.addField({"neopixMATRIXTYPEV", "MATRIX TYPE (false=TOP, true=BOTTOM)", "b", 0, 0, 0, 0, &neopixMATRIXTYPEV});
   neopixelsContainer.addField({"neopixMATRIXTYPEH", "MATRIX TYPE (false=LEFT, true=RIGHT)", "b", 0, 0, 0, 0, &neopixMATRIXTYPEH});
   neopixelsContainer.addField({"neopixMATRIXORDER", "MATRIX LAYOUT (false=ROWS, true=COLUMNS)", "b", 0, 0, 0, 0, &neopixMATRIXORDER});
   neopixelsContainer.addField({"neopixMATRIXSEQUENCE", "MATRIX SEQUENCE (false=PROGRESSIVE, true=ZIGZAG)", "b", 0, 0, 0, 0, &neopixMATRIXSEQUENCE});
+  settingsContainers["neopixelsSettings"] = neopixelsContainer;
 #endif
 
   // rssfeed settings
@@ -183,6 +184,7 @@ std::string SettingsClass::buildJsonFieldsString(const std::string& settingsType
   std::string jsonString;
   serializeJson(doc, jsonString);
   if (debug && doDebug) debug->printf("buildJsonFieldsString(): [%s], JSON string: %s\n", settingsType.c_str(), jsonString.c_str());
+
   return jsonString;
 
 } // buildJsonFieldsString()
@@ -262,10 +264,10 @@ void SettingsClass::readSettingFields(const std::string& settingsType)
         }
         else if (field.fieldType == "b") 
         {
-          // Convert string to boolean (true/false, 1/0, yes/no)
+          // Convert string to boolean (true/false, 1/0, yes/no, on/off)
           bool boolValue = false;
           value.toLowerCase();
-          if (value == "true" || value == "1" || value == "yes") {
+          if (value == "true" || value == "1" || value == "yes" || value == "on") {
             boolValue = true;
           }
           
@@ -367,7 +369,6 @@ void SettingsClass::writeSettingFields(const std::string& settingsType)
   
   file.close();
   if (debug && doDebug) debug->printf("writeSettingFields(): [%s] saved successfully\n", container.getFile().c_str());
-
 } // writeSettingFields()
 
 void SettingsClass::saveSettings(const std::string& target) 

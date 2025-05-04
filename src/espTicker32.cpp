@@ -407,6 +407,7 @@ void sendSettingFieldToClient(const std::string& settingsType)
 {
   std::string jsonData = settings.buildJsonFieldsString(settingsType);
   if (debug && doDebug) debug->printf("sendSettingFieldToClient(): Sending JSON data for %s to client: %s\n", settingsType.c_str(), jsonData.c_str());
+  Serial.printf("sendSettingFieldToClient(): Sending JSON data for %s to client: %s\n", settingsType.c_str(), jsonData.c_str());
   
   // First, send the HTML content for the settings fields
   DynamicJsonDocument doc(4096);
@@ -537,6 +538,8 @@ void sendSettingFieldToClient(const std::string& settingsType)
     jsonDoc["action"] = "deviceSettingsData";
   } else if (settingsType == "parolaSettings") {
     jsonDoc["action"] = "parolaSettingsData";
+  } else if (settingsType == "neopixelsSettings") {
+    jsonDoc["action"] = "neopixelsSettingsData";
   } else if (settingsType == "weerliveSettings") {
     jsonDoc["action"] = "weerliveSettingsData";
   } else if (settingsType == "mediastackSettings") {
@@ -685,6 +688,24 @@ void processSettings(const std::string& jsonString, const std::string& settingsT
         
         // Update the value using the field pointer
         int16_t* valuePtr = static_cast<int16_t*>(descriptor.fieldValue);
+        *valuePtr = newValue;
+      }
+      else if (descriptor.fieldType == "b") 
+      {
+        // Boolean field - convert "on"/"off" string to boolean
+        std::string strValue = field["value"].as<std::string>();
+        bool newValue = false;
+        
+        // Convert string to boolean (on/off, true/false, yes/no, 1/0)
+        if (strValue == "on" || strValue == "true" || strValue == "yes" || strValue == "1") {
+          newValue = true;
+        }
+        
+        if (debug && doDebug) debug->printf("processSettings(): Setting %s to [%s]\n", 
+                                           fieldName, newValue ? "true" : "false");
+        
+        // Update the value using the field pointer
+        bool* valuePtr = static_cast<bool*>(descriptor.fieldValue);
         *valuePtr = newValue;
       }
     } 
@@ -1644,36 +1665,71 @@ void setupNeopixelsDisplay()
   
   // Use the proper matrix configuration values from Adafruit_NeoMatrix.h
   //-- select BOTTOM or TOP
-  uint8_t matrixType      = NEO_MATRIX_BOTTOM; 
+  //uint8_t matrixType      = NEO_MATRIX_BOTTOM; 
   //-- select RIGHT or LEFT
-  uint8_t matrixDirection = NEO_MATRIX_RIGHT; 
+  //uint8_t matrixDirection = NEO_MATRIX_RIGHT; 
   //-- select ROWS or COLUMNS
-  uint8_t matrixLayout    = NEO_MATRIX_COLUMNS;
+  //uint8_t matrixLayout    = NEO_MATRIX_COLUMNS;
   // select ZIGZAG or PROGRESSIVE
-  uint8_t matrixSequence  = NEO_MATRIX_ZIGZAG;
+  //uint8_t matrixSequence  = NEO_MATRIX_ZIGZAG;
   
-  // Initialize the matrix with the correct pin
-  ticker.begin(pin);
-  
-  // Set matrix size
-  ticker.setMatrixSize(width, height);
-  
-  // Set pixels per character
-  ticker.setPixelsPerChar(pixelPerChar);
-  
+  uint8_t matrixType      = 0;
+  uint8_t matrixDirection = 0;
+  uint8_t matrixLayout    = 0;
+  uint8_t matrixSequence  = 0;
+  uint8_t neopixCOLOR     = 0;
+  uint8_t neopixFREQ      = 0;
+
+  if (settings.neopixMATRIXTYPEV) 
+        matrixType += NEO_MATRIX_BOTTOM;
+  else  matrixType += NEO_MATRIX_TOP;
+  if (settings.neopixMATRIXTYPEH) 
+        matrixDirection += NEO_MATRIX_RIGHT;
+  else  matrixDirection += NEO_MATRIX_LEFT;
+  if (settings.neopixMATRIXORDER) 
+        matrixLayout += NEO_MATRIX_COLUMNS;
+  else  matrixLayout += NEO_MATRIX_ROWS;
+  if (settings.neopixMATRIXSEQUENCE) 
+        matrixSequence += NEO_MATRIX_ZIGZAG;
+  else  matrixSequence += NEO_MATRIX_PROGRESSIVE;
+
+  switch(settings.neopixCOLOR) 
+  {
+    case 0:   neopixCOLOR = NEO_RGB; break;
+    case 1:   neopixCOLOR = NEO_RBG; break;
+    case 2:   neopixCOLOR = NEO_GRB; break;
+    case 3:   neopixCOLOR = NEO_GBR; break;
+    case 4:   neopixCOLOR = NEO_BRG; break;
+    case 5:   neopixCOLOR = NEO_BGR; break;
+    default:  neopixCOLOR = NEO_GRB; break;
+  }
+  if (settings.neopixFREQ) 
+        neopixFREQ = NEO_KHZ400;
+  else  neopixFREQ = NEO_KHZ800;
+
   // Configure matrix parameters
   ticker.setup(matrixType, matrixLayout, matrixDirection, matrixSequence);
   
+  // Set matrix size
+  ticker.setMatrixSize(settings.neopixWidth, settings.neopixHeight);
+  
   // Set pixel type - try different combinations if one doesn't work
-  ticker.setPixelType(NEO_GRB + NEO_KHZ800);  // Most common for WS2812 LEDs
+  ticker.setPixelType(neopixCOLOR + neopixFREQ);  // Most common for WS2812 LEDs // NEO_GRB + NEO_KHZ800);  // Most common for WS2812 LEDs
+
+  // Initialize the matrix with the correct pin
+  ticker.begin(settings.neopixDataPin);
+  
+  // Set pixels per character
+  ticker.setPixelsPerChar(settings.neopixPixPerChar);
+  
   
   // Set display properties
   ticker.setColor(255, 0, 0); // Red text
   ticker.setIntensity(20);    // Medium brightness
-  ticker.setScrollSpeed(15);        // Medium-high speed
-  
-  //ticker.setScrollSpeed(settings.devTickerSpeed);
-  //ticker.setIntensity(settings.devMaxIntensiteitLeds);
+  ticker.setScrollSpeed(1);        // Medium-high speed
+
+  ticker.setScrollSpeed(settings.devTickerSpeed);
+  ticker.setIntensity(settings.devMaxIntensiteitLeds);
 
   ticker.setCallback([](const std::string& finishedText) 
   {
@@ -1749,7 +1805,7 @@ void setup()
       else       Serial.println("espTicker32: setup(): readSettingFields(neopixelsSettings)");
       settings.readSettingFields("neopixelsSettings");
       setupNeopixelsDisplay();
-      ticker.testLayout();
+      //ticker.testLayout();
 #endif // USE_NEOPIXELS
     
     delay(2000);
