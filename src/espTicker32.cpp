@@ -448,6 +448,8 @@ void sendSettingFieldToClient(const std::string& settingsType)
             htmlContent += "DevSetting";
           } else if (settingsType == "parolaSettings") {
             htmlContent += "ParolaSettings";
+          } else if (settingsType == "neopixelsSettings") {
+            htmlContent += "NeopixelsSettings";
           } else if (settingsType == "weerliveSettings") {
             htmlContent += "WeerliveSettings";
 #ifdef USE_MEDIASTACK
@@ -479,6 +481,8 @@ void sendSettingFieldToClient(const std::string& settingsType)
             htmlContent += "DevSetting";
           } else if (settingsType == "parolaSettings") {
             htmlContent += "ParolaSettings";
+          } else if (settingsType == "neopixelsSettings") {
+            htmlContent += "NeopixelsSettings";
           } else if (settingsType == "weerliveSettings") {
             htmlContent += "WeerliveSettings";
 #ifdef USE_MEDIASTACK
