@@ -132,10 +132,6 @@ void NeopixelsClass::begin(uint8_t pin)
     debugPrint("  neopixelPin       : %d", neopixelPin);
     debugPrint("  Width             : %d", width);
     debugPrint("  Height            : %d", height);
-    debugPrint("  Matrix Type       : 0x%02x", matrixType);
-    debugPrint("  Matrix Layout     : 0x%02x", matrixLayout);
-    debugPrint("  Matrix Direction  : 0x%02x", matrixDirection);
-    debugPrint("  Matrix Sequence   : 0x%02x", matrixSequence);
     debugPrint("  Pixel Type        : 0x%02x", (uint32_t)pixelType);
   }
   else
@@ -144,10 +140,6 @@ void NeopixelsClass::begin(uint8_t pin)
     Serial.printf("  neopixelPin       : %d\n", neopixelPin);
     Serial.printf("  Width             : %d\n", width);
     Serial.printf("  Height            : %d\n", height);
-    Serial.printf("  Matrix Type       : 0x%02x\n", matrixType);
-    Serial.printf("  Matrix Layout     : 0x%02x\n", matrixLayout);
-    Serial.printf("  Matrix Direction  : 0x%02x\n", matrixDirection);
-    Serial.printf("  Matrix Sequence   : 0x%02x\n", matrixSequence);
     Serial.printf("  Pixel Type        : 0x%02x\n", (uint32_t)pixelType);
   }
   
@@ -184,6 +176,7 @@ void NeopixelsClass::begin(uint8_t pin)
     delay(50);
     
     if (debug) debugPrint("NeopixelsClass: Setting matrix parameters");
+    matrix->setFont();
     matrix->setTextWrap(false);
     matrix->setBrightness(brightness);
     matrix->setTextColor(matrix->Color(red, green, blue));
@@ -221,6 +214,14 @@ void NeopixelsClass::setup(uint8_t matrixType, uint8_t matrixLayout, uint8_t mat
     debugPrint("  Matrix Direction : 0x%02x", matrixDirection);
     debugPrint("  Matrix Sequence  : 0x%02x", matrixSequence);
   }
+  else
+  {
+    Serial.printf("NeopixelsClass: Setting up matrix configuration\n");
+    Serial.printf("  Matrix Type      : 0x%02x\n", matrixType);
+    Serial.printf("  Matrix Layout    : 0x%02x\n", matrixLayout);
+    Serial.printf("  Matrix Direction : 0x%02x\n", matrixDirection);
+    Serial.printf("  Matrix Sequence  : 0x%02x\n", matrixSequence);
+  }
   
   this->matrixType = matrixType;
   this->matrixLayout = matrixLayout;
@@ -230,7 +231,8 @@ void NeopixelsClass::setup(uint8_t matrixType, uint8_t matrixLayout, uint8_t mat
   configInitialized = true;
   
   if (debug) debugPrint("NeopixelsClass: Matrix configuration set");
-}
+
+} // setup()
 
 // Set the RGB color for the text
 void NeopixelsClass::setColor(int r, int g, int b)
@@ -520,7 +522,7 @@ void NeopixelsClass::animateBlocking(const String &text)
   // Now animate until complete - pass false to prevent callback triggering
   while (x > -maxDisplacement && animationStep < 1000) // Add safety limit
   {
-    if (animationStep % 20 == 0)
+    if (animationStep % 40 == 0)
     {
       if (debug) debugPrint("NeopixelsClass: animationBlocking step %d", animationStep);
       else    Serial.printf("NeopixelsClass[S]: animationBlocking step %d\n", animationStep);
@@ -539,7 +541,8 @@ void NeopixelsClass::animateBlocking(const String &text)
     // Move the text position for the next frame
     x--;
     
-    //-??- delay(scrollDelay > 0 ? scrollDelay : 2);
+    delay(scrollDelay > 0 ? scrollDelay : 10);
+    delay(1); // Add a small delay to ensure smooth animation
     animationStep++;
     
     // Yield to prevent watchdog timer issues
@@ -680,7 +683,7 @@ void NeopixelsClass::testLayout()
     matrix->print(i);
 
     matrix->show();
-    delay(50);
+    delay(5);
   }
 
 }

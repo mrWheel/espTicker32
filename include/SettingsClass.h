@@ -151,9 +151,9 @@ public:
   int16_t neopixDataPin;
   int16_t neopixWidth;
   int16_t neopixHeight;
-  int16_t neopixTYPE;
+  int16_t neopixPixPerChar;
   int16_t neopixCOLOR;
-  int16_t neopixFREQ;
+  bool neopixFREQ;
   bool neopixMATRIXTYPEV;
   bool neopixMATRIXTYPEH;
   bool neopixMATRIXORDER;
