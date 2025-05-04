@@ -177,9 +177,15 @@ void NeopixelsClass::begin(uint8_t pin)
     
     if (debug) debugPrint("NeopixelsClass: Setting matrix parameters");
     matrix->setFont();
+    matrix->setTextSize(1);
     matrix->setTextWrap(false);
     matrix->setBrightness(brightness);
     matrix->setTextColor(matrix->Color(red, green, blue));
+
+    matrix->setBrightness(40);
+    matrix->setTextColor(matrix->Color(0, 255, 0)); // Green
+    matrix->setRotation(0);
+  
     
     x = matrix->width(); // Initialize x position
     if (debug)
@@ -201,6 +207,7 @@ void NeopixelsClass::begin(uint8_t pin)
     if (debug) debugPrint("NeopixelsClass: Exception during initialization");
     cleanup();
   }
+
 }
 
 // Set the matrix configuration parameters
@@ -661,7 +668,7 @@ void NeopixelsClass::debugPrint(const char* format, ...)
   }
 } // debugPrint()
 
-
+/****
 void NeopixelsClass::testLayout()
 {
   matrix->setBrightness(40);
@@ -686,4 +693,63 @@ void NeopixelsClass::testLayout()
     delay(5);
   }
 
+}
+***/
+
+void NeopixelsClass::testLayout()
+{
+  if (!initialized || matrix == nullptr)
+  {
+    if (debug) debugPrint("NeopixelsClass: testLayout - not initialized, returning");
+    return;
+  }
+  
+  // Set up display parameters
+  matrix->setBrightness(40);
+  matrix->setTextWrap(false);
+  matrix->setTextSize(1);
+  matrix->setTextColor(matrix->Color(0, 255, 0)); // Green
+  matrix->setRotation(0);
+  
+  // Calculate middle columns
+  int midLeft = (matrix->width() / 2) - 1;
+  int midRight = matrix->width() / 2;
+  
+  // Draw initial bars in the middle
+  matrix->fillScreen(0);
+  for (int y = 0; y < matrix->height(); y++)
+  {
+    matrix->drawPixel(midLeft, y, matrix->Color(255, 0, 0));   // Left bar (red)
+    matrix->drawPixel(midRight, y, matrix->Color(0, 0, 255));  // Right bar (blue)
+  }
+  matrix->show();
+  delay(500); // Show the initial position for half a second
+  
+  // Move the bars outward
+  for (int step = 1; step <= midLeft; step++)
+  {
+    matrix->fillScreen(0);
+    
+    // Draw left bar moving left
+    for (int y = 0; y < matrix->height(); y++)
+    {
+      matrix->drawPixel(midLeft - step, y, matrix->Color(255, 0, 0)); // Red
+    }
+    
+    // Draw right bar moving right
+    for (int y = 0; y < matrix->height(); y++)
+    {
+      matrix->drawPixel(midRight + step, y, matrix->Color(0, 0, 255)); // Blue
+    }
+    
+    matrix->show();
+    delay(50); // Control animation speed
+  }
+  
+  // Hold the final position briefly
+  delay(300);
+  
+  // Clear the display
+  matrix->fillScreen(0);
+  matrix->show();
 }

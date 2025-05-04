@@ -1805,7 +1805,7 @@ void setup()
       else       Serial.println("espTicker32: setup(): readSettingFields(neopixelsSettings)");
       settings.readSettingFields("neopixelsSettings");
       setupNeopixelsDisplay();
-      //ticker.testLayout();
+      ticker.testLayout();
 #endif // USE_NEOPIXELS
     
     delay(2000);
