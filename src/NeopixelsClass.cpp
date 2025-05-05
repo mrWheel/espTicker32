@@ -425,13 +425,25 @@ bool NeopixelsClass::animateNeopixels(bool triggerCallback)
  
   textComplete = false;
 
-  // Calculate the maximum displacement based on text length and pixel width
-  int maxDisplacement = text.length() * pixelPerChar + matrix->width();
+  // Calculate the text width in pixels
+  int textWidth = text.length() * pixelPerChar;
+  
+  // Calculate the stopping position:
+  // We want to stop when the last character is at the right edge of the display
+  // This means the position should be: matrixWidth - textWidth
+  int matrixWidth = matrix->width();
+  int stopPosition = matrixWidth - textWidth;
+  
+  // If the text is shorter than the display width, don't scroll past the left edge
+  if (stopPosition > 0)
+  {
+    stopPosition = 0;
+  }
   
   if (debug && x % 10 == 0)  // Only log every 10 steps to avoid flooding
   {
-    debugPrint("NeopixelsClass::animateNeopixels - x=%d, pass=%d, maxDisplacement=%d", x, pass, maxDisplacement);
-  //  Serial.printf("NeopixelsClass: Animating - x=%d, pass=%d, maxDisplacement=%d\n", x, pass, maxDisplacement);
+    debugPrint("NeopixelsClass::animateNeopixels - x=%d, pass=%d, textWidth=%d, stopPosition=%d", 
+               x, pass, textWidth, stopPosition);
   }
   
   try
@@ -444,35 +456,34 @@ bool NeopixelsClass::animateNeopixels(bool triggerCallback)
     matrix->print(text.c_str());
     
     // Move the text position for the next frame
-    if (--x < -maxDisplacement)
+    x--;
+    
+    // Check if we've reached the stopping position
+    if (x <= stopPosition)
     {
-      if (debug) debugPrint("NeopixelsClass::animateNeopixels Reached end of text, resetting position");
+      if (debug) debugPrint("NeopixelsClass::animateNeopixels Reached end of text");
       
+      // Text has completed its animation
+      textComplete = true;
+      
+      // Reset position for next text
       x = matrix->width();
       
-      if (++pass >= 1)
+      if (debug) debugPrint("NeopixelsClass::animateNeopixels complete, triggering callback");
+      else Serial.println("NeopixelsClass::animateNeopixels complete, triggering callback");
+      
+      // Only call the callback if triggerCallback is true
+      if (textComplete && onFinished && triggerCallback)
       {
-        if (debug) debugPrint("NeopixelsClass::animateNeopixels complete");
-        
-        pass = 0;
-        matrix->setTextColor(matrix->Color(red, green, blue));
-        textComplete = true;
-       
-        if (debug)  debugPrint("NeopixelsClass::animateNeopixels complete, triggering callback");
-        else    Serial.println("NeopixelsClass::animateNeopixels complete, triggering callback");
-        // Only call the callback if triggerCallback is true
-        if (textComplete && onFinished && triggerCallback)
-        {
-          Serial.printf("NeopixelsClass::animateNeopixels Triggering callback with text: [%s]\n", text.c_str());
-          onFinished(text);
-        }
-        
-        // Clear the display after animation completes
-        matrix->fillScreen(0);
-        matrix->show();
-        
-        return true;
+        Serial.printf("NeopixelsClass::animateNeopixels Triggering callback with text: [%s]\n", text.c_str());
+        onFinished(text);
       }
+      
+      // Clear the display after animation completes
+      matrix->fillScreen(0);
+      matrix->show();
+      
+      return true;
     }
     
     // Update the display
@@ -489,7 +500,7 @@ bool NeopixelsClass::animateNeopixels(bool triggerCallback)
   
   return textComplete;
   
-} // animateNeopixels()
+} // animateNeopixels() 
 
 
 
