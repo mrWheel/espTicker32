@@ -322,7 +322,7 @@ void NeopixelsClass::setScrollSpeed(int speed)
   // Higher speed means lower delay
   if (speed > 0 && speed <= 100)
   {
-    this->scrollDelay = (100 - speed) * 2.5;
+    this->scrollDelay = (100 - speed) * 1.0; // Changed from 2.5 to 1.0
     
     if (debug)
     {
@@ -333,7 +333,8 @@ void NeopixelsClass::setScrollSpeed(int speed)
   {
     debugPrint("NeopixelsClass: Warning - speed out of range (1-100), not changing");
   }
-}
+} // setScrollSpeed()
+
 
 // Set the text to be displayed
 void NeopixelsClass::sendNextText(const std::string& text)
@@ -491,9 +492,13 @@ bool NeopixelsClass::animateNeopixels(bool triggerCallback)
 } // animateNeopixels()
 
 
+
 // Block until the entire text is displayed
 void NeopixelsClass::animateBlocking(const String &text)
 {
+  // Animation delay - faster scrolling
+  int animationDelay = 20;
+  
   if (!initialized || matrix == nullptr)
   {
     if (debug) debugPrint("NeopixelsClass: animateBlocking - not initialized, returning");
@@ -504,66 +509,80 @@ void NeopixelsClass::animateBlocking(const String &text)
   if (debug) debugPrint("NeopixelsClass: Starting animationBlocking for text: %s", text.c_str());
   else    Serial.printf("NeopixelsClass[S]: Starting animationBlocking for text: %s\n", text.c_str()); 
   
-  // Set the text to be displayed
-  this->text = text.c_str();
+  int matrixWidth = matrix->width();
   
-  // Reset animation state
-  if (matrix != nullptr) {
-    this->x = matrix->width();
+  // If there's already text being displayed, append the new text with a space
+  if (!this->text.empty() && this->x <= 0) {
+    this->text = this->text + " " + text.c_str();
   } else {
-    this->x = width; // Use the stored width if matrix is null
+    this->text = text.c_str();
   }
-  this->pass = 0;
-  this->textComplete = false;
   
-  // Clear the display first
-  matrix->fillScreen(0);
-  matrix->show();
+  // Set the starting position
+  int textPosition;
+  if (this->x <= 0) {
+    // Continue from current position if text is already scrolling
+    textPosition = this->x;
+  } else {
+    // Start from right edge for new text
+    textPosition = matrixWidth;
+  }
   
-  // Add a small delay to ensure display is cleared
-  delay(50);
+  // Calculate the width of the text in pixels
+  int textWidth = this->text.length() * pixelPerChar;
   
+  // Calculate the stopping position:
+  // We want to stop when the last character is at the right edge of the display
+  // This means the position should be: matrixWidth - textWidth
+  int stopPosition = matrixWidth - textWidth;
+  
+  // If the text is shorter than the display width, don't scroll past the left edge
+  if (stopPosition > 0) {
+    stopPosition = 0;
+  }
+  
+  if (debug) {
+    debugPrint("NeopixelsClass: Animation parameters:");
+    debugPrint("  Text: '%s'", this->text.c_str());
+    debugPrint("  Text width: %d", textWidth);
+    debugPrint("  Matrix width: %d", matrixWidth);
+    debugPrint("  Starting position: %d", textPosition);
+    debugPrint("  Stop position: %d", stopPosition);
+  }
+  
+  // Now animate until we reach the stopping position
   int animationStep = 0;
-  int maxDisplacement = text.length() * pixelPerChar + matrix->width();
-  
-  // Now animate until complete - pass false to prevent callback triggering
-  while (x > -maxDisplacement && animationStep < 1000) // Add safety limit
+  while (textPosition > stopPosition && animationStep < 1000)
   {
     if (animationStep % 40 == 0)
     {
-      if (debug) debugPrint("NeopixelsClass: animationBlocking step %d", animationStep);
-      else    Serial.printf("NeopixelsClass[S]: animationBlocking step %d\n", animationStep);
+      if (debug) debugPrint("NeopixelsClass: animationBlocking step %d, pos %d", animationStep, textPosition);
+      else    Serial.printf("NeopixelsClass[S]: animationBlocking step %d, pos %d\n", animationStep, textPosition);
     }
     
     // Clear the display and set the cursor position
     matrix->fillScreen(0);
-    matrix->setCursor(x, 0);
+    matrix->setCursor(textPosition, 0);
     
     // Print the text
-    matrix->print(text.c_str());
+    matrix->print(this->text.c_str());
     
     // Update the display
     matrix->show();
     
     // Move the text position for the next frame
-    x--;
+    textPosition--;
+    this->x = textPosition;
     
-    delay(scrollDelay > 0 ? scrollDelay : 10);
-    delay(1); // Add a small delay to ensure smooth animation
+    delay(animationDelay);
     animationStep++;
-    
-    // Yield to prevent watchdog timer issues
     yield();
   }
   
-  // Ensure we show the final frame
-  matrix->fillScreen(0);
-  matrix->show();
-  
   if (debug) debugPrint("NeopixelsClass: animationBlocking complete");
   else   Serial.println("NeopixelsClass[S]: animationBlocking complete");
-
 } // animateBlocking()
+
 
 void NeopixelsClass::setRandomEffects(const std::vector<uint8_t> &effects)
 {
@@ -668,33 +687,6 @@ void NeopixelsClass::debugPrint(const char* format, ...)
   }
 } // debugPrint()
 
-/****
-void NeopixelsClass::testLayout()
-{
-  matrix->setBrightness(40);
-  matrix->setTextWrap(false);
-  matrix->setTextSize(1); // Use 5x7 font
-  matrix->setTextColor(matrix->Color(0, 255, 0)); // Green
-  matrix->setRotation(0);
-
-  for (uint16_t i = 0; i < matrix->width() * matrix->height(); i++) {
-    matrix->fillScreen(0);
-
-    // Draw red pixel at current index
-    uint8_t x = i % matrix->width();
-    uint8_t y = i / matrix->width();
-    matrix->drawPixel(x, y, matrix->Color(255, 0, 0));
-
-    // Print pixel index in top-left
-    matrix->setCursor(0, 0);
-    matrix->print(i);
-
-    matrix->show();
-    delay(5);
-  }
-
-}
-***/
 
 void NeopixelsClass::testLayout()
 {

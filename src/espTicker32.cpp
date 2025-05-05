@@ -1810,22 +1810,22 @@ void setup()
     
     delay(2000);
     Serial.printf("espTicker32: setup()[S]: Start espTicker32 [%s] ...\n", PROG_VERSION);
-    ticker.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"] ...    ");
+    ticker.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"]");
     delay(500);
 
     //-- Connect to WiFi
     Serial.println("network = new Networking();");
     network = new Networking();
     
-    ticker.animateBlocking("Start WiFi ...    ");
+    ticker.animateBlocking("Start WiFi");
     //-- Parameters: devHostname, resetWiFi pin, serial object, baud rate, wifiCallback
     pinMode(settings.devResetWiFiPin, INPUT_PULLUP);
     Serial.printf("debug = network.begin(%s, %d, Serial, 115200, callbackWiFiPortal)\n",  hostName, settings.devResetWiFiPin);
     debug = network->begin(hostName, settings.devResetWiFiPin, Serial, 115200, callbackWiFiPortal);
     //-??-Stream* tempDebug = network->begin(hostName, settings.devResetWiFiPin, Serial, 115200, callbackWiFiPortal);
 
-    ticker.animateBlocking(" ... Done! ");
-    Serial.println(" ... Done! ");
+    ticker.animateBlocking(" ... Done!");
+    Serial.println(" ... Done!");
 
     Serial.println("settings.setDebug(debug);");
     settings.setDebug(debug);
@@ -1845,7 +1845,7 @@ void setup()
       Serial.print("espTicker32: setup(): IP address: ");
       Serial.println(WiFi.localIP());
     }
-    ticker.animateBlocking("IP: " + String(WiFi.localIP().toString().c_str()) + " ");
+    ticker.animateBlocking("IP:" + String(WiFi.localIP().toString().c_str()));
 
     if (debug) debug->printf("espTicker32 Version: %s\n", PROG_VERSION);
 
