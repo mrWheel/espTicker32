@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v0.12.1";
+const char* PROG_VERSION = "v1.0.0";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -161,39 +161,46 @@ std::string nextMessage()
     newMessage = getLocalMessage().c_str();
     static uint8_t feedNr = 0;
 
+    ticker.setColor(255, 255, 255); // white
 
     if (strcasecmp(newMessage.c_str(), "<weerlive>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): weerlive message");
         //newMessage = getWeerliveMessage().c_str();
         newMessage = rssReader.simplifyCharacters(getWeerliveMessage()).c_str();
+        ticker.setColor(0, 0, 255); // Blue
     }
 #ifdef USE_MEDIASTACK
     else if (strcasecmp(newMessage.c_str(), "<mediastack>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): mediastack message");
         newMessage = getMediastackMessage().c_str();
+        ticker.setColor(0, 0, 255); // Blue
     }
 #endif
     else if (strcasecmp(newMessage.c_str(), "<rssfeed>") == 0) 
     {
         if (debug && doDebug) if (debug && doDebug) debug->println("nextMessage(): rssfeed message");
         newMessage = getRSSfeedMessage().c_str();
+        ticker.setColor(0, 255, 0); // Green
     }
     else if (strcasecmp(newMessage.c_str(), "<date>") == 0) 
     {
         if (debug && doDebug) if (debug && doDebug) debug->println("nextMessage(): The Date");
         newMessage = network->ntpGetDateDMY();
+        ticker.setColor(100, 0 , 100); // purple
     }
     else if (strcasecmp(newMessage.c_str(), "<time>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): The Time");
         newMessage = network->ntpGetTime();
+        ticker.setColor(200, 0 , 100); // 
     }
     else if (strcasecmp(newMessage.c_str(), "<datetime>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): The Date & Time");
         newMessage = network->ntpGetDateTimeDMY();
+        ticker.setColor(255, 0 , 255); // Magenta
     }
     else if (strcasecmp(newMessage.c_str(), "<spaces>") == 0) 
     {
@@ -209,11 +216,13 @@ std::string nextMessage()
         {
             feedNr = 0;
         }
+        ticker.setColor(255, 255 , 0); // Yellow
     }
     else if (strcasecmp(newMessage.c_str(), "<feedInfoReset>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): feedInfoReset");
         newMessage = "reset feedInfo";
+        ticker.setColor(255, 255 , 0); // Yellow
         feedNr = 0;
     }
     else if (strcasecmp(newMessage.c_str(), "<clear>") == 0) 
@@ -241,13 +250,11 @@ std::string nextMessage()
 #endif
         newMessage = tmpMessage;  
     }
-    //if (newMessage.length() < 1) 
-    //{
-    //  if (debug) debug->println("nextMessage(): newMessage is empty!");
-    //  //return newMessage; 
-    //}
-    if (debug && doDebug) debug->printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
-    else                  Serial.printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
+    if (doDebug)
+    {
+      if (debug) debug->printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
+      else       Serial.printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
+    }
     spa.callJsFunction("queueMessageToMonitor", ("* "+newMessage+" *").c_str());
     ticker.sendNextText(("** "+newMessage+" **").c_str());
 
@@ -1725,8 +1732,8 @@ void setupNeopixelsDisplay()
   
   // Set display properties
   ticker.setColor(255, 0, 0); // Red text
-  ticker.setIntensity(20);    // Medium brightness
-  ticker.setScrollSpeed(1);        // Medium-high speed
+  //ticker.setIntensity(20);    // Medium brightness
+  //ticker.setScrollSpeed(1);   // Medium-high speed
 
   ticker.setScrollSpeed(settings.devTickerSpeed);
   ticker.setIntensity(settings.devMaxIntensiteitLeds);
@@ -1737,6 +1744,7 @@ void setupNeopixelsDisplay()
     if (debug && doDebug) debug->println(finishedText.c_str());
     ticker.setScrollSpeed(settings.devTickerSpeed);
     ticker.setIntensity(settings.devMaxIntensiteitLeds);
+    //-- ticker.setIntensity(40);
     actMessage = nextMessage(); 
   });
 
@@ -1751,14 +1759,9 @@ void callbackWiFiPortal()
     else       Serial.println("callbackWiFiPortal(): WiFi portal callback triggered");
 
     ticker.setIntensity(3);
-    ticker.animateBlocking("WiFi portal callback triggered ... ");
-    ticker.animateBlocking("connect to espTicker32 portal ... ");
-    ticker.animateBlocking("go to 192.168.4.1 ... ");
-
-    //delay(200000);
-
-    //spa.activatePage("mainSettingsPage");
-    //spa.callJsFunction("isEspTicker32Loaded");
+    ticker.animateBlocking("triggered WiFi portal");
+    ticker.animateBlocking(".. connect to espTicker32 portal");
+    ticker.animateBlocking(".. go to 192.168.4.1 ");
 
 } // callbackWiFiPortal()
 
@@ -1805,27 +1808,27 @@ void setup()
       else       Serial.println("espTicker32: setup(): readSettingFields(neopixelsSettings)");
       settings.readSettingFields("neopixelsSettings");
       setupNeopixelsDisplay();
-      ticker.testLayout();
+      ticker.initializeDisplay();
 #endif // USE_NEOPIXELS
     
     delay(2000);
     Serial.printf("espTicker32: setup()[S]: Start espTicker32 [%s] ...\n", PROG_VERSION);
-    ticker.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"] ...    ");
+    ticker.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"]");
     delay(500);
 
     //-- Connect to WiFi
     Serial.println("network = new Networking();");
     network = new Networking();
     
-    ticker.animateBlocking("Start WiFi ...    ");
+    ticker.animateBlocking("Start WiFi ");
     //-- Parameters: devHostname, resetWiFi pin, serial object, baud rate, wifiCallback
     pinMode(settings.devResetWiFiPin, INPUT_PULLUP);
     Serial.printf("debug = network.begin(%s, %d, Serial, 115200, callbackWiFiPortal)\n",  hostName, settings.devResetWiFiPin);
     debug = network->begin(hostName, settings.devResetWiFiPin, Serial, 115200, callbackWiFiPortal);
     //-??-Stream* tempDebug = network->begin(hostName, settings.devResetWiFiPin, Serial, 115200, callbackWiFiPortal);
 
-    ticker.animateBlocking(" ... Done! ");
-    Serial.println(" ... Done! ");
+    ticker.animateBlocking(" Done!");
+    Serial.println(" ... Done!");
 
     Serial.println("settings.setDebug(debug);");
     settings.setDebug(debug);
@@ -1845,7 +1848,7 @@ void setup()
       Serial.print("espTicker32: setup(): IP address: ");
       Serial.println(WiFi.localIP());
     }
-    ticker.animateBlocking("IP: " + String(WiFi.localIP().toString().c_str()) + " ");
+    ticker.animateBlocking("IP:" + String(WiFi.localIP().toString().c_str()));
 
     if (debug) debug->printf("espTicker32 Version: %s\n", PROG_VERSION);
 

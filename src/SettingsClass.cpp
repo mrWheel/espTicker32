@@ -19,10 +19,11 @@ void SettingsClass::initializeSettingsContainers()
   // Device settings
   SettingsContainer deviceContainer("Device Settings", "/settings.ini", "deviceSettings");
   deviceContainer.addField({"devHostname", "devHostname", "s", 32, 0, 0, 0, &devHostname});
-  deviceContainer.addField({"devTickerSpeed", "Ticker Scroll Speed", "n", 0, 5, 50, 1, &devTickerSpeed});
+  deviceContainer.addField({"devTickerSpeed", "Ticker Scroll Speed (%)", "n", 0, 5, 100, 1, &devTickerSpeed});
+  deviceContainer.addField({"devLDRpin", "GPIO Pin LDR", "n", 0, 1, 23, 1, &devLDRpin});
   deviceContainer.addField({"devLDRMinWaarde", "LDR Min. Waarde", "n", 0, 10, 100, 1, &devLDRMinWaarde});
   deviceContainer.addField({"devLDRMaxWaarde", "LDR Max. Waarde", "n", 0, 11, 101, 1, &devLDRMaxWaarde});
-  deviceContainer.addField({"devMaxIntensiteitLeds", "Max. Intensiteit LEDS", "n", 0, 0, 15, 1, &devMaxIntensiteitLeds});
+  deviceContainer.addField({"devMaxIntensiteitLeds", "Max. Intensiteit LEDS (%)", "n", 0, 1, 100, 1, &devMaxIntensiteitLeds});
   deviceContainer.addField({"devSkipWords", "Words to skip", "s", 250, 0, 0, 0, &devSkipWords});
   deviceContainer.addField({"devResetWiFiPin", "Reset WiFi GPIO pin", "n", 0, 1, 23, 1, &devResetWiFiPin});
   settingsContainers["deviceSettings"] = deviceContainer;
