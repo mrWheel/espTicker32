@@ -13,7 +13,7 @@ struct DisplayConfig
 {
     uint16_t speed;         // Animation speed
     uint16_t pauseTime;     // Pause time in ms
-    uint8_t align;          // Text alignment
+    uint8_t  align;         // Text alignment
 };
 
 class NeopixelsClass 
@@ -48,6 +48,7 @@ private:
   void debugPrint(const char* format, ...);
   
   // Private helper methods
+  int16_t scaleValue(int16_t input, int16_t minInValue, int16_t maxInValue, int16_t minOutValue, int16_t maxOutValue);
   void cleanup();
   
 public:
@@ -62,12 +63,12 @@ public:
   void setMatrixSize(int width, int height);
   void setPixelsPerChar(int pixels);
   void setDebug(Stream* debugPort = &Serial);
-  void testLayout();
+  void initializeDisplay();
   
   // Display control methods
   void setColor(int r, int g, int b);
-  void setIntensity(int brightness);
-  void setScrollSpeed(int speed);
+  void setIntensity(int newBrightness);
+  void setScrollSpeed(int newSpeed);
   void sendNextText(const std::string& text);
   bool animateNeopixels(bool triggerCallback = true);  
   void animateBlocking(const String &text);

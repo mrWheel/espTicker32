@@ -118,6 +118,7 @@ public:
   // Device settings data
   std::string devHostname;
   int16_t scrollSnelheid;
+  int16_t devLDRpin;
   int16_t devLDRMinWaarde;
   int16_t devLDRMaxWaarde;
   int16_t devMaxIntensiteitLeds;
