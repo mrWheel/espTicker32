@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v1.0.0";
+const char* PROG_VERSION = "v1.0.1";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -116,17 +116,27 @@ String getRSSfeedMessage()
   if (rssReader.getNextFeedItem(feedIndex, itemIndex))
   {
     // Read the feed content
+#if defined(NEOPIXELS_DEBUG) || defined(PAROLA_DEBUG)
     snprintf(rssFeedMessage, sizeof(rssFeedMessage), "[%d][%d/%d] %s"
-                                            , feedIndex, itemIndex
-                                            , rssReader.getActiveFeedCount(feedIndex)
-                                            , rssReader.readRSSfeed(feedIndex, itemIndex).c_str());
-    
+                                          , feedIndex, itemIndex
+                                          , rssReader.getActiveFeedCount(feedIndex)
+                                          , rssReader.readRSSfeed(feedIndex, itemIndex).c_str());
+#else
+    snprintf(rssFeedMessage, sizeof(rssFeedMessage), "%s"
+                                                , rssReader.readRSSfeed(feedIndex, itemIndex).c_str());
+#endif
     // If we get an empty message, try again with the next indices
     if (strlen(rssFeedMessage) == 0 && rssReader.getNextFeedItem(feedIndex, itemIndex))
     {
-      snprintf(rssFeedMessage, sizeof(rssFeedMessage), "[%d][%d] %s"
-                                                  , feedIndex, itemIndex
+      #if defined(NEOPIXELS_DEBUG) || defined(PAROLA_DEBUG)
+      snprintf(rssFeedMessage, sizeof(rssFeedMessage), "[%d][%d/%d] %s"
+                                            , feedIndex, itemIndex
+                                            , rssReader.getActiveFeedCount(feedIndex)
+                                            , rssReader.readRSSfeed(feedIndex, itemIndex).c_str());
+#else
+      snprintf(rssFeedMessage, sizeof(rssFeedMessage), "%s"
                                                   , rssReader.readRSSfeed(feedIndex, itemIndex).c_str());
+#endif
     }
   }
   
@@ -256,7 +266,7 @@ std::string nextMessage()
       else       Serial.printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
     }
     spa.callJsFunction("queueMessageToMonitor", ("* "+newMessage+" *").c_str());
-    ticker.sendNextText(("** "+newMessage+" **").c_str());
+    ticker.sendNextText(("* "+newMessage+" *").c_str());
 
     return newMessage;
 
@@ -1758,10 +1768,10 @@ void callbackWiFiPortal()
     if (debug) debug->println("callbackWiFiPortal(): WiFi portal callback triggered");
     else       Serial.println("callbackWiFiPortal(): WiFi portal callback triggered");
 
-    ticker.setIntensity(3);
-    ticker.animateBlocking("triggered WiFi portal");
-    ticker.animateBlocking(".. connect to espTicker32 portal");
-    ticker.animateBlocking(".. go to 192.168.4.1 ");
+    ticker.setIntensity(20);
+    ticker.animateBlocking(" triggered WiFi portal");
+    ticker.animateBlocking(" .. connect to espTicker32 portal");
+    ticker.animateBlocking(" .. go to 192.168.4.1 ");
 
 } // callbackWiFiPortal()
 
@@ -1808,24 +1818,27 @@ void setup()
       else       Serial.println("espTicker32: setup(): readSettingFields(neopixelsSettings)");
       settings.readSettingFields("neopixelsSettings");
       setupNeopixelsDisplay();
-      ticker.initializeDisplay();
 #endif // USE_NEOPIXELS
     
     delay(2000);
     Serial.printf("espTicker32: setup()[S]: Start espTicker32 [%s] ...\n", PROG_VERSION);
-    ticker.animateBlocking("Start espTicker32 ["+String(PROG_VERSION)+"]");
+    ticker.animateBlocking(" Start espTicker32 ["+String(PROG_VERSION)+"]");
     delay(500);
 
     //-- Connect to WiFi
     Serial.println("network = new Networking();");
     network = new Networking();
     
-    ticker.animateBlocking("Start WiFi ");
+    ticker.animateBlocking(" Start WiFi ");
     //-- Parameters: devHostname, resetWiFi pin, serial object, baud rate, wifiCallback
     pinMode(settings.devResetWiFiPin, INPUT_PULLUP);
+    Serial.printf("devResetWiFiPin is [%s]\n", settings.devResetWiFiPin == 0 ? "LOW" : "HIGH");
+    if (settings.devResetWiFiPin == 0) 
+    {
+        ticker.animateBlocking(" reset WiFi requested! ");
+    }
     Serial.printf("debug = network.begin(%s, %d, Serial, 115200, callbackWiFiPortal)\n",  hostName, settings.devResetWiFiPin);
     debug = network->begin(hostName, settings.devResetWiFiPin, Serial, 115200, callbackWiFiPortal);
-    //-??-Stream* tempDebug = network->begin(hostName, settings.devResetWiFiPin, Serial, 115200, callbackWiFiPortal);
 
     ticker.animateBlocking(" Done!");
     Serial.println(" ... Done!");
@@ -1848,7 +1861,7 @@ void setup()
       Serial.print("espTicker32: setup(): IP address: ");
       Serial.println(WiFi.localIP());
     }
-    ticker.animateBlocking("IP:" + String(WiFi.localIP().toString().c_str()));
+    ticker.animateBlocking(" IP:" + String(WiFi.localIP().toString().c_str()) + " ");
 
     if (debug) debug->printf("espTicker32 Version: %s\n", PROG_VERSION);
 

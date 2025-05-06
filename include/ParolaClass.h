@@ -42,6 +42,7 @@ class ParolaClass
     void tickerClear() { parola->displayClear(); }
     void setScrollSpeed(int16_t speed);
     void setIntensity(int16_t intensity);
+    void setColor(int r, int g, int b) { return; }
     void setDebug(Stream* debugPort = &Serial);
     
     // Operation methods
@@ -80,6 +81,7 @@ class ParolaClass
     // Helper methods
     bool initSPI();
     void cleanup();
+    int16_t scaleValue(int16_t input, int16_t minInValue, int16_t maxInValue, int16_t minOutValue, int16_t maxOutValue);
     textEffect_t getRandomEffect();
     const char* setHighBits(const std::string &text);
 
