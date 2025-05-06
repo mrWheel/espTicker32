@@ -500,7 +500,15 @@ void RSSreaderClass::checkFeed(uint8_t feedIndex)
 } // checkFeed()
 
 
-
+/*
+** 1. First, it tries to find a feed with items by checking each feed starting from `_currentFeedIndex`.
+** 2. Once it finds a feed with items, it sets the `feedIndex` and `itemIndex` parameters to the 
+**    current feed and item.
+** 3. It increments the item index for the current feed and checks if it has reached the end of the feed.
+** 4. It increments a read counter for the current feed.
+** 5. It tracks consecutive reads from the same feed and forces rotation after 3 consecutive reads.
+** 6. It determines which feed to read from next using a deficit round-robin approach.
+*/
 bool RSSreaderClass::getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex)
 {
   if (_activeFeedCount == 0)
@@ -571,18 +579,44 @@ bool RSSreaderClass::getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex)
   // Force rotation after 3 consecutive reads from the same feed
   bool forceRotation = (consecutiveReadsFromSameFeed >= 3);
   
-  // Determine which feed to read from next using deficit round-robin
+  // Determine which feed to read from next using modified deficit round-robin
   if (_activeFeedCount > 1)
   {
-    // Calculate ideal read ratios for each feed based on actual item counts
+    // Get actual item counts for all feeds
+    std::vector<size_t> itemCounts(_activeFeedCount, 0);
     float totalItems = 0;
+    
     for (uint8_t i = 0; i < _activeFeedCount; i++)
     {
       std::vector<String> feedLines = getStoredLines(i);
-      totalItems += feedLines.size(); // Use actual item count instead of max
+      itemCounts[i] = feedLines.size();
+      totalItems += feedLines.size();
     }
     
     uint8_t nextFeed = _currentFeedIndex;
+    
+    // Reset read counts more frequently - when any feed reaches 100 reads
+    // This helps prevent the deficit calculations from getting "stuck"
+    bool shouldResetCounts = false;
+    for (uint8_t i = 0; i < _activeFeedCount; i++)
+    {
+      if (_feedReadCounts[i] >= 100)
+      {
+        shouldResetCounts = true;
+        break;
+      }
+    }
+    
+    if (shouldResetCounts)
+    {
+      if (debug && doDebug) debug->println("RSSreaderClass::getNextFeedItem(): Resetting feed read counts");
+      for (uint8_t i = 0; i < _activeFeedCount; i++)
+      {
+        // Reduce all proportionally but maintain their ratios
+        // This is better than setting to 0 as it preserves recent history
+        _feedReadCounts[i] = _feedReadCounts[i] / 4;
+      }
+    }
     
     if (forceRotation)
     {
@@ -592,8 +626,7 @@ bool RSSreaderClass::getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex)
       
       while (attempts < _activeFeedCount)
       {
-        std::vector<String> nextFeedLines = getStoredLines(nextFeed);
-        if (nextFeedLines.size() > 0)
+        if (itemCounts[nextFeed] > 0)
         {
           break; // Found a feed with items
         }
@@ -608,10 +641,7 @@ bool RSSreaderClass::getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex)
     }
     else
     {
-      // Find feed with largest deficit between ideal and actual reads
-      float maxDeficit = -1000.0;
-      nextFeed = (_currentFeedIndex + 1) % _activeFeedCount; // Default to next feed
-      
+      // Calculate total reads
       uint32_t totalReads = 0;
       for (uint8_t i = 0; i < _activeFeedCount; i++)
       {
@@ -620,30 +650,68 @@ bool RSSreaderClass::getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex)
       
       if (totalReads > 0) // Avoid division by zero
       {
+        // Modified deficit calculation with decay factor
+        float maxScore = -1000.0;
+        
         for (uint8_t i = 0; i < _activeFeedCount; i++)
         {
           // Only consider feeds that have items
-          std::vector<String> feedLines = getStoredLines(i);
-          if (feedLines.size() > 0)
+          if (itemCounts[i] > 0)
           {
-            float idealRatio = feedLines.size() / totalItems; // Use actual item count
+            // Calculate ideal ratio based on actual item counts
+            float idealRatio = itemCounts[i] / totalItems;
+            
+            // Calculate actual ratio of reads
             float actualRatio = (float)_feedReadCounts[i] / (float)totalReads;
+            
+            // Basic deficit calculation
             float deficit = idealRatio - actualRatio;
             
-            if (debug && doDebug) debug->printf("RSSreaderClass::getNextFeedItem(): Feed[%d] deficit: %f (ideal: %f, actual: %f, items: %d)\n", 
-                                  i, deficit, idealRatio, actualRatio, feedLines.size());
+            // Add a small random factor (0.01 to 0.05) to prevent feeds from being "stuck"
+            float randomFactor = (float)(random(1, 5)) / 100.0;
             
-            if (deficit > maxDeficit)
+            // Add a "recovery factor" that gives feeds with negative deficit a chance to be selected
+            // The more negative the deficit, the stronger the recovery factor
+            float recoveryFactor = 0;
+            if (deficit < 0)
             {
-              maxDeficit = deficit;
+              // This will be stronger for more negative deficits
+              recoveryFactor = -deficit * 0.2;
+            }
+            
+            // Final score combines deficit, recovery factor, and random factor
+            float score = deficit + recoveryFactor + randomFactor;
+            
+            if (debug && doDebug) debug->printf("RSSreaderClass::getNextFeedItem(): Feed[%d] score: %f (deficit: %f, recovery: %f, random: %f, items: %d)\n", 
+                                  i, score, deficit, recoveryFactor, randomFactor, itemCounts[i]);
+            
+            if (score > maxScore)
+            {
+              maxScore = score;
               nextFeed = i;
             }
           }
         }
+        
+        if (debug && doDebug) debug->printf("RSSreaderClass::getNextFeedItem(): Selected next feed: %d (max score: %f)\n", 
+                              nextFeed, maxScore);
       }
-      
-      if (debug && doDebug) debug->printf("RSSreaderClass::getNextFeedItem(): Selected next feed: %d (max deficit: %f)\n", 
-                            nextFeed, maxDeficit);
+      else
+      {
+        // If no reads yet, just go to the next feed with items
+        nextFeed = (_currentFeedIndex + 1) % _activeFeedCount;
+        uint8_t attempts = 0;
+        
+        while (attempts < _activeFeedCount)
+        {
+          if (itemCounts[nextFeed] > 0)
+          {
+            break;
+          }
+          nextFeed = (nextFeed + 1) % _activeFeedCount;
+          attempts++;
+        }
+      }
     }
     
     _currentFeedIndex = nextFeed;
@@ -654,20 +722,11 @@ bool RSSreaderClass::getNextFeedItem(uint8_t& feedIndex, size_t& itemIndex)
     _currentFeedIndex = 0;
   }
   
-  // Reset counters if we've read a lot of items to prevent overflow
-  if (_feedReadCounts[0] > 1000) // Arbitrary large number
-  {
-    for (uint8_t i = 0; i < _activeFeedCount; i++)
-    {
-      _feedReadCounts[i] = _feedReadCounts[i] / 2; // Reduce all proportionally
-    }
-  }
-  
   if (debug) debug->printf("RSSreaderClass::getNextFeedItem(): return Feed[%d] Item[%d] (feed has [%d] items)\n", 
                           feedIndex, itemIndex, lines.size());
   
   return true;
-  
+
 } // getNextFeedItem()
 
 
