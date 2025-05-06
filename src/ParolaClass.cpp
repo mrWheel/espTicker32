@@ -148,11 +148,15 @@ bool ParolaClass::begin(uint8_t dataPin, uint8_t clkPin, uint8_t csPin, const PA
 } // begin()
 
 
-void ParolaClass::setScrollSpeed(int16_t speed)
+void ParolaClass::setScrollSpeed(int16_t newSpeed)
 {
   // Update the speed in the display configuration
-  displayConfig.speed = (50 + 5) - speed;
-  
+  displayConfig.speed = scaleValue(newSpeed, 0, 100, 50, 4);
+  if (debug && doDebug)
+  {
+    debugPrint("ParolaClass: setScrollspeed to (%d)[%d]", newSpeed, displayConfig.speed);
+  }
+
   // If initialized, update the speed in the parola object
   if (initialized && parola != nullptr)
   {
@@ -161,11 +165,18 @@ void ParolaClass::setScrollSpeed(int16_t speed)
   }
   
   debugPrint("ParolaClass::setScrollSpeed() - Speed -> updated to [%d]", displayConfig.speed);
-}
+
+} // setScrollSpeed()
 
 
-void ParolaClass::setIntensity(int16_t intensity)
+void ParolaClass::setIntensity(int16_t newIntensity)
 {
+  int16_t intensity = scaleValue(newIntensity, 0, 100, 0, 15);
+  if (debug && doDebug)
+  {
+    debugPrint("ParolaClass: setIntensity to (%d)[%d]", newIntensity, intensity);
+  }
+
   parola->setIntensity(intensity);
   debugPrint("ParolaClass::setSIntensity() - updated to [%d]", intensity);
 }
@@ -429,7 +440,19 @@ void ParolaClass::loop()
       onFinished(currentText);
     }
   }
-}
+} // loop()
+
+int16_t ParolaClass::scaleValue(int16_t input
+  , int16_t minInValue, int16_t maxInValue
+  , int16_t minOutValue, int16_t maxOutValue) 
+{
+// Prevent division by zero
+if (maxInValue == minInValue) return minOutValue;
+
+return (int16_t)(((int32_t)(input - minInValue) * (maxOutValue - minOutValue)) / 
+(maxInValue - minInValue) + minOutValue);
+
+} // scaleValue()
 
 void ParolaClass::setDebug(Stream* debugPort)
 {

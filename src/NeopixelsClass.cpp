@@ -16,7 +16,7 @@ NeopixelsClass::NeopixelsClass()
   text = "Easy Tech";
   pixelPerChar = 6;
   scrollDelay = 1;
-  brightness = 50;
+  brightness = 30;
   x = 0;
   pass = 0;
   textComplete = false;
@@ -318,7 +318,11 @@ void NeopixelsClass::setScrollSpeed(int newSpeed)
   int tmpScrollDelay = 0;
 
   tmpScrollDelay = scaleValue(newSpeed, 0, 100, 100, 0);
-  if (debug)
+  if (debug && doDebug)
+  {
+    debugPrint("NeopixelsClass: Setting scroll speed to (%d)[%d]", newSpeed, tmpScrollDelay);
+  }
+  else if (debug)
   {
     debugPrint("NeopixelsClass: Setting speed to (%d)[%d]", newSpeed, tmpScrollDelay);
   }
@@ -712,6 +716,7 @@ void NeopixelsClass::debugPrint(const char* format, ...)
 } // debugPrint()
 
 
+/****
 void NeopixelsClass::initializeDisplay()
 {
   if (!initialized || matrix == nullptr)
@@ -785,4 +790,4 @@ void NeopixelsClass::initializeDisplay()
   matrix->show();
 
 } // initializeDisplay()
-
+*****/
