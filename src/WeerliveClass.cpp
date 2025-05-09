@@ -3,7 +3,7 @@
 **  Program : WeerliveClass.cpp
 **  Ported for ESP32 by Willem Aandewiel - 2025
 **
-**  Original Copyright (c) 2024 Willem Aandewiel
+**  Original Copyright (c) 2024 .. 2025 Willem Aandewiel
 **
 **  TERMS OF USE: MIT License. See bottom of file.
 ***************************************************************************
@@ -29,16 +29,35 @@ Weerlive::Weerlive(WiFiClient &thisClient) : thisClient(thisClient), apiUrl("") 
 void Weerlive::setup(const char *key, const char *city, Stream* debugPort)
 {
   debug = debugPort;
-  char tmp[100];
-  apiKey = key;
   if (debug) debug->flush();
-  if (debug) debug->printf("\nWeerlive::setup() with apiKey[%s]\n", apiKey.c_str());
-  snprintf(tmp, sizeof(tmp), "/api/weerlive_api_v2.php?key=%s&locatie=%s", key, city);
-  apiUrl = String(tmp);
-  if (debug) debug->printf("weerlive::setup() apiUrl = [%s]\n", apiUrl.c_str());
-  configureFilters();
-  debug->printf("weerlive::setup() Done! Free Heap: [%d] bytes\n", ESP.getFreeHeap());
 
+  // Buffers to hold sanitized versions
+  char cleanKey[64];
+
+  // Remove all spaces from 'key'
+  size_t j = 0;
+  for (size_t i = 0; key[i] != '\0' && j < sizeof(cleanKey) - 1; ++i) 
+  {
+    if (key[i] != ' ') 
+    {
+      cleanKey[j++] = key[i];
+    }
+  }
+  cleanKey[j] = '\0';
+  apiKey = cleanKey;
+
+  if (debug) debug->printf("\nWeerlive::setup() with apiKey[%s]\n", apiKey.c_str());
+
+  char tmp[150];
+  snprintf(tmp, sizeof(tmp), "/api/weerlive_api_v2.php?key=%s&locatie=%s", cleanKey, city);
+  apiUrl = tmp;
+
+  if (debug) debug->printf("weerlive::setup() apiUrl = [%s]\n", apiUrl.c_str());
+
+  configureFilters();
+
+  if (debug) debug->printf("weerlive::setup() Done! Free Heap: [%d] bytes\n", ESP.getFreeHeap());
+  
 } //  setup()
 
 void Weerlive::setInterval(int newInterval)
