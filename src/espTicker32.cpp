@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v1.0.3";
+const char* PROG_VERSION = "v1.1.0";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -17,9 +17,6 @@ const char* PROG_VERSION = "v1.0.3";
 #include "SettingsClass.h"
 #include "LocalMessagesClass.h"
 #include "WeerliveClass.h"
-#ifdef USE_MEDIASTACK
-  #include "MediastackClass.h"
-#endif
 #include "RSSreaderClass.h"
 #ifdef USE_PAROLA
   //#include <MD_Parola.h>
@@ -54,9 +51,6 @@ LocalMessagesClass localMessages(LOCAL_MESSAGES_PATH, LOCAL_MESSAGES_RECORD_SIZE
 
 WiFiClient wifiClient;
 Weerlive weerlive(wifiClient);
-#ifdef USE_MEDIASTACK
-  Mediastack mediastack(wifiClient);
-#endif
 RSSreaderClass rssReader;
 
 SPAmanager spa(80);
@@ -85,25 +79,6 @@ String getWeerliveMessage()
     return weerliveText;
 
 } // getWeerliveMessage()
-
-#ifdef USE_MEDIASTACK
-String getMediastackMessage()
-{
-  static uint8_t msgNr = 0;
-  char mediastackMessage[2000] = {};
-
-  snprintf(mediastackMessage, sizeof(mediastackMessage), "%s", mediastack.readFileById("NWS", msgNr).c_str());
-  if (strlen(mediastackMessage) == 0) 
-  {
-    msgNr = 0;
-    snprintf(mediastackMessage, sizeof(mediastackMessage), "%s", mediastack.readFileById("NWS", msgNr).c_str());
-  } 
-  if (debug && doDebug) debug->printf("getMediastackMessage(): msgNr = [%d] mediastackMessage = [%s]\n", msgNr, mediastackMessage);
-  msgNr++;
-  return mediastackMessage;
-
-} // getMediastackMessage()
-#endif
 
 
 String getRSSfeedMessage()
@@ -180,14 +155,6 @@ std::string nextMessage()
         newMessage = rssReader.simplifyCharacters(getWeerliveMessage()).c_str();
         ticker.setColor(0, 0, 255); // Blue
     }
-#ifdef USE_MEDIASTACK
-    else if (strcasecmp(newMessage.c_str(), "<mediastack>") == 0) 
-    {
-        if (debug && doDebug) debug->println("nextMessage(): mediastack message");
-        newMessage = getMediastackMessage().c_str();
-        ticker.setColor(0, 0, 255); // Blue
-    }
-#endif
     else if (strcasecmp(newMessage.c_str(), "<rssfeed>") == 0) 
     {
         if (debug && doDebug) if (debug && doDebug) debug->println("nextMessage(): rssfeed message");
@@ -470,10 +437,6 @@ void sendSettingFieldToClient(const std::string& settingsType)
             htmlContent += "NeopixelsSettings";
           } else if (settingsType == "weerliveSettings") {
             htmlContent += "WeerliveSettings";
-#ifdef USE_MEDIASTACK
-          } else if (settingsType == "mediastackSettings") {
-            htmlContent += "MediastackSettings";
-#endif
           } else {
             // Generic fallback
             htmlContent += "Setting";
@@ -503,10 +466,6 @@ void sendSettingFieldToClient(const std::string& settingsType)
             htmlContent += "NeopixelsSettings";
           } else if (settingsType == "weerliveSettings") {
             htmlContent += "WeerliveSettings";
-#ifdef USE_MEDIASTACK
-          } else if (settingsType == "mediastackSettings") {
-            htmlContent += "MediastackSettings";
-#endif
           } else if (settingsType == "rssfeedSettings") {
             htmlContent += "RSSfeedSettings";
           } else {
@@ -559,8 +518,6 @@ void sendSettingFieldToClient(const std::string& settingsType)
     jsonDoc["action"] = "neopixelsSettingsData";
   } else if (settingsType == "weerliveSettings") {
     jsonDoc["action"] = "weerliveSettingsData";
-  } else if (settingsType == "mediastackSettings") {
-    jsonDoc["action"] = "mediastackSettingsData";
   } else {
     // Generic fallback
     jsonDoc["action"] = settingsType + "Data";
@@ -595,13 +552,6 @@ void sendWeerliveFieldsToClient()
   sendSettingFieldToClient("weerliveSettings");
 }
 
-#ifdef USE_MEDIASTACK
-// Function to send the JSON string to the client when mediastackSettingsPage is activated
-  void sendMediastackFieldsToClient()
-  {
-    sendSettingFieldToClient("mediastackSettings");
-  }
-#endif
 
 
 // Function to send the JSON string to the client when rssfeedSettingsPage is activated
@@ -843,14 +793,6 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
       sendWeerliveFieldsToClient();
       return;
     }
-#ifdef USE_MEDIASTACK
-    // Check if this is a requestMediastackSettings message
-    if (doc["type"] == "requestMediastackSettings") {
-      if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling requestMediastackSettings message");
-      sendMediastackFieldsToClient();
-      return;
-    }    
-#endif
     // Check if this is a requestRssfeedSettings message
     if (doc["type"] == "requestRssfeedSettings") {
       if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling requestRssfeedSettings message");
@@ -961,24 +903,6 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
           if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): No weerliveSettingsData found in the message");
         }
       } // saveWeerliveSettings
-      else if (strcmp(processType, "saveMediastackSettings") == 0) 
-      {
-        if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling saveMediastackSettings message");
-        
-        // Check if inputValues exists and contains mediastackSettingsData
-        if (doc.containsKey("inputValues") && doc["inputValues"].containsKey("mediastackSettingsData")) 
-        {
-          // Get the mediastackSettingsData as a string
-          const char* mediastackSettingsData = doc["inputValues"]["mediastackSettingsData"];
-          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Received mediastack settings data:");
-          if (debug && doDebug) debug->println(mediastackSettingsData);
-          
-          // Process the mediastack settings data using the generic function
-          processSettings(mediastackSettingsData, "mediastackSettings");
-        } else {
-          if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): No mediastackSettingsData found in the message");
-        }
-      } // saveMediastackSettings
       else if (strcmp(processType, "saveRssfeedSettings") == 0) 
       {
         if (debug && doDebug) debug->println("handleLocalWebSocketEvent(): Handling saveRssfeedSettings message");
@@ -1106,20 +1030,6 @@ void mainCallbackWeerliveSettings()
 } // mainCallbackWeerliveSettings()
 
 
-#ifdef USE_MEDIASTACK
-void mainCallbackMediastackSettings()
-{
-  spa.setMessage("Main Menu [Mediastack Settings] clicked!", 0);
-  spa.activatePage("mediastackSettingsPage");
-  
-  // Call the JavaScript function to set up event handlers
-  spa.callJsFunction("isEspTicker32Loaded");
-  
-  // Send the mediastack settings to the client
-  sendMediastackFieldsToClient();
-
-} // mainCallbackMediastackSettings()
-#endif
 
 void mainCallbackRssfeedSettings()
 {
@@ -1129,7 +1039,7 @@ void mainCallbackRssfeedSettings()
   // Call the JavaScript function to set up event handlers
   spa.callJsFunction("isEspTicker32Loaded");
   
-  // Send the mediastack settings to the client
+  // Send the RssFeed settings to the client
   sendRssfeedFieldsToClient();
 
 } // mainCallbackRssfeedettings()
@@ -1278,36 +1188,6 @@ void setupLocalMessagesPage()
     </div>
     )HTML";
 
-#ifdef USE_MEDIASTACK
-    const char *popupHelpLocalMessages = R"HTML(
-    <style>
-        li {
-          display: grid;
-          grid-template-columns: 130px 1fr; /* pas 150px aan indien nodig */
-          gap: 1em;
-          margin-bottom: 0.3em;
-        }
-        li::marker {
-          content: none; /* verbergt het standaard bolletje */
-        }
-      </style>
-
-      <div id="popupHelpLocalMessages">Help Sleutelwoorden</div>
-      <div>
-        <ul>
-          <li><b>&lt;time&gt;</b> - Laat de tijd zien</li>
-          <li><b>&lt;date&gt;</b> - Laat de datum zien</li>
-          <li><b>&lt;datetime&gt;</b> - Laat de datum en tijd zien</li>
-          <li><b>&lt;space&gt;</b> - Maakt de Ticker leeg</li>
-          <li><b>&lt;weerlive&gt;</b> - Laat de weergegevens van weerlive zien</li>
-          <li><b>&lt;mediastack&gt;</b> - Laat het volgende item van mediastack zien</li>
-          <li><b>&lt;rssfeed&gt;</b> - Laat het volgende item van een rssfeed zien</li>
-        </ul>
-      </div>
-      Let op! Deze sleutelwoorden moeten als enige in een regel staan!
-      <br><button type="button" onClick="closePopup('popup_Help')">Close</button></br>
-    )HTML";
-#else
 const char *popupHelpLocalMessages = R"HTML(
   <style>
       li {
@@ -1335,7 +1215,6 @@ const char *popupHelpLocalMessages = R"HTML(
     Let op! Deze sleutelwoorden moeten als enige in een regel staan!
     <br><button type="button" onClick="closePopup('popup_Help')">Close</button></br>
   )HTML";
-#endif
     spa.addPage("localMessagesPage", localMessagesPage);
     spa.setPageTitle("localMessagesPage", "Local Messages");
     spa.addMenu("localMessagesPage", "Local Messages");
@@ -1442,13 +1321,6 @@ void setupMySettingsPage()
   spa.addMenu("weerliveSettingsPage", "Weerlive Settings");
   spa.addMenuItem("weerliveSettingsPage", "Weerlive Settings", "Exit", handleMenuItem, "SET-UP");
 
-#ifdef USE_MEDIASTACK
-  spa.addPage("mediastackSettingsPage", settingsPage);
-  spa.setPageTitle("mediastackSettingsPage", "Mediastack Settings");
-  spa.addMenu("mediastackSettingsPage", "Mediastack Settings");
-  spa.addMenuItem("mediastackSettingsPage", "Mediastack Settings", "Exit", handleMenuItem, "SET-UP");
-#endif
-
   spa.addPage("rssfeedSettingsPage", settingsPage);
   spa.setPageTitle("rssfeedSettingsPage", "RSSfeed Settings");
   spa.addMenu("rssfeedSettingsPage", "RSSfeed Settings");
@@ -1460,19 +1332,6 @@ void setupMySettingsPage()
 
 void setupMainSettingsPage()
 {
-#ifdef USE_MEDIASTACK
-  const char *settingsPage = R"HTML(
-    <div style="font-size: 48px; text-align: center; font-weight: bold;">Settings</div>
-    <br>You can modify system settings here that influence the operation of the device.
-    <ul>
-    <li>Device settings</li>
-    <li>Parola settings</li>
-    <li>Weerlive settings</li>
-    <li>Mediastack settings</li>
-    <li>RSS feed settings</li>
-    </ul> 
-    )HTML";
-#else
 #ifdef USE_PAROLA
   const char *settingsPage = R"HTML(
   <div style="font-size: 48px; text-align: center; font-weight: bold;">Settings</div>
@@ -1496,7 +1355,6 @@ void setupMainSettingsPage()
   <li>RSS feed settings</li>
   </ul> 
   )HTML";
-#endif
 #endif
 /**
   const char *settingsPage = R"HTML(
@@ -1524,9 +1382,6 @@ void setupMainSettingsPage()
   spa.addMenuItem("mainSettingsPage", "Settings", "Neopixels Settings", mainCallbackNeopixelsSettings);
 #endif
   spa.addMenuItem("mainSettingsPage", "Settings", "Weerlive Settings", mainCallbackWeerliveSettings);
-#ifdef USE_MEDIASTACK
-  spa.addMenuItem("mainSettingsPage", "Settings", "Mediastack Settings", mainCallbackMediastackSettings);
-#endif
   spa.addMenuItem("mainSettingsPage", "Settings", "RSS feed Settings", mainCallbackRssfeedSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Exit", handleMenuItem, "SET-EXIT");
 
@@ -1797,14 +1652,9 @@ void setup()
     else       Serial.println("espTicker32: setup(): readSettingFields(weerliveSettings)");
     settings.readSettingFields("weerliveSettings");
 
-#ifdef USE_MEDIASTACK
-      if (debug) debug->println("espTicker32: setup(): readSettingFields(mediastackSettings)");
-      else       Serial.println("espTicker32: setup(): readSettingFields(mediastackSettings)");
-      settings.readSettingFields("mediastackSettings");
-#endif // USE_MEDIASTACK  
-      if (debug) debug->println("espTicker32: setup(): readSettingFields(rssfeedSettings)");
-      else       Serial.println("espTicker32: setup(): readSettingFields(rssfeedSettings)");
-      settings.readSettingFields("rssfeedSettings");
+    if (debug) debug->println("espTicker32: setup(): readSettingFields(rssfeedSettings)");
+    else       Serial.println("espTicker32: setup(): readSettingFields(rssfeedSettings)");
+    settings.readSettingFields("rssfeedSettings");
 
 #ifdef USE_PAROLA
       if (debug) debug->println("espTicker32: setup(): readSettingFields(parolaSettings)");
@@ -1925,17 +1775,6 @@ void setup()
                   settings.weerliveRequestInterval);
     weerlive.setup(settings.weerliveAuthToken.c_str(), settings.weerlivePlaats.c_str(), debug);
     weerlive.setInterval(settings.weerliveRequestInterval); 
-#ifdef USE_MEDIASTACK
-    if (debug && doDebug) debug->printf("espTicker32: setup(): mediastackAuthToken: [%s], requestInterval: [%d minuten], maxMessages: [%d], onlyDuringDay: [%s]\n",
-                  settings.mediastackAuthToken.c_str(),
-                  settings.mediastackRequestInterval,
-                  settings.mediastackMaxMessages,
-                  settings.mediastackOnlyDuringDay ? "true" : "false");
-    mediastack.setup(settings.mediastackAuthToken.c_str(), settings.mediastackRequestInterval,
-                     settings.mediastackMaxMessages,
-                     settings.mediastackOnlyDuringDay,
-                     debug);
-#endif
 
     rssReader.setDebug(debug);
     rssReader.addWordStringToSkipWords(settings.devSkipWords.c_str());
@@ -1985,12 +1824,6 @@ void loop()
     if (debug && doDebug) debug->printf("espTicker32: weerlive::loop(): weerliveText: [%s]\n", weerliveText);
   
   }
-  #ifdef USE_MEDIASTACK
-  if (mediastack.loop(network->ntpGetTmStruct()))
-  {
-    if (debug && doDebug) debug->println("espTicker32: mediastack::loop(): mediastack updated");
-  }
-#endif
 
   rssReader.loop(network->ntpGetTmStruct());
 

@@ -34,16 +34,6 @@ void SettingsClass::initializeSettingsContainers()
   weerliveContainer.addField({"plaats", "Plaats", "s", 32, 0, 0, 0, &weerlivePlaats});
   weerliveContainer.addField({"requestInterval", "Request Interval (minuten)", "n", 0, 10, 120, 1, &weerliveRequestInterval});
   settingsContainers["weerliveSettings"] = weerliveContainer;
-  
-#ifdef USE_MEDIASTACK
-// Mediastack settings
-  SettingsContainer mediastackContainer("Mediastack Settings", "/Mediastack.ini", "mediastackSettings");
-  mediastackContainer.addField({"authToken", "mediastack Auth. Token", "s", 32, 0, 0, 0, &mediastackAuthToken});
-  mediastackContainer.addField({"maxMessages", "Max. Messages to save", "n", 0, 0, 50, 1, &mediastackMaxMessages});
-  mediastackContainer.addField({"requestInterval", "Request Interval (minuten)", "n", 0, 60, 240, 1, &mediastackRequestInterval});
-  mediastackContainer.addField({"onlyDuringDay", "Update alleen tussen 08:00 en 18:00", "n", 0, 0, 1, 1, &mediastackOnlyDuringDay});
-  settingsContainers["mediastackSettings"] = mediastackContainer;
-#endif
 
 #ifdef USE_PAROLA
   // Parola settings
