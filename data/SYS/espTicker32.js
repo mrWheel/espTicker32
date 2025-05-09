@@ -179,9 +179,23 @@ function renderLocalMessages()
 function addMessageBelow(index) 
 {
   console.log(`Adding empty message below index ${index}`);
-  LocalMessages.splice(index + 1, 0, { key: 'A', content: '' });
+  
+  // Get the key from the message above
+  let keyToUse = 'A'; // Default to 'A' if we can't determine the key
+  
+  if (index >= 0 && index < LocalMessages.length) {
+    const message = LocalMessages[index];
+    if (typeof message === 'object' && message !== null && message.key) {
+      keyToUse = message.key;
+    }
+  }
+  
+  // Add a new message with the same key and "<empty>" content
+  LocalMessages.splice(index + 1, 0, { key: keyToUse, content: "<empty>" });
   renderLocalMessages();
 }
+
+
 
 
 // Function to move a message up one position

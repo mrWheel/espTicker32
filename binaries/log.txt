@@ -1129,3 +1129,11 @@
 [2025-05-09 17:34:42] Copied firmware.bin to espTicker32Neopixels_v1.2.0.bin
 [2025-05-09 17:35:10] Deleted existing file: espTicker32Neopixels_v1.2.0.bin
 [2025-05-09 17:35:10] Copied firmware.bin to espTicker32Neopixels_v1.2.0.bin
+[2025-05-09 17:51:21] Deleted existing file: espTicker32Neopixels_v1.2.0.bin
+[2025-05-09 17:51:21] Copied firmware.bin to espTicker32Neopixels_v1.2.0.bin
+[2025-05-09 17:51:51] Deleted existing file: espTicker32Neopixels_v1.2.0.bin
+[2025-05-09 17:51:51] Copied firmware.bin to espTicker32Neopixels_v1.2.0.bin
+[2025-05-09 18:02:06] Deleted existing file: espTicker32Neopixels_v1.2.0.bin
+[2025-05-09 18:02:06] Copied firmware.bin to espTicker32Neopixels_v1.2.0.bin
+[2025-05-09 18:02:39] Deleted existing file: espTicker32Neopixels_v1.2.0.bin
+[2025-05-09 18:02:39] Copied firmware.bin to espTicker32Neopixels_v1.2.0.bin

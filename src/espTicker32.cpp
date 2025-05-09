@@ -329,14 +329,14 @@ std::string buildLocalMessagesJson()
     {
       jsonString += ",";
     }
-    jsonString += "\"" + escaped + "\"";
+    // Include both key and content in the JSON
+    jsonString += "{\"key\":\"" + std::string(1, item.key) + "\",\"content\":\"" + escaped + "\"}";
 
     first = false;
   }
 
   jsonString += "]";
   return jsonString;
-
 } // buildLocalMessagesJson()
 
 
@@ -431,18 +431,22 @@ void processLocalMessages(const std::string& jsonString)
     if (array[i].isNull()) {
       if (debug && doDebug) debug->println("processLocalMessages(): Skip (null)\n");
     } else {
-      // Use String for Arduino compatibility, which handles empty strings properly
-      String value = array[i].as<String>();
-      if (debug && doDebug) debug->printf("processLocalMessages(): Input value[%d]: %s\n", i, value.c_str());
-      
-      // Create a MessageItem with key based on index (A-J)
+      // Create a MessageItem
       LocalMessagesClass::MessageItem item;
       
-      // Assign key based on index (A, B, C, etc.)
-      item.key = 'A' + (i % 10); // Cycle through A-J
+      // Check if the array element is an object with key and content
+      if (array[i].is<JsonObject>() && array[i].containsKey("key") && array[i].containsKey("content")) {
+        // Get key and content from the object
+        item.key = array[i]["key"].as<std::string>()[0]; // Get first character of key string
+        item.content = array[i]["content"].as<std::string>();
+      } else {
+        // Backward compatibility: treat as string content with default key 'A'
+        item.key = 'A';
+        item.content = array[i].as<std::string>();
+      }
       
-      // Set content
-      item.content = value.c_str();
+      if (debug && doDebug) debug->printf("processLocalMessages(): Input value[%d]: key=[%c], content=[%s]\n", 
+                                         i, item.key, item.content.c_str());
       
       // Write the item
       if (localMessages.write(recNr, item))
@@ -454,6 +458,7 @@ void processLocalMessages(const std::string& jsonString)
   
   if (debug && doDebug) debug->printf("processLocalMessages(): [%d] Local Messages written to [%s]\n", recNr, LOCAL_MESSAGES_PATH);
   sendLocalMessagesToClient();
+  
 } // processLocalMessages()
 
 
