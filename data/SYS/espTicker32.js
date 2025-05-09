@@ -57,23 +57,59 @@ function renderLocalMessages()
     const cell = document.createElement('td');
     cell.style.padding = '8px';
     
-    // Create a container for the input and buttons
+    // Create a container for the dropdown, input and buttons
     const container = document.createElement('div');
     container.style.display = 'flex';
     container.style.alignItems = 'center';
     container.style.width = '100%';
     
-    // Create the input field
+    // Create the key dropdown selector
+    const keySelector = document.createElement('select');
+    keySelector.style.marginRight = '8px';
+    keySelector.dataset.index = index;
+    
+    // Add options A through J
+    for (let charCode = 65; charCode <= 74; charCode++) {
+      const option = document.createElement('option');
+      const keyChar = String.fromCharCode(charCode);
+      option.value = keyChar;
+      option.textContent = keyChar;
+      keySelector.appendChild(option);
+    }
+    
+    // Set the current value or default to 'A'
+    const messageObj = typeof value === 'object' ? value : { key: 'A', content: value };
+    keySelector.value = messageObj.key || 'A';
+    
+    // Add event listener for key changes
+    keySelector.addEventListener('change', (e) => {
+      const index = e.target.dataset.index;
+      // Ensure LocalMessages[index] is an object
+      if (typeof LocalMessages[index] !== 'object') {
+        LocalMessages[index] = { key: 'A', content: LocalMessages[index] || '' };
+      }
+      LocalMessages[index].key = e.target.value;
+    });
+    
+    // Add the key selector to the container
+    container.appendChild(keySelector);
+    
+    // Create the input field for content
     const input = document.createElement('input');
     input.type = 'text';
-    input.value = value;
+    input.value = messageObj.content || messageObj;
     input.style.width = '100ch'; // Set to exactly 100ch wide
     input.style.maxWidth = '100ch';
     input.style.fontFamily = "'Courier New', Courier, monospace"; // Set monospace font
     input.maxLength = 150;
     input.dataset.index = index;
     input.addEventListener('input', (e) => {
-      LocalMessages[e.target.dataset.index] = e.target.value;
+      const index = e.target.dataset.index;
+      // Ensure LocalMessages[index] is an object
+      if (typeof LocalMessages[index] !== 'object') {
+        LocalMessages[index] = { key: 'A', content: '' };
+      }
+      LocalMessages[index].content = e.target.value;
     });
     
     // Add the input to the container
@@ -138,13 +174,15 @@ function renderLocalMessages()
 
 } // renderLocalMessages()
 
+
 // Function to add an empty message below the specified index
 function addMessageBelow(index) 
 {
   console.log(`Adding empty message below index ${index}`);
-  LocalMessages.splice(index + 1, 0, '');
+  LocalMessages.splice(index + 1, 0, { key: 'A', content: '' });
   renderLocalMessages();
 }
+
 
 // Function to move a message up one position
 function moveMessageUp(index) 
