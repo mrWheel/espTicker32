@@ -227,10 +227,11 @@ bool LocalMessagesClass::write(uint8_t recNr, const MessageItem& item) {
     key = 'A'; // Default to 'A' if invalid
   }
   
-  //if (recNr == 0) {
-  //  if (debug) debug->println("LocalMessagesClass::write(): record number is zero, erase file");
-  //  LittleFS.remove(path.c_str());
-  //}
+  if (recNr == 0) 
+  {
+    if (debug) debug->println("LocalMessagesClass::write(): record number is zero, erase file");
+    LittleFS.remove(path.c_str());
+  }
 
   const char* data = item.content.c_str();
   const char* start = data;
