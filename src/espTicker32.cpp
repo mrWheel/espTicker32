@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v1.1.0";
+const char* PROG_VERSION = "v1.2.0";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -33,7 +33,7 @@ const char* PROG_VERSION = "v1.1.0";
 #endif
 
 #define CLOCK_UPDATE_INTERVAL  1000
-#define LOCAL_MESSAGES_PATH      "/localMessages.txt"
+#define LOCAL_MESSAGES_PATH      "/localMessages.dat"
 #define LOCAL_MESSAGES_RECORD_SIZE  150
 
 #ifdef ESPTICKER32_DEBUG
@@ -67,6 +67,8 @@ uint32_t  counter = 0;
 //uint16_t nr = 1;  //-- name it like "parolaMessageNr"
 
 std::string actMessage = "";
+std::string gTickerMessage;
+std::string gMonitorMessage;
 char weerliveText[2000] = {};
 char localMessage[LOCAL_MESSAGES_RECORD_SIZE +2] = {};
 
@@ -126,13 +128,70 @@ String getRSSfeedMessage()
 String getLocalMessage()
 {
   static uint8_t msgNr = 0;
-
-  snprintf(localMessage, sizeof(localMessage), "%s", localMessages.read(msgNr++).c_str());
-  if (strlen(localMessage) == 0) 
+  bool foundValidMessage = false;
+  uint8_t startMsgNr = msgNr; // Remember where we started
+  bool completedFullLoop = false;
+  
+  // Loop until we find a valid message or have checked all messages
+  do {
+    // Read the message with the new structure
+    LocalMessagesClass::MessageItem item = localMessages.read(msgNr++);
+    
+    if (debug && doDebug) debug->printf("getLocalMessage(): Read record [%d], key=[%c], [%s]\n", 
+                                      msgNr-1, item.key, item.content.c_str());
+    
+    // If content is empty, we've reached the end of messages
+    if (item.content.empty()) {
+      if (debug && doDebug) debug->printf("getLocalMessage(): End of messages at record [%d]\n", msgNr-1);
+      msgNr = 0; // Start over from 0
+      
+      // Mark that we've completed a full loop through all records
+      if (startMsgNr == 0) {
+        completedFullLoop = true;
+      }
+      
+      // If we started in the middle and have now wrapped around to the beginning,
+      // we need to continue checking from 0 up to our starting point
+      continue;
+    }
+    
+    // Check if the message's key matches an enabled flag
+    if ((item.key == 'A' && settings.devShowLocalA) ||
+        (item.key == 'B' && settings.devShowLocalB) ||
+        (item.key == 'C' && settings.devShowLocalC) ||
+        (item.key == 'D' && settings.devShowLocalD) ||
+        (item.key == 'E' && settings.devShowLocalE) ||
+        (item.key == 'F' && settings.devShowLocalF) ||
+        (item.key == 'G' && settings.devShowLocalG) ||
+        (item.key == 'H' && settings.devShowLocalH) ||
+        (item.key == 'I' && settings.devShowLocalI) ||
+        (item.key == 'J' && settings.devShowLocalJ)) 
+    {  
+      // Found a valid message
+      if (debug && doDebug) debug->printf("getLocalMessage(): Found valid message with key [%c]\n", item.key);
+      snprintf(localMessage, sizeof(localMessage), "%s", item.content.c_str());
+      foundValidMessage = true;
+      break;
+    } else {
+      if (debug && doDebug) debug->printf("getLocalMessage(): Message with key [%c] not enabled\n", item.key);
+    }
+    
+    // If we've checked all records and looped back to or past our starting point,
+    // or if we've completed a full loop, then break
+    if ((msgNr > startMsgNr && completedFullLoop) || msgNr == startMsgNr) 
+    {
+      if (debug && doDebug) debug->println("getLocalMessage(): Checked all records, no valid message found");
+      break;
+    }
+    
+  } while (!foundValidMessage);
+  
+  // If no valid message was found, set a default message
+  if (!foundValidMessage) 
   {
-    msgNr = 0;
-    snprintf(localMessage, sizeof(localMessage), "%s", localMessages.read(msgNr++).c_str());
-  } 
+    snprintf(localMessage, sizeof(localMessage), "No message found!");
+  }
+  
   if (debug && doDebug) debug->printf("getLocalMessage(): msgNr = [%d] localMessage = [%s]\n", msgNr, localMessage);
   return localMessage;
 
@@ -141,9 +200,8 @@ String getLocalMessage()
 
 std::string nextMessage()
 {
-    std::string newMessage = "-";
     std::string tmpMessage = "";
-    newMessage = getLocalMessage().c_str();
+    std::string newMessage = getLocalMessage().c_str();
     static uint8_t feedNr = 0;
 
     ticker.setColor(255, 255, 255); // white
@@ -229,11 +287,13 @@ std::string nextMessage()
     }
     if (doDebug)
     {
-      if (debug) debug->printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
-      else       Serial.printf("nextMessage(): Sending text: [** %s]\n", newMessage.c_str()); 
+      if (debug) debug->printf("nextMessage(): Sending text: [%s]\n", newMessage.c_str()); 
+      else       Serial.printf("nextMessage(): Sending text: [%s]\n", newMessage.c_str()); 
     }
-    spa.callJsFunction("queueMessageToMonitor", ("* "+newMessage+" *").c_str());
-    ticker.sendNextText(("* "+newMessage+" *").c_str());
+    gMonitorMessage = std::string("* ") + newMessage + std::string(" * ");
+    spa.callJsFunction("queueMessageToMonitor", gMonitorMessage.c_str());
+    gTickerMessage = std::string("* ") + newMessage + std::string(" *");
+    ticker.sendNextText(gTickerMessage.c_str());
 
     return newMessage;
 
@@ -245,19 +305,21 @@ std::string buildLocalMessagesJson()
 {
   uint8_t recNr = 0;
   bool first = true;
-  std::string localMessage = "";
-
   std::string jsonString = "[";
+  
   while (true) {
-    std::string localMessage = localMessages.read(recNr++);
-    if (localMessage.empty()) 
+    // Read the message with the new structure
+    LocalMessagesClass::MessageItem item = localMessages.read(recNr++);
+    
+    // Check if we've reached the end of messages
+    if (item.content.empty()) 
     {
       break;
     }
 
-    //-- Escape quotes inside message
+    // Escape quotes inside message
     std::string escaped;
-    for (char c : localMessage) 
+    for (char c : item.content) 
     {
       if (c == '"') escaped += "\\\"";
       else escaped += c;
@@ -372,7 +434,18 @@ void processLocalMessages(const std::string& jsonString)
       // Use String for Arduino compatibility, which handles empty strings properly
       String value = array[i].as<String>();
       if (debug && doDebug) debug->printf("processLocalMessages(): Input value[%d]: %s\n", i, value.c_str());
-      if (localMessages.write(recNr, value.c_str()))
+      
+      // Create a MessageItem with key based on index (A-J)
+      LocalMessagesClass::MessageItem item;
+      
+      // Assign key based on index (A, B, C, etc.)
+      item.key = 'A' + (i % 10); // Cycle through A-J
+      
+      // Set content
+      item.content = value.c_str();
+      
+      // Write the item
+      if (localMessages.write(recNr, item))
       {
         recNr++;
       }
@@ -381,7 +454,6 @@ void processLocalMessages(const std::string& jsonString)
   
   if (debug && doDebug) debug->printf("processLocalMessages(): [%d] Local Messages written to [%s]\n", recNr, LOCAL_MESSAGES_PATH);
   sendLocalMessagesToClient();
-
 } // processLocalMessages()
 
 
@@ -1643,6 +1715,7 @@ void setup()
       else       Serial.println("espTicker32: setup(): LittleFS Mount Failed");
       return;
     }
+    LittleFS.remove(LOCAL_MESSAGES_PATH);
     //-test- listFiles("/", 0);
     if (debug) debug->println("espTicker32: setup(): readSettingFields(deviceSettings)");
     else Serial.println("espTicker32: setup(): readSettingFields(deviceSettings)");
@@ -1738,7 +1811,9 @@ void setup()
         if (debug) debug->println("espTicker32: setup(): NTP failed to start");
     } 
     
+    settings.devShowLocalA = true;
     localMessages.setDebug(debug);
+    localMessages.begin();
 
     spa.begin("/SYS", debug);
     // Set the local events handler

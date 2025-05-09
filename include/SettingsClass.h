@@ -125,6 +125,16 @@ public:
   std::string devSkipWords;
   int16_t devResetWiFiPin;
   int16_t devTickerSpeed;
+  bool    devShowLocalA;
+  bool    devShowLocalB;
+  bool    devShowLocalC;
+  bool    devShowLocalD;
+  bool    devShowLocalE;
+  bool    devShowLocalF;
+  bool    devShowLocalG;
+  bool    devShowLocalH;
+  bool    devShowLocalI;
+  bool    devShowLocalJ;
   
   // Weerlive settings data
   std::string weerliveAuthToken;

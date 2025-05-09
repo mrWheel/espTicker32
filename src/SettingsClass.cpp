@@ -26,6 +26,16 @@ void SettingsClass::initializeSettingsContainers()
   deviceContainer.addField({"devMaxIntensiteitLeds", "Max. Intensiteit LEDS (%)", "n", 0, 1, 100, 1, &devMaxIntensiteitLeds});
   deviceContainer.addField({"devSkipWords", "Words to skip", "s", 250, 0, 0, 0, &devSkipWords});
   deviceContainer.addField({"devResetWiFiPin", "Reset WiFi GPIO pin", "n", 0, 1, 23, 1, &devResetWiFiPin});
+  deviceContainer.addField({"devShowLocalA", "Show Local Message with key=A", "b", 0, 0, 0, 0, &devShowLocalA});
+  deviceContainer.addField({"devShowLocalB", "Show Local Message with key=B", "b", 0, 0, 0, 0, &devShowLocalB});
+  deviceContainer.addField({"devShowLocalC", "Show Local Message with key=C", "b", 0, 0, 0, 0, &devShowLocalC});
+  deviceContainer.addField({"devShowLocalD", "Show Local Message with key=D", "b", 0, 0, 0, 0, &devShowLocalD});
+  deviceContainer.addField({"devShowLocalE", "Show Local Message with key=E", "b", 0, 0, 0, 0, &devShowLocalE});
+  deviceContainer.addField({"devShowLocalF", "Show Local Message with key=F", "b", 0, 0, 0, 0, &devShowLocalF});
+  deviceContainer.addField({"devShowLocalG", "Show Local Message with key=G", "b", 0, 0, 0, 0, &devShowLocalG});
+  deviceContainer.addField({"devShowLocalH", "Show Local Message with key=H", "b", 0, 0, 0, 0, &devShowLocalH});
+  deviceContainer.addField({"devShowLocalI", "Show Local Message with key=I", "b", 0, 0, 0, 0, &devShowLocalI});
+  deviceContainer.addField({"devShowLocalJ", "Show Local Message with key=J", "b", 0, 0, 0, 0, &devShowLocalJ});
   settingsContainers["deviceSettings"] = deviceContainer;
   
   // Weerlive settings
