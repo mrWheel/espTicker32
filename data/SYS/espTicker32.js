@@ -4,7 +4,6 @@ let isRequestingRssfeedSettings = false;
 let isRequestingParolaSettings = false;
 let isRequestingNeopixelsSettings = false;
 let isRequestingWeerliveSettings = false;
-let isRequestingMediastackSettings = false;
 let isRequestingDeviceSettings = false;
 let renderDebounceTimer = null;
 let lastReceivedData = null;
@@ -322,26 +321,6 @@ function isEspTicker32Loaded()
           initializeWeerliveSettings(lastReceivedData.data);
         }, 100);
       }
-      else if (data.type === 'custom' && data.action === 'mediastackSettingsData') 
-      {
-        console.log('Received mediastack settings data');
-        
-        // Reset the request flag
-        isRequestingMediastackSettings = false;
-        
-        // Store the data and debounce the rendering
-        lastReceivedData = {
-          type: 'mediastackSettings',
-          data: data.data
-        };
-        
-        // Debounce the rendering
-        clearTimeout(renderDebounceTimer);
-        renderDebounceTimer = setTimeout(() => {
-          // Initialize with the data
-          initializeMediastackSettings(lastReceivedData.data);
-        }, 100);
-      }
       else if (data.type === 'custom' && data.action === 'rssfeedSettingsData') 
       {
           console.log('Received rssfeed settings data');
@@ -433,13 +412,6 @@ function isEspTicker32Loaded()
     isRequestingWeerliveSettings = true;
     requestWeerliveSettings();
   }
-  // Check if the page is ready for mediastack settings (only for Mediastack Settings page)
-  if (pageTitle.includes("Mediastack Settings") && isPageReadyForMediastackSettings() && !isRequestingMediastackSettings) 
-  {
-    console.log("Page is ready for mediastack settings, requesting data from server");
-    isRequestingMediastackSettings = true;
-    requestMediastackSettings();
-  }  
   // Check if the page is ready for rssfeed settings (only for RSSfeed Settings page)
   if (pageTitle.includes("RSSfeed Settings") && isPageReadyForRssfeedSettings() && !isRequestingRssfeedSettings) 
     {
@@ -609,147 +581,6 @@ function requestWeerliveSettings()
 
 } // requestWeerliveSettings()
 
-//===========[Mediastack]==================================================================
-
-// Function to check if the page is ready for mediastack settings
-function isPageReadyForMediastackSettings() 
-{
-  // Check if the settingsTableBody element exists
-  const tableBody = document.getElementById('settingsTableBody');
-  return !!tableBody;
-}
-
-// Function to initialize the mediastack settings from JSON
-function initializeMediastackSettings(jsonString) 
-{
-  console.log('initializeMediastackSettings called with:', jsonString);
-  try {
-    mediastackSettings = JSON.parse(jsonString) || { fields: [] };
-    renderMediastackSettings();
-  } catch (e) {
-    console.error('Error parsing JSON:', e);
-    mediastackSettings = { fields: [] };
-  }
-}
-
-// Function to render the mediastack settings in the table
-function renderMediastackSettings() 
-{
-  console.log('renderMediastackSettings called');
-  
-  // Check if the page is ready
-  if (!isPageReadyForMediastackSettings()) {
-    console.error('Mediastack settings table body not found in DOM, page not ready yet');
-    return;
-  }
-  
-  const tableBody = document.getElementById('settingsTableBody');
-  tableBody.innerHTML = '';
-  
-  if (mediastackSettings && mediastackSettings.fields) {
-    mediastackSettings.fields.forEach((field) => {
-      const row = document.createElement('tr');
-      
-      // Field prompt cell
-      const promptCell = document.createElement('td');
-      promptCell.style.padding = '8px';
-      promptCell.style.textAlign = 'right'; 
-      promptCell.textContent = field.fieldPrompt;
-      
-      // Field value cell
-      const valueCell = document.createElement('td');
-      valueCell.style.padding = '8px';
-      
-      // Create input element based on field type
-      const input = document.createElement('input');
-      if (field.fieldType === 's') {
-        // String input
-        input.type = 'text';
-        input.value = field.fieldValue;
-        input.maxLength = field.fieldLen;
-      } else if (field.fieldType === 'n') {
-        // Numeric input
-        input.type = 'number';
-        input.value = field.fieldValue;
-        input.min = field.fieldMin;
-        input.max = field.fieldMax;
-        input.step = field.fieldStep;
-        input.dataset.fieldName = field.fieldName;
-        input.dataset.fieldType = field.fieldType;
-        input.addEventListener('input', updateMediastackSettings);
-
-        // Create a container for the input and range text
-        const container = document.createElement('div');
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        
-        // Add the input to the container
-        container.appendChild(input);
-        
-        // Add the range text
-        const rangeText = document.createElement('span');
-        rangeText.textContent = ` (${field.fieldMin} .. ${field.fieldMax})`;
-        rangeText.style.marginLeft = '8px';
-        rangeText.style.fontSize = '0.9em';
-        rangeText.style.color = '#666';
-        container.appendChild(rangeText);
-        
-        // Add the container to the cell instead of just the input
-        valueCell.appendChild(container);
-        row.appendChild(promptCell);
-        row.appendChild(valueCell);
-        tableBody.appendChild(row);
-        
-        // Skip the rest of this iteration since we've already added everything
-        return;
-      }
-      
-      input.style.width = '100%';
-      input.dataset.fieldName = field.fieldName;
-      input.dataset.fieldType = field.fieldType;
-      input.addEventListener('input', updateMediastackSettings);
-      
-      valueCell.appendChild(input);
-      row.appendChild(promptCell);
-      row.appendChild(valueCell);
-      tableBody.appendChild(row);
-    });
-  }
-  
-  // Update the settings name
-  const settingsNameElement = document.getElementById('settingsName');
-  if (settingsNameElement) {
-    settingsNameElement.textContent = 'Mediastack Settings';
-  }
-}
-
-// Function to update a mediastack setting
-function updateMediastackSettings(event) 
-{
-  const input = event.target || this;
-  const fieldName = input.dataset.fieldName;
-  const fieldType = input.dataset.fieldType;
-  const value = fieldType === 'n' ? parseFloat(input.value) : input.value;
-  
-  console.log(`Updating mediastack setting: ${fieldName} = ${value}`);
-  
-  // Find and update the field in the mediastackSettings object
-  if (mediastackSettings && mediastackSettings.fields) {
-    const field = mediastackSettings.fields.find(f => f.fieldName === fieldName);
-    if (field) {
-      field.fieldValue = value;
-    }
-  }
-}
-
-// Function to request mediastack settings data from the server
-function requestMediastackSettings() 
-{
-  console.log("Requesting mediastack settings data from server");
-  window.ws.send(JSON.stringify({
-    type: 'requestMediastackSettings'
-  }));
-}
 
 //===========[Rssfeed]==================================================================
 
@@ -1405,10 +1236,6 @@ function saveSettings()
     settingsObj = weerliveSettings;
     processType = 'saveWeerliveSettings';
     dataKey = 'weerliveSettingsData';
-  } else if (settingsName === 'Mediastack Settings') {
-    settingsObj = mediastackSettings;
-    processType = 'saveMediastackSettings';
-    dataKey = 'mediastackSettingsData';
   } else if (settingsName === 'RSSfeed Settings') {
     settingsObj = rssfeedSettings;
     processType = 'saveRssfeedSettings';
@@ -1707,11 +1534,6 @@ function isEspTicker32Loaded()
         // Initialize with the data
         initializeWeerliveSettings(data.data);
       }
-      else if (data.type === 'custom' && data.action === 'mediastackSettingsData') {
-        console.log('Received mediastack settings data');
-        // Initialize with the data
-        initializeMediastackSettings(data.data);
-      }
       else if (data.type === 'custom' && data.action === 'rssfeedSettingsData') {
         console.log('Received rssfeed settings data');
         // Initialize with the data
@@ -1784,12 +1606,6 @@ function isEspTicker32Loaded()
     console.log("Page is ready for weerlive settings, requesting data from server");
     requestWeerliveSettings();
   }
-  // Check if the page is ready for mediastack settings (only for Mediastack Settings page)
-  if (pageTitle.includes("Mediastack Settings") && isPageReadyForMediastackSettings()) 
-  {
-    console.log("Page is ready for mediastack settings, requesting data from server");
-    requestMediastackSettings();
-  }  
   // Check if the page is ready for rssfeed settings (only for RSSfeed Settings page)
   if (pageTitle.includes("RSSfeed Settings") && isPageReadyForRssfeedSettings()) 
     {

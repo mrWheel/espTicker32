@@ -131,12 +131,6 @@ public:
   std::string weerlivePlaats;
   int16_t weerliveRequestInterval;
   
-  // Mediastack settings data
-  std::string mediastackAuthToken;
-  int16_t mediastackMaxMessages;
-  int16_t mediastackRequestInterval;
-  int16_t mediastackOnlyDuringDay;
-  
 #ifdef USE_PAROLA
   // Parola settings data
   int16_t parolaHardwareType;
