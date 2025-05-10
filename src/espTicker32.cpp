@@ -1260,24 +1260,41 @@ void setupMainPage()
 void setupLocalMessagesPage()
 {
     const char *localMessagesPage = R"HTML(
-    <div style="font-size: 48px; text-align: center; font-weight: bold;">Messages</div>
-    <div id="dynamicInputContainer">
-      <table id="inputTable" style="width: 100%; border-collapse: collapse;">
+    <div style="height: 80px; font-size: 48px; text-align: center; font-weight: bold;">
+      Messages
+    </div>
+
+    <div id="dynamicInputContainer" style="
+      max-height: calc(100vh - 110px - 100px); 
+      border: 1px solid #ccc; 
+      display: flex;
+      flex-direction: column;
+    ">
+
+      <!-- Table Header (static) -->
+      <table style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr>
             <th style="text-align: left; padding: 8px;">(Local) Messages</th>
           </tr>
         </thead>
-        <tbody id="inputTableBody">
-          <!-- Input fields will be dynamically added here -->
-        </tbody>
       </table>
-      <div style="margin-top: 20px;">
+
+      <!-- Scrollable Table Body with persistent scrollbar -->
+      <div style="flex: 1; overflow-y: scroll;">
+        <table id="inputTable" style="width: 100%; border-collapse: collapse;">
+          <tbody id="inputTableBody">
+            <!-- Rows dynamically added here -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Buttons / controls -->
+      <div style="margin-top: 20px; padding: 8px;">
         <button id="saveButton" onclick="saveLocalMessages()">Save</button>
-        <!--<button id="addButton" onclick="addInputField()">Add</button>-->
       </div>
     </div>
-    )HTML";
+  )HTML";
 
 const char *popupHelpLocalMessages = R"HTML(
   <style>
