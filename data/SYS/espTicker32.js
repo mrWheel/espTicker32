@@ -996,6 +996,7 @@ function renderNeopixelsSettings()
         input.addEventListener('input', updateNeopixelsSettings);
         
         valueCell.appendChild(input);
+
       } else if (field.fieldType === 'n') {
         // Numeric input
         const input = document.createElement('input');
@@ -1027,6 +1028,7 @@ function renderNeopixelsSettings()
         
         // Add the container to the cell
         valueCell.appendChild(container);
+
       } else if (field.fieldType === 'b') {
         // Boolean input (checkbox)
         const container = document.createElement('div');
@@ -1168,23 +1170,31 @@ function renderDeviceSettings()
       valueCell.style.padding = '8px';
       
       // Create input element based on field type
-      const input = document.createElement('input');
       if (field.fieldType === 's') {
         // String input
+        const input = document.createElement('input');
         input.type = 'text';
         input.value = field.fieldValue;
         input.maxLength = field.fieldLen;
+        input.style.width = '100%';
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('input', updateDeviceSetting);
+        
+        valueCell.appendChild(input);
+
       } else if (field.fieldType === 'n') {
         // Numeric input
+        const input = document.createElement('input');
         input.type = 'number';
         input.value = field.fieldValue;
         input.min = field.fieldMin;
         input.max = field.fieldMax;
         input.step = field.fieldStep;
-
-        input.dataset.fieldName = field.fieldName;  // ADD THIS LINE
-        input.dataset.fieldType = field.fieldType;  // ADD THIS LINE
-        input.addEventListener('input', updateDeviceSetting);  // ADD THIS LINE
+        
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('input', updateDeviceSetting);
 
         // Create a container for the input and range text
         const container = document.createElement('div');
@@ -1202,22 +1212,42 @@ function renderDeviceSettings()
         rangeText.style.color = '#666';
         container.appendChild(rangeText);
         
-        // Add the container to the cell instead of just the input
+        // Add the container to the cell
         valueCell.appendChild(container);
-        row.appendChild(promptCell);
-        row.appendChild(valueCell);
-        tableBody.appendChild(row);
+
+      } else if (field.fieldType === 'b') {
+        // Boolean input (checkbox)
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
         
-        // Skip the rest of this iteration since we've already added everything
-        return;
+        // Create checkbox input
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = field.fieldValue;
+        console.log("Checkbox value:", field.fieldValue);
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('change', updateDeviceSetting);
+        
+        // Add the checkbox to the container
+        container.appendChild(input);
+        
+        // Add a label to explain the boolean values
+        const label = document.createElement('span');
+        label.textContent = field.fieldValue ? ' true' : ' false';
+        label.style.marginLeft = '8px';
+        container.appendChild(label);
+        
+        // Update the label when the checkbox changes
+        input.addEventListener('change', function() {
+          label.textContent = this.checked ? ' true' : ' false';
+        });
+        
+        // Add the container to the cell
+        valueCell.appendChild(container);
       }
       
-      input.style.width = '100%';
-      input.dataset.fieldName = field.fieldName;
-      input.dataset.fieldType = field.fieldType;
-      input.addEventListener('input', updateDeviceSetting);
-      
-      valueCell.appendChild(input);
       row.appendChild(promptCell);
       row.appendChild(valueCell);
       tableBody.appendChild(row);
@@ -1228,7 +1258,6 @@ function renderDeviceSettings()
   if (settingsNameElement) {
     settingsNameElement.textContent = 'Device Settings';
   }
-
 } // renderDeviceSettings()
 
 // Function to update a device setting
@@ -1237,7 +1266,17 @@ function updateDeviceSetting(event)
   const input = event.target || this;
   const fieldName = input.dataset.fieldName;
   const fieldType = input.dataset.fieldType;
-  const value = fieldType === 'n' ? parseFloat(input.value) : input.value;
+  
+  // Use different properties based on field type
+  let value;
+  if (fieldType === 'n') {
+    value = parseFloat(input.value);
+  } else if (fieldType === 'b') {
+    value = input.checked; // Use checked property for boolean fields
+    console.log("Checkbox value:", value);
+  } else {
+    value = input.value;
+  }
   
   console.log(`Updating device setting: ${fieldName} = ${value}`);
   
@@ -1248,7 +1287,6 @@ function updateDeviceSetting(event)
       field.fieldValue = value;
     }
   }
-
 } //  updateDeviceSetting()
 
 // Function to request device settings data from the server

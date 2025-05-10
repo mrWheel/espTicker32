@@ -144,8 +144,21 @@ String getLocalMessage()
                        settings.devShowLocalI || 
                        settings.devShowLocalJ;
   
-  if (debug && doDebug) debug->printf("getLocalMessage(): anyKeyEnabled = [%s]\n", anyKeyEnabled ? "true" : "false");
-
+  if (debug) 
+  {
+    debug->printf("A=%d B=%d C=%d D=%d E=%d F=%d G=%d H=%d I=%d J=%d\n",
+                                  settings.devShowLocalA,
+                                    settings.devShowLocalB,
+                                      settings.devShowLocalC,
+                                        settings.devShowLocalD,
+                                          settings.devShowLocalE,
+                                            settings.devShowLocalF,
+                                              settings.devShowLocalG,
+                                                settings.devShowLocalH,
+                                                  settings.devShowLocalI,
+                                                    settings.devShowLocalJ);
+    debug->printf("anyKeyEnabled = [%s]\n", anyKeyEnabled ? "true" : "false");
+  }
   //-- Loop until we find a valid message or have checked all messages
   do {
     //-- Read the message with the new structure
@@ -169,26 +182,82 @@ String getLocalMessage()
       continue;
     }
     
-    if ((item.key == 'A' && settings.devShowLocalA) ||
-        (item.key == 'B' && settings.devShowLocalB) ||
-        (item.key == 'C' && settings.devShowLocalC) ||
-        (item.key == 'D' && settings.devShowLocalD) ||
-        (item.key == 'E' && settings.devShowLocalE) ||
-        (item.key == 'F' && settings.devShowLocalF) ||
-        (item.key == 'G' && settings.devShowLocalG) ||
-        (item.key == 'H' && settings.devShowLocalH) ||
-        (item.key == 'I' && settings.devShowLocalI) ||
-        (item.key == 'J' && settings.devShowLocalJ) ||
-        (anyKeyEnabled)
-      ) 
-    {  
-      //-- Found a valid message with an enabled key
+    if (item.key == 'A' && settings.devShowLocalA)
+    {
       if (debug && doDebug) debug->printf("getLocalMessage(): Found valid message with enabled key [%c]\n", item.key);
       snprintf(localMessage, sizeof(localMessage), "%s", item.content.c_str());
       foundValidMessage = true;
       break;
-    } else {
-      if (debug && doDebug) debug->printf("getLocalMessage(): Message with key [%c] not enabled\n", item.key);
+    }
+    if (item.key == 'B' && settings.devShowLocalB)
+    {
+      if (debug && doDebug) debug->printf("getLocalMessage(): Found valid message with enabled key [%c]\n", item.key);
+      snprintf(localMessage, sizeof(localMessage), "%s", item.content.c_str());
+      foundValidMessage = true;
+      break;
+    }
+    if (item.key == 'C' && settings.devShowLocalC)
+    {
+      if (debug && doDebug) debug->printf("getLocalMessage(): Found valid message with enabled key [%c]\n", item.key);
+      snprintf(localMessage, sizeof(localMessage), "%s", item.content.c_str());
+      foundValidMessage = true;
+      break;
+    }
+    if (item.key == 'D' && settings.devShowLocalD)
+    {
+      if (debug && doDebug) debug->printf("getLocalMessage(): Found valid message with enabled key [%c]\n", item.key);
+      snprintf(localMessage, sizeof(localMessage), "%s", item.content.c_str());
+      foundValidMessage = true;
+      break;
+    }
+    if (item.key == 'E' && settings.devShowLocalE)
+    {
+      if (debug && doDebug) debug->printf("getLocalMessage(): Found valid message with enabled key [%c]\n", item.key);
+      snprintf(localMessage, sizeof(localMessage), "%s", item.content.c_str());
+      foundValidMessage = true;
+      break;
+    }
+    if (item.key == 'F' && settings.devShowLocalF)
+    {
+      if (debug && doDebug) debug->printf("getLocalMessage(): Found valid message with enabled key [%c]\n", item.key);
+      snprintf(localMessage, sizeof(localMessage), "%s", item.content.c_str());
+      foundValidMessage = true;
+      break;
+    }
+    if (item.key == 'G' && settings.devShowLocalG)
+    {
+      if (debug && doDebug) debug->printf("getLocalMessage(): Found valid message with enabled key [%c]\n", item.key);
+      snprintf(localMessage, sizeof(localMessage), "%s", item.content.c_str());
+      foundValidMessage = true;
+      break;
+    }
+    if (item.key == 'H' && settings.devShowLocalH)
+    {
+      if (debug && doDebug) debug->printf("getLocalMessage(): Found valid message with enabled key [%c]\n", item.key);
+      snprintf(localMessage, sizeof(localMessage), "%s", item.content.c_str());
+      foundValidMessage = true;
+      break;
+    }
+    if (item.key == 'I' && settings.devShowLocalI)
+    {
+      if (debug && doDebug) debug->printf("getLocalMessage(): Found valid message with enabled key [%c]\n", item.key);
+      snprintf(localMessage, sizeof(localMessage), "%s", item.content.c_str());
+      foundValidMessage = true;
+      break;
+    }
+    if (item.key == 'J' && settings.devShowLocalJ)
+    {
+      if (debug && doDebug) debug->printf("getLocalMessage(): Found valid message with enabled key [%c]\n", item.key);
+      snprintf(localMessage, sizeof(localMessage), "%s", item.content.c_str());
+      foundValidMessage = true;
+      break;
+    }
+    if (!anyKeyEnabled)
+    {
+      if (debug && doDebug) debug->printf("getLocalMessage(): anyKeyEnabled message key [%c]\n", item.key);
+      snprintf(localMessage, sizeof(localMessage), "%s", item.content.c_str());
+      foundValidMessage = true;
+      break;
     }
     
     //-- If we've checked all records and looped back to or past our starting point,
@@ -270,7 +339,7 @@ std::string nextMessage()
     else if (strcasecmp(newMessage.c_str(), "<feedInfoReset>") == 0) 
     {
         if (debug && doDebug) debug->println("nextMessage(): feedInfoReset");
-        newMessage = "reset feedInfo";
+        newMessage = "feedInfo reset";
         ticker.setColor(255, 255 , 0); // Yellow
         feedNr = 0;
     }
@@ -1318,6 +1387,8 @@ const char *popupHelpLocalMessages = R"HTML(
         <li><b>&lt;space&gt;</b> - Maakt de Ticker leeg</li>
         <li><b>&lt;weerlive&gt;</b> - Laat de weergegevens van weerlive zien</li>
         <li><b>&lt;rssfeed&gt;</b> - Laat het volgende item van een rssfeed zien</li>
+        <li><b>&lt;feedinfo&gt;</b> - Laat gegevens over een feed zien (één voor één)</li>
+        <li><b>&lt;feedinforeset&gt;</b> - Reset feedinfo naar feed 0</li>
       </ul>
     </div>
     Let op! Deze sleutelwoorden moeten als enige in een regel staan!
