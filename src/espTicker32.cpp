@@ -132,30 +132,43 @@ String getLocalMessage()
   uint8_t startMsgNr = msgNr; // Remember where we started
   bool completedFullLoop = false;
   
-  // Loop until we find a valid message or have checked all messages
+  //-- Check if ANY of the devShowLocalX settings are enabled
+  bool anyKeyEnabled = settings.devShowLocalA || 
+                       settings.devShowLocalB || 
+                       settings.devShowLocalC || 
+                       settings.devShowLocalD || 
+                       settings.devShowLocalE || 
+                       settings.devShowLocalF || 
+                       settings.devShowLocalG || 
+                       settings.devShowLocalH || 
+                       settings.devShowLocalI || 
+                       settings.devShowLocalJ;
+  
+  if (debug && doDebug) debug->printf("getLocalMessage(): anyKeyEnabled = [%s]\n", anyKeyEnabled ? "true" : "false");
+
+  //-- Loop until we find a valid message or have checked all messages
   do {
-    // Read the message with the new structure
+    //-- Read the message with the new structure
     LocalMessagesClass::MessageItem item = localMessages.read(msgNr++);
     
     if (debug && doDebug) debug->printf("getLocalMessage(): Read record [%d], key=[%c], [%s]\n", 
                                       msgNr-1, item.key, item.content.c_str());
     
-    // If content is empty, we've reached the end of messages
+    //-- If content is empty, we've reached the end of messages
     if (item.content.empty()) {
       if (debug && doDebug) debug->printf("getLocalMessage(): End of messages at record [%d]\n", msgNr-1);
       msgNr = 0; // Start over from 0
       
-      // Mark that we've completed a full loop through all records
+      //-- Mark that we've completed a full loop through all records
       if (startMsgNr == 0) {
         completedFullLoop = true;
       }
       
-      // If we started in the middle and have now wrapped around to the beginning,
-      // we need to continue checking from 0 up to our starting point
+      //-- If we started in the middle and have now wrapped around to the beginning,
+      //-- we need to continue checking from 0 up to our starting point
       continue;
     }
     
-    // Check if the message's key matches an enabled flag
     if ((item.key == 'A' && settings.devShowLocalA) ||
         (item.key == 'B' && settings.devShowLocalB) ||
         (item.key == 'C' && settings.devShowLocalC) ||
@@ -165,10 +178,12 @@ String getLocalMessage()
         (item.key == 'G' && settings.devShowLocalG) ||
         (item.key == 'H' && settings.devShowLocalH) ||
         (item.key == 'I' && settings.devShowLocalI) ||
-        (item.key == 'J' && settings.devShowLocalJ)) 
+        (item.key == 'J' && settings.devShowLocalJ) ||
+        (anyKeyEnabled)
+      ) 
     {  
-      // Found a valid message
-      if (debug && doDebug) debug->printf("getLocalMessage(): Found valid message with key [%c]\n", item.key);
+      //-- Found a valid message with an enabled key
+      if (debug && doDebug) debug->printf("getLocalMessage(): Found valid message with enabled key [%c]\n", item.key);
       snprintf(localMessage, sizeof(localMessage), "%s", item.content.c_str());
       foundValidMessage = true;
       break;
@@ -176,8 +191,8 @@ String getLocalMessage()
       if (debug && doDebug) debug->printf("getLocalMessage(): Message with key [%c] not enabled\n", item.key);
     }
     
-    // If we've checked all records and looped back to or past our starting point,
-    // or if we've completed a full loop, then break
+    //-- If we've checked all records and looped back to or past our starting point,
+    //-- or if we've completed a full loop, then break
     if ((msgNr > startMsgNr && completedFullLoop) || msgNr == startMsgNr) 
     {
       if (debug && doDebug) debug->println("getLocalMessage(): Checked all records, no valid message found");
@@ -186,7 +201,7 @@ String getLocalMessage()
     
   } while (!foundValidMessage);
   
-  // If no valid message was found, set a default message
+  //-- If no valid message was found, set a default message
   if (!foundValidMessage) 
   {
     snprintf(localMessage, sizeof(localMessage), "No message found!");
@@ -194,7 +209,6 @@ String getLocalMessage()
   
   if (debug && doDebug) debug->printf("getLocalMessage(): msgNr = [%d] localMessage = [%s]\n", msgNr, localMessage);
   return localMessage;
-
 } // getLocalMessage()
 
 
@@ -458,7 +472,7 @@ void processLocalMessages(const std::string& jsonString)
   
   if (debug && doDebug) debug->printf("processLocalMessages(): [%d] Local Messages written to [%s]\n", recNr, LOCAL_MESSAGES_PATH);
   sendLocalMessagesToClient();
-  
+
 } // processLocalMessages()
 
 
@@ -1720,7 +1734,7 @@ void setup()
       else       Serial.println("espTicker32: setup(): LittleFS Mount Failed");
       return;
     }
-    LittleFS.remove(LOCAL_MESSAGES_PATH);
+    //-test- LittleFS.remove(LOCAL_MESSAGES_PATH);
     //-test- listFiles("/", 0);
     if (debug) debug->println("espTicker32: setup(): readSettingFields(deviceSettings)");
     else Serial.println("espTicker32: setup(): readSettingFields(deviceSettings)");
@@ -1816,7 +1830,7 @@ void setup()
         if (debug) debug->println("espTicker32: setup(): NTP failed to start");
     } 
     
-    settings.devShowLocalA = true;
+    //settings.devShowLocalA = true;
     localMessages.setDebug(debug);
     localMessages.begin();
 
