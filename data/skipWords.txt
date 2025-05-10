@@ -1,14 +1,8 @@
-ADO, AFC, Almere City, AZ, De Graafschap, De Treffers, Excelsior,
-Excelsior, FC Den Bosch, FC Dordrecht, FC Eindhoven, FC Emmen, FC Groningen,
-FC Twente, FC Utrecht, FC Volendam, Feyenoord, Fortuna Sittard, Go Ahead, Eagles,
-GVVV, HHC Hardenberg, Helmond Sport, Heracles, IJsselmeervogels, Katwijk,
-Koninklijke HFC, HFC, Lisse, MVV, NAC, NEC, Noordwijk, PEC Zwolle, PSV,
-Quick Boys, RKC Waalwijk, RKC, Rijnsburgse Boys, Roda JC, SC Heerenveen, Spakenburg,
-Sparta, Telstar, TEC, TOP Oss, FC Utrecht, VVSB, VVV-Venlo,
-Vitesse, Willem II
+Ajax,PSV,Feyenoord,AZ,FC Twente,FC Utrecht,Ahead Eagles, Go Ahead
 Manchester City,Manchester United,Liverpool,Arsenal,
 Chelsea,Tottenham Hotspur,Newcastle United,
 Borussia Dortmund,RB Leipzig,Bayer Leverkusen,
+Real Madrid,
 Eintracht Frankfurt,VfL Wolfsburg,Inter,AC Milan,
 Juventus,Napoli,AS Roma,Lazio,Atalanta,
 Paris Saint-Germain,PSG,Olympique Marseille,

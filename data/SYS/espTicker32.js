@@ -57,23 +57,59 @@ function renderLocalMessages()
     const cell = document.createElement('td');
     cell.style.padding = '8px';
     
-    // Create a container for the input and buttons
+    // Create a container for the dropdown, input and buttons
     const container = document.createElement('div');
     container.style.display = 'flex';
     container.style.alignItems = 'center';
     container.style.width = '100%';
     
-    // Create the input field
+    // Create the key dropdown selector
+    const keySelector = document.createElement('select');
+    keySelector.style.marginRight = '8px';
+    keySelector.dataset.index = index;
+    
+    // Add options A through J
+    for (let charCode = 65; charCode <= 74; charCode++) {
+      const option = document.createElement('option');
+      const keyChar = String.fromCharCode(charCode);
+      option.value = keyChar;
+      option.textContent = keyChar;
+      keySelector.appendChild(option);
+    }
+    
+    // Set the current value or default to 'A'
+    const messageObj = typeof value === 'object' ? value : { key: 'A', content: value };
+    keySelector.value = messageObj.key || 'A';
+    
+    // Add event listener for key changes
+    keySelector.addEventListener('change', (e) => {
+      const index = e.target.dataset.index;
+      // Ensure LocalMessages[index] is an object
+      if (typeof LocalMessages[index] !== 'object') {
+        LocalMessages[index] = { key: 'A', content: LocalMessages[index] || '' };
+      }
+      LocalMessages[index].key = e.target.value;
+    });
+    
+    // Add the key selector to the container
+    container.appendChild(keySelector);
+    
+    // Create the input field for content
     const input = document.createElement('input');
     input.type = 'text';
-    input.value = value;
+    input.value = messageObj.content || messageObj;
     input.style.width = '100ch'; // Set to exactly 100ch wide
     input.style.maxWidth = '100ch';
     input.style.fontFamily = "'Courier New', Courier, monospace"; // Set monospace font
     input.maxLength = 150;
     input.dataset.index = index;
     input.addEventListener('input', (e) => {
-      LocalMessages[e.target.dataset.index] = e.target.value;
+      const index = e.target.dataset.index;
+      // Ensure LocalMessages[index] is an object
+      if (typeof LocalMessages[index] !== 'object') {
+        LocalMessages[index] = { key: 'A', content: '' };
+      }
+      LocalMessages[index].content = e.target.value;
     });
     
     // Add the input to the container
@@ -138,13 +174,29 @@ function renderLocalMessages()
 
 } // renderLocalMessages()
 
+
 // Function to add an empty message below the specified index
 function addMessageBelow(index) 
 {
   console.log(`Adding empty message below index ${index}`);
-  LocalMessages.splice(index + 1, 0, '');
+  
+  // Get the key from the message above
+  let keyToUse = 'A'; // Default to 'A' if we can't determine the key
+  
+  if (index >= 0 && index < LocalMessages.length) {
+    const message = LocalMessages[index];
+    if (typeof message === 'object' && message !== null && message.key) {
+      keyToUse = message.key;
+    }
+  }
+  
+  // Add a new message with the same key and "<empty>" content
+  LocalMessages.splice(index + 1, 0, { key: keyToUse, content: "<empty>" });
   renderLocalMessages();
 }
+
+
+
 
 // Function to move a message up one position
 function moveMessageUp(index) 
@@ -944,6 +996,7 @@ function renderNeopixelsSettings()
         input.addEventListener('input', updateNeopixelsSettings);
         
         valueCell.appendChild(input);
+
       } else if (field.fieldType === 'n') {
         // Numeric input
         const input = document.createElement('input');
@@ -975,6 +1028,7 @@ function renderNeopixelsSettings()
         
         // Add the container to the cell
         valueCell.appendChild(container);
+
       } else if (field.fieldType === 'b') {
         // Boolean input (checkbox)
         const container = document.createElement('div');
@@ -1116,23 +1170,31 @@ function renderDeviceSettings()
       valueCell.style.padding = '8px';
       
       // Create input element based on field type
-      const input = document.createElement('input');
       if (field.fieldType === 's') {
         // String input
+        const input = document.createElement('input');
         input.type = 'text';
         input.value = field.fieldValue;
         input.maxLength = field.fieldLen;
+        input.style.width = '100%';
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('input', updateDeviceSetting);
+        
+        valueCell.appendChild(input);
+
       } else if (field.fieldType === 'n') {
         // Numeric input
+        const input = document.createElement('input');
         input.type = 'number';
         input.value = field.fieldValue;
         input.min = field.fieldMin;
         input.max = field.fieldMax;
         input.step = field.fieldStep;
-
-        input.dataset.fieldName = field.fieldName;  // ADD THIS LINE
-        input.dataset.fieldType = field.fieldType;  // ADD THIS LINE
-        input.addEventListener('input', updateDeviceSetting);  // ADD THIS LINE
+        
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('input', updateDeviceSetting);
 
         // Create a container for the input and range text
         const container = document.createElement('div');
@@ -1150,22 +1212,42 @@ function renderDeviceSettings()
         rangeText.style.color = '#666';
         container.appendChild(rangeText);
         
-        // Add the container to the cell instead of just the input
+        // Add the container to the cell
         valueCell.appendChild(container);
-        row.appendChild(promptCell);
-        row.appendChild(valueCell);
-        tableBody.appendChild(row);
+
+      } else if (field.fieldType === 'b') {
+        // Boolean input (checkbox)
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
         
-        // Skip the rest of this iteration since we've already added everything
-        return;
+        // Create checkbox input
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = field.fieldValue;
+        console.log("Checkbox value:", field.fieldValue);
+        input.dataset.fieldName = field.fieldName;
+        input.dataset.fieldType = field.fieldType;
+        input.addEventListener('change', updateDeviceSetting);
+        
+        // Add the checkbox to the container
+        container.appendChild(input);
+        
+        // Add a label to explain the boolean values
+        const label = document.createElement('span');
+        label.textContent = field.fieldValue ? ' true' : ' false';
+        label.style.marginLeft = '8px';
+        container.appendChild(label);
+        
+        // Update the label when the checkbox changes
+        input.addEventListener('change', function() {
+          label.textContent = this.checked ? ' true' : ' false';
+        });
+        
+        // Add the container to the cell
+        valueCell.appendChild(container);
       }
       
-      input.style.width = '100%';
-      input.dataset.fieldName = field.fieldName;
-      input.dataset.fieldType = field.fieldType;
-      input.addEventListener('input', updateDeviceSetting);
-      
-      valueCell.appendChild(input);
       row.appendChild(promptCell);
       row.appendChild(valueCell);
       tableBody.appendChild(row);
@@ -1176,7 +1258,6 @@ function renderDeviceSettings()
   if (settingsNameElement) {
     settingsNameElement.textContent = 'Device Settings';
   }
-
 } // renderDeviceSettings()
 
 // Function to update a device setting
@@ -1185,7 +1266,17 @@ function updateDeviceSetting(event)
   const input = event.target || this;
   const fieldName = input.dataset.fieldName;
   const fieldType = input.dataset.fieldType;
-  const value = fieldType === 'n' ? parseFloat(input.value) : input.value;
+  
+  // Use different properties based on field type
+  let value;
+  if (fieldType === 'n') {
+    value = parseFloat(input.value);
+  } else if (fieldType === 'b') {
+    value = input.checked; // Use checked property for boolean fields
+    console.log("Checkbox value:", value);
+  } else {
+    value = input.value;
+  }
   
   console.log(`Updating device setting: ${fieldName} = ${value}`);
   
@@ -1196,7 +1287,6 @@ function updateDeviceSetting(event)
       field.fieldValue = value;
     }
   }
-
 } //  updateDeviceSetting()
 
 // Function to request device settings data from the server

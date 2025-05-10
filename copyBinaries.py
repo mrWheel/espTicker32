@@ -59,6 +59,30 @@ def write_log(message):
         message = " ".join(parts)
 
     timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+    
+    # Check if this is a "Copied" message, which contains a destination filename
+    if "Copied" in message:
+        # Extract the destination filename
+        parts = message.split()
+        if len(parts) >= 4 and parts[1] == "firmware.bin" and parts[2] == "to":
+            dest_filename = parts[3]
+            
+            # Read existing log file if it exists
+            existing_lines = []
+            if os.path.exists(log_file):
+                with open(log_file, "r") as f:
+                    existing_lines = f.readlines()
+            
+            # Filter out lines containing the same destination filename
+            filtered_lines = [line for line in existing_lines if dest_filename not in line]
+            
+            # Write filtered lines plus new entry
+            with open(log_file, "w") as f:
+                f.writelines(filtered_lines)
+                f.write(f"{timestamp} {message}\n")
+            return
+        
+    # For all other messages, just append to the log file
     with open(log_file, "a") as f:
         f.write(f"{timestamp} {message}\n")
 
@@ -177,10 +201,10 @@ def manage_binaries(source_file, program_name, version_str, postfix):
                 existing_rel_path = existing_file_same_version[len(project_dir):].lstrip(os.path.sep)
             
             print(f"DEBUG: Deleted existing file with same version: {existing_rel_path}")
-            write_log(f"Deleted existing file: {existing_rel_path}")
+            ##write_log(f"Deleted existing file: {existing_rel_path}")
         except Exception as e:
             print(f"ERROR deleting existing file: {e}")
-            write_log(f"ERROR deleting file: {existing_rel_path} - {e}")
+            ##write_log(f"ERROR deleting file: {existing_rel_path} - {e}")
 
     # Refresh file list after delete
     files_with_versions = get_all_existing_versions(binaries_dir, program_name, postfix)
@@ -239,10 +263,10 @@ def manage_binaries(source_file, program_name, version_str, postfix):
                 old_rel_path = old_file[len(project_dir):].lstrip(os.path.sep)
             
             print(f"DEBUG: Deleted old file: {old_rel_path}")
-            write_log(f"Deleted old file: {old_rel_path}")
+            ##write_log(f"Deleted old file: {old_rel_path}")
         except Exception as e:
             print(f"ERROR deleting old file: {e}")
-            write_log(f"ERROR deleting file: {old_rel_path} - {e}")
+            ##write_log(f"ERROR deleting file: {old_rel_path} - {e}")
 
 def handle_filesystem(source, target, env):
     """Handles filesystem binary operations after build."""
