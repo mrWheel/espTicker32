@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v1.2.0";
+const char* PROG_VERSION = "v1.2.1";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -431,7 +431,7 @@ void sendLocalMessagesToClient()
   if (debug && doDebug) debug->printf("sendLocalMessagesToClient(): Sending JSON data to client: %s\n", jsonData.c_str());
   
   // First, send the HTML content for the input fields
-  DynamicJsonDocument doc(1024);
+  DynamicJsonDocument doc(4096);
   doc["type"] = "update";
   doc["target"] = "inputTableBody";
   
@@ -468,7 +468,7 @@ void sendLocalMessagesToClient()
   spa.ws.broadcastTXT(message.c_str(), message.length());
   
   // Now send the raw JSON data in a format that SPAmanager can understand
-  DynamicJsonDocument jsonDoc(1024);
+  DynamicJsonDocument jsonDoc(4096);
   jsonDoc["type"] = "custom";
   jsonDoc["action"] = "LocalMessagesData";
   jsonDoc["data"] = jsonData;
@@ -491,7 +491,7 @@ void processLocalMessages(const std::string& jsonString)
   if (debug && doDebug) debug->println(jsonString.c_str());
   
   //-- Use ArduinoJson library to parse the JSON
-  DynamicJsonDocument doc(1024);
+  DynamicJsonDocument doc(4096);
   DeserializationError error = deserializeJson(doc, jsonString);
   
   if (error) 
@@ -753,7 +753,7 @@ void processSettings(const std::string& jsonString, const std::string& settingsT
   }
   
   // Use ArduinoJson library to parse the JSON
-  DynamicJsonDocument doc(2048);
+  DynamicJsonDocument doc(4096);
   DeserializationError error = deserializeJson(doc, jsonString);
   
   if (error) 
@@ -882,6 +882,7 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
     
     if (error) {
       if (debug && doDebug) debug->printf("handleLocalWebSocketEvent(): JSON parsing error: %s\n", error.c_str());
+      if (debug) debug->printf("handleLocalWebSocketEvent(): Payload: %s\n", payload);
       return;
     }
     

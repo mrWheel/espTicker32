@@ -17,4 +17,6 @@
 [2025-05-10 13:52:21] Copied littlefs.bin to espTicker32_FS_v1.2.0.bin
 [2025-05-10 14:38:59] Copied littlefs.bin to espTicker32_FS_v1.2.0.bin
 [2025-05-10 15:00:10] Copied firmware.bin to espTicker32Parola_v1.2.0.bin
-[2025-05-10 15:02:02] Copied firmware.bin to espTicker32Neopixels_v1.2.0.bin
+[2025-05-13 10:30:58] Copied firmware.bin to espTicker32Neopixels_v1.2.0.bin
+[2025-05-13 10:34:31] Copied firmware.bin to espTicker32Parola_v1.2.1.bin
+[2025-05-13 10:35:17] Copied firmware.bin to espTicker32Neopixels_v1.2.1.bin
