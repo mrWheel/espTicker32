@@ -23,6 +23,9 @@ NeopixelsClass::NeopixelsClass()
   lastUpdateTime = 0;
   matrixInitialized = false;
   configInitialized = false;
+  previousText = "";
+  readyForNextMessage = false;
+  lastStopPosition = 0;
 }
 
 // Destructor implementation
@@ -360,21 +363,63 @@ void NeopixelsClass::sendNextText(const std::string& text)
     debugPrint("NeopixelsClass: Setting text to display: '%s'", text.c_str());
   }
   
-  this->text = text;
-  
-  try
+  // If we're ready for the next message (previous message has completed but is still on screen)
+  if (readyForNextMessage)
   {
-    this->x = matrix->width(); // Reset position
+    int matrixWidth = matrix->width();
+    
+    // Calculate the position for the new text (at the right edge of the matrix)
+    int newTextX = matrixWidth;
+    
+    // Create a combined text with the new text starting at the right edge
+    // We keep the current text and position, and append the new text
+    this->text = this->text + "*" + text;
+    
+    // Keep the current position (don't reset it)
+    // The x position is already set correctly from the previous animation
+    
     if (debug)
     {
-      debugPrint("NeopixelsClass: Reset x position to %d", x);
+      debugPrint("NeopixelsClass: Adding new text at right edge, combined text is: '%s'", this->text.c_str());
+      debugPrint("NeopixelsClass: Keeping x position at %d", this->x);
+    }
+    
+    // Reset the flag
+    readyForNextMessage = false;
+  }
+  // If there's already text being displayed and animation is in progress
+  else if (!previousText.empty() && !textComplete)
+  {
+    // Append the new text to the previous text with a space
+    this->text = previousText + "*" + text;
+    
+    if (debug)
+    {
+      debugPrint("NeopixelsClass: Appending to previous text, new text is: '%s'", this->text.c_str());
     }
   }
-  catch (...)
+  else
   {
-    if (debug) debugPrint("NeopixelsClass: Exception while resetting position");
-    this->x = width; // Use the stored width if matrix access fails
+    // First message or previous message completed, set the text directly
+    this->text = text;
+    
+    try
+    {
+      this->x = matrix->width(); // Reset position only for new text
+      if (debug)
+      {
+        debugPrint("NeopixelsClass: Reset x position to %d", x);
+      }
+    }
+    catch (...)
+    {
+      if (debug) debugPrint("NeopixelsClass: Exception while resetting position");
+      this->x = width; // Use the stored width if matrix access fails
+    }
   }
+  
+  // Store this text as the previous text for next time
+  previousText = text;
   
   this->pass = 0;
   this->textComplete = false;
@@ -383,7 +428,8 @@ void NeopixelsClass::sendNextText(const std::string& text)
 
 } // sendNextText()
 
-// Clear the display
+
+// Clear the display (ticker)
 void NeopixelsClass::tickerClear()
 {
   if (!initialized || matrix == nullptr)
@@ -397,7 +443,22 @@ void NeopixelsClass::tickerClear()
     matrix->fillScreen(0);
     matrix->show();
     
-    if (debug) debugPrint("NeopixelsClass: Display cleared");
+    // Reset continuous scrolling state
+    readyForNextMessage = false;
+    previousText = "";
+    textComplete = false;
+    
+    // Reset position
+    try
+    {
+      this->x = matrix->width();
+    }
+    catch (...)
+    {
+      this->x = width;
+    }
+    
+    if (debug) debugPrint("NeopixelsClass: Display cleared and scrolling state reset");
   }
   catch (...)
   {
@@ -426,6 +487,12 @@ void NeopixelsClass::show()
 
 } //  show()
 
+  /**
+   * @brief Animate the display by scrolling the text horizontally.
+   * 
+   * @param triggerCallback If true, the callback function will be called when the animation is complete.
+   * @return true if the animation is complete, false otherwise.
+   */
 bool NeopixelsClass::animateNeopixels(bool triggerCallback)
 {
   if (!initialized || matrix == nullptr)
@@ -453,9 +520,8 @@ bool NeopixelsClass::animateNeopixels(bool triggerCallback)
   
   try
   {
-    // Instead of clearing the entire display, we'll use a more targeted approach
-    // Clear only the area where we'll be drawing text
-    matrix->fillScreen(0);  // For now, we still need this until we implement partial clearing
+    // Clear the display before drawing new content
+    matrix->fillScreen(0);
     
     // Set the cursor position and print the text
     matrix->setCursor(x, 0);
@@ -475,8 +541,14 @@ bool NeopixelsClass::animateNeopixels(bool triggerCallback)
       // Text has completed its animation
       textComplete = true;
       
-      // Reset position for next text
-      x = matrix->width();
+      // Set the flag to indicate we're ready for the next message
+      readyForNextMessage = true;
+      
+      // Store the last stop position
+      lastStopPosition = stopPosition;
+      
+      // DO NOT reset position for next text
+      // x = matrix->width(); 
       
       if (debug) debugPrint("NeopixelsClass::animateNeopixels complete, triggering callback");
       else Serial.println("NeopixelsClass::animateNeopixels complete, triggering callback");
@@ -501,9 +573,8 @@ bool NeopixelsClass::animateNeopixels(bool triggerCallback)
   }
   
   return textComplete;
-} // animateNeopixels()
- 
 
+} // animateNeopixels()
 
 
 // Block until the entire text is displayed
@@ -524,10 +595,36 @@ void NeopixelsClass::animateBlocking(const String &text)
   
   int matrixWidth = matrix->width();
   
-  // If there's already text being displayed, append the new text with a space
-  if (!this->text.empty() && this->x <= 0) {
+  // If we're ready for the next message (previous message has completed but is still on screen)
+  if (readyForNextMessage)
+  {
+    // Create a combined text with the new text starting at the right edge
+    // We keep the current text and position, and append the new text
     this->text = this->text + " " + text.c_str();
-  } else {
+    
+    // Keep the current position (don't reset it)
+    // The x position is already set correctly from the previous animation
+    
+    if (debug)
+    {
+      debugPrint("NeopixelsClass: Adding new text at right edge, combined text is: '%s'", this->text.c_str());
+      debugPrint("NeopixelsClass: Keeping x position at %d", this->x);
+    }
+    
+    // Reset the flag
+    readyForNextMessage = false;
+  }
+  // If there's already text being displayed and animation is in progress
+  else if (!this->text.empty() && this->x <= 0) 
+  {
+    this->text = this->text + " " + text.c_str();
+    if (debug)
+    {
+      debugPrint("NeopixelsClass: Appending to existing text, new text is: '%s'", this->text.c_str());
+    }
+  } 
+  else 
+  {
     this->text = text.c_str();
   }
   
@@ -567,12 +664,6 @@ void NeopixelsClass::animateBlocking(const String &text)
   int animationStep = 0;
   while (textPosition > stopPosition && animationStep < 1000)
   {
-    //if (animationStep % 40 == 0)
-    //{
-    //  if (debug) debugPrint("NeopixelsClass: animationBlocking step %d, pos %d", animationStep, textPosition);
-    //  else    Serial.printf("NeopixelsClass[S]: animationBlocking step %d, pos %d\n", animationStep, textPosition);
-    //}
-    
     // Clear the display and set the cursor position
     matrix->fillScreen(0);
     matrix->setCursor(textPosition, 0);
@@ -591,6 +682,15 @@ void NeopixelsClass::animateBlocking(const String &text)
     animationStep++;
     yield();
   }
+  
+  // Set the flag to indicate we're ready for the next message
+  readyForNextMessage = true;
+  
+  // Store the last stop position
+  lastStopPosition = stopPosition;
+  
+  // Store this text as the previous text for next time
+  previousText = text.c_str();
   
   if (debug) debugPrint("NeopixelsClass: animationBlocking complete");
   else   Serial.println("NeopixelsClass[S]: animationBlocking complete");
@@ -709,79 +809,3 @@ void NeopixelsClass::debugPrint(const char* format, ...)
   }
 } // debugPrint()
 
-
-/****
-void NeopixelsClass::initializeDisplay()
-{
-  if (!initialized || matrix == nullptr)
-  {
-    if (debug) debugPrint("NeopixelsClass: initializeDisplay - not initialized, returning");
-    return;
-  }
-  
-  // Set up display parameters
-  matrix->setBrightness(40);
-  matrix->setTextWrap(false);
-  matrix->setTextSize(1);
-  matrix->setTextColor(matrix->Color(0, 255, 0)); // Green
-  matrix->setRotation(0);
-  
-  // Calculate middle columns
-  int midLeft = (matrix->width() / 2) - 1;
-  int midRight = matrix->width() / 2;
-  
-  // Initial colors for the bars
-  int leftR = 255, leftG = 0, leftB = 0;     // Start with red for left bar
-  int rightR = 0, rightG = 0, rightB = 255;  // Start with blue for right bar
-  
-  // Draw initial bars in the middle
-  matrix->fillScreen(0);
-  for (int y = 0; y < matrix->height(); y++)
-  {
-    matrix->drawPixel(midLeft, y, matrix->Color(leftR, leftG, leftB));    // Left bar
-    matrix->drawPixel(midRight, y, matrix->Color(rightR, rightG, rightB)); // Right bar
-  }
-  matrix->show();
-  delay(500); // Show the initial position for half a second
-  
-  // Move the bars outward with changing colors
-  for (int step = 1; step <= midLeft; step++)
-  {
-    matrix->fillScreen(0);
-    
-    // Change colors for this step
-    // Left bar color change - cycle through hues
-    leftR = 128 + 127 * sin(step * 0.3);
-    leftG = 128 + 127 * sin(step * 0.3 + 2);
-    leftB = 128 + 127 * sin(step * 0.3 + 4);
-    
-    // Right bar color change - different pattern
-    rightR = 128 + 127 * sin(step * 0.3 + 3);
-    rightG = 128 + 127 * sin(step * 0.3 + 1);
-    rightB = 128 + 127 * sin(step * 0.3 + 5);
-    
-    // Draw left bar moving left with new color
-    for (int y = 0; y < matrix->height(); y++)
-    {
-      matrix->drawPixel(midLeft - step, y, matrix->Color(leftR, leftG, leftB));
-    }
-    
-    // Draw right bar moving right with new color
-    for (int y = 0; y < matrix->height(); y++)
-    {
-      matrix->drawPixel(midRight + step, y, matrix->Color(rightR, rightG, rightB));
-    }
-    
-    matrix->show();
-    delay(50); // Control animation speed
-  }
-  
-  // Hold the final position briefly
-  delay(300);
-  
-  // Clear the display
-  matrix->fillScreen(0);
-  matrix->show();
-
-} // initializeDisplay()
-*****/
