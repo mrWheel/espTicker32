@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v1.2.1";
+const char* PROG_VERSION = "v1.2.2";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -373,7 +373,8 @@ std::string nextMessage()
       if (debug) debug->printf("nextMessage(): Sending text: [%s]\n", newMessage.c_str()); 
       else       Serial.printf("nextMessage(): Sending text: [%s]\n", newMessage.c_str()); 
     }
-    gMonitorMessage = std::string("* ") + newMessage + std::string(" * ");
+    //gMonitorMessage = std::string("* ") + newMessage + std::string(" * ");
+    gMonitorMessage = newMessage;
     spa.callJsFunction("queueMessageToMonitor", gMonitorMessage.c_str());
     gTickerMessage = std::string("* ") + newMessage + std::string(" *");
     ticker.sendNextText(gTickerMessage.c_str());
@@ -1315,15 +1316,19 @@ void setupMainPage()
 )HTML";
     if (debug && doDebug) debug->println("\nsetupMainPage(): Setting up Main page");
     spa.addPage("Main", mainPage);
-    spa.setPageTitle("Main", "esp Ticker32");
+    char pageTitle[32];
+    snprintf(pageTitle, sizeof(pageTitle), "espTicker32  -  %s", PROG_VERSION);
+    spa.setPageTitle("Main", pageTitle);
 
-    //-- Add Main menu
-    spa.addMenu("Main", "Main Menu");
-    spa.addMenuItem("Main", "Main Menu", "LocalMessages", localMessagesCallback, "LM-START");
-    spa.addMenuItem("Main", "Main Menu", "Settings", mainCallbackSettings);
-    spa.addMenuItem("Main", "Main Menu", "FSmanager", mainCallbackFSmanager);
-    //spa.addMenuItem("Main", "Main Menu", "isFSmanagerLoaded", doJsFunction, "isFSmanagerLoaded");
-    //spa.addMenuItem("Main", "Main Menu", "isEspTicker32Loaded", doJsFunction, "isEspTicker32Loaded");
+    //-- Add File menu
+    spa.addMenu("Main", "File");
+    spa.addMenuItem("Main", "File", "FSmanager", mainCallbackFSmanager);
+    spa.addMenuItem("Main", "File", "Restart espTicker32", handleMenuItem, "SET-RESTART");
+
+    //-- Add Edit menu
+    spa.addMenu("Main", "Edit");
+    spa.addMenuItem("Main", "Edit", "LocalMessages", localMessagesCallback, "LM-START");
+    spa.addMenuItem("Main", "Edit", "Settings", mainCallbackSettings);
     
 } // setupMainPage()
 
@@ -1397,6 +1402,12 @@ const char *popupHelpLocalMessages = R"HTML(
   )HTML";
     spa.addPage("localMessagesPage", localMessagesPage);
     spa.setPageTitle("localMessagesPage", "Local Messages");
+    //-- Add Main menu
+    spa.addMenu("localMessagesPage", "File");
+    spa.addMenuItem("localMessagesPage", "File", "FSmanager", mainCallbackFSmanager);
+    spa.addMenuItem("localMessagesPage", "File", "Restart espTicker32", handleMenuItem, "SET-RESTART");
+
+    //-- Add LocalMessages menu
     spa.addMenu("localMessagesPage", "Local Messages");
     spa.addMenuItemPopup("localMessagesPage", "Local Messages", "Help", popupHelpLocalMessages);
     spa.addMenuItem("localMessagesPage", "Local Messages", "Exit", handleMenuItem, "LM-EXIT");
@@ -1439,6 +1450,10 @@ void setupFSmanagerPage()
     )HTML";
   
     spa.setPageTitle("FSmanagerPage", "FileSystem Manager");
+    //-- Add File menu
+    spa.addMenu("FSmanagerPage", "File");
+    spa.addMenuItem("FSmanagerPage", "File", "Restart espTicker32", handleMenuItem, "SET-RESTART");
+
     //-- Add FSmanager menu
     spa.addMenu("FSmanagerPage", "FS Manager");
     //spa.addMenuItem("FSmanagerPage", "FS Manager", "List LittleFS", handleMenuItem, "FSM-1");
@@ -1482,27 +1497,52 @@ void setupMySettingsPage()
   if (debug && doDebug) debug->println("\nsetupMySettingsPage(): Adding settings page");
   spa.addPage("deviceSettingsPage", settingsPage);
   spa.setPageTitle("deviceSettingsPage", "Device Settings");
+  //-- Add File menu
+  spa.addMenu("deviceSettingsPage", "File");
+  spa.addMenuItem("deviceSettingsPage", "File", "FSmanager", mainCallbackFSmanager);
+  spa.addMenuItem("deviceSettingsPage", "File", "Restart espTicker32", handleMenuItem, "SET-RESTART");
+  //-- Add Device Settings menu
   spa.addMenu("deviceSettingsPage", "Device Settings");
   spa.addMenuItem("deviceSettingsPage", "Device Settings", "Exit", handleMenuItem, "SET-UP");
 #ifdef USE_PAROLA
   spa.addPage("parolaSettingsPage", settingsPage);
   spa.setPageTitle("parolaSettingsPage", "Parola Settings");
+  //-- Add File menu
+  spa.addMenu("deviceSettingsPage", "File");
+  spa.addMenuItem("deviceSettingsPage", "File", "FSmanager", mainCallbackFSmanager);
+  spa.addMenuItem("deviceSettingsPage", "File", "Restart espTicker32", handleMenuItem, "SET-RESTART");
+  //-- Add Parola Settings menu
   spa.addMenu("parolaSettingsPage", "Parola Settings");
   spa.addMenuItem("parolaSettingsPage", "Parola Settings", "Exit", handleMenuItem, "SET-UP");
 #endif
 #ifdef USE_NEOPIXELS
   spa.addPage("neopixelsSettingsPage", settingsPage);
   spa.setPageTitle("neopixelsSettingsPage", "Neopixels Settings");
+  //-- Add File menu
+  spa.addMenu("neopixelsSettingsPage", "File");
+  spa.addMenuItem("neopixelsSettingsPage", "File", "FSmanager", mainCallbackFSmanager);
+  spa.addMenuItem("neopixelsSettingsPage", "File", "Restart espTicker32", handleMenuItem, "SET-RESTART");
+  //-- Add Neopixels Settings menu
   spa.addMenu("neopixelsSettingsPage", "Neopixels Settings");
   spa.addMenuItem("neopixelsSettingsPage", "Neopixels Settings", "Exit", handleMenuItem, "SET-UP");
 #endif
   spa.addPage("weerliveSettingsPage", settingsPage);
   spa.setPageTitle("weerliveSettingsPage", "Weerlive Settings");
+  //-- Add File menu
+  spa.addMenu("weerliveSettingsPage", "File");
+  spa.addMenuItem("weerliveSettingsPage", "File", "FSmanager", mainCallbackFSmanager);
+  spa.addMenuItem("weerliveSettingsPage", "File", "Restart espTicker32", handleMenuItem, "SET-RESTART");
+  //-- Add Weerlive Settings menu
   spa.addMenu("weerliveSettingsPage", "Weerlive Settings");
   spa.addMenuItem("weerliveSettingsPage", "Weerlive Settings", "Exit", handleMenuItem, "SET-UP");
 
   spa.addPage("rssfeedSettingsPage", settingsPage);
   spa.setPageTitle("rssfeedSettingsPage", "RSSfeed Settings");
+  //-- Add File menu
+  spa.addMenu("rssfeedSettingsPage", "File");
+  spa.addMenuItem("rssfeedSettingsPage", "File", "FSmanager", mainCallbackFSmanager);
+  spa.addMenuItem("rssfeedSettingsPage", "File", "Restart espTicker32", handleMenuItem, "SET-RESTART");
+  //-- Add RSSfeed Settings menu
   spa.addMenu("rssfeedSettingsPage", "RSSfeed Settings");
   spa.addMenuItem("rssfeedSettingsPage", "RSSfeed Settings", "Exit", handleMenuItem, "SET-UP");
   
@@ -1552,6 +1592,11 @@ void setupMainSettingsPage()
   if (debug && doDebug) debug->println("\nsetupMainSettingsPage(): Adding main settings page");
   spa.addPage("mainSettingsPage", settingsPage);
   spa.setPageTitle("mainSettingsPage", "Settings");
+  //-- Add File menu
+  spa.addMenu("mainSettingsPage", "File");
+  spa.addMenuItem("mainSettingsPage", "File", "FSmanager", mainCallbackFSmanager);
+  spa.addMenuItem("mainSettingsPage", "File", "Restart espTicker32", handleMenuItem, "SET-RESTART");
+
   //-- Add Settings menu
   spa.addMenu("mainSettingsPage", "Settings");
   spa.addMenuItem("mainSettingsPage", "Settings", "Device Settings", mainCallbackDeviceSettings);
@@ -1564,9 +1609,6 @@ void setupMainSettingsPage()
   spa.addMenuItem("mainSettingsPage", "Settings", "Weerlive Settings", mainCallbackWeerliveSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "RSS feed Settings", mainCallbackRssfeedSettings);
   spa.addMenuItem("mainSettingsPage", "Settings", "Exit", handleMenuItem, "SET-EXIT");
-
-  spa.addMenu("mainSettingsPage", "Restart");
-  spa.addMenuItem("mainSettingsPage", "Restart", "RESTART espTicker32", handleMenuItem, "SET-RESTART");
 
 } //  setupMainSettingsPage()
 

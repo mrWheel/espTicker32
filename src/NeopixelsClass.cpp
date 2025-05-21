@@ -451,12 +451,6 @@ bool NeopixelsClass::animateNeopixels(bool triggerCallback)
     stopPosition = 0;
   }
   
-  //if (debug && x % 10 == 0)  // Only log every 10 steps to avoid flooding
-  //{
-  //  debugPrint("NeopixelsClass::animateNeopixels - x=%d, pass=%d, textWidth=%d, stopPosition=%d", 
-  //             x, pass, textWidth, stopPosition);
-  // }
-  
   try
   {
     // Instead of clearing the entire display, we'll use a more targeted approach
