@@ -41,6 +41,10 @@ private:
   bool initialized = false;
   bool matrixInitialized = false;
   bool configInitialized = false;
+  std::string previousText;  // Store the previous text for continuous scrolling
+  bool readyForNextMessage = false;  // Flag to indicate we're ready for the next message
+  int lastStopPosition = 0;  // Store the last stop position for continuous scrolling
+
   std::function<void(const std::string&)> onFinished = nullptr;
   
   // Debug support
