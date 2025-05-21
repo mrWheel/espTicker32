@@ -13,7 +13,7 @@ RSSreaderClass::RSSreaderClass()
     _lastFeedUpdate[i] = 0;
   }
   // Initialize skipWords container
-  _skipWords = { "Voetbal", "Voetballer", "Voetballers", "Voetbalster", "Voetbalsters" };  
+  _skipWords = { "Voetbal", "Voetballer", "Voetballers", "Voetbalster", "Voetbalsters", "KNVB" };  
   //-- be aware: no debug set yes, so no print messages
   readSkipWordsFromFile();
 
@@ -969,6 +969,20 @@ String RSSreaderClass::simplifyCharacters(const String& input)
       result[i] = ' ';
     }
   }
+  
+  // Recursively replace double spaces with single spaces
+  bool hasDoubleSpace = true;
+  while (hasDoubleSpace) {
+    int pos = result.indexOf("  ");
+    if (pos != -1) {
+      // Replace double space with single space
+      result = result.substring(0, pos) + " " + result.substring(pos + 2);
+    } else {
+      // No more double spaces found
+      hasDoubleSpace = false;
+    }
+  }
+  
   if (debug && doDebug) debug->printf("RSSreaderClass::simplifyCharacters(): Result [%s]\n", result.c_str());
   
   return result;
