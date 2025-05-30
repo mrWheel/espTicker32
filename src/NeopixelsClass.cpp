@@ -287,7 +287,7 @@ void NeopixelsClass::setIntensity(int newBrightness)
   if (newBrightness < 0)   newBrightness =  10;
   if (newBrightness > 100) newBrightness = 100;
 
-  this->brightness = scaleValue(newBrightness, 0, 100, 0, 50);
+  this->brightness = scaleValue(newBrightness, 0, 100, 0, 100);
   
   if (debug)
   {
@@ -581,7 +581,7 @@ bool NeopixelsClass::animateNeopixels(bool triggerCallback)
 void NeopixelsClass::animateBlocking(const String &text)
 {
   // Animation delay - faster scrolling
-  int animationDelay = 20;
+  int animationDelay = 1;
   
   if (!initialized || matrix == nullptr)
   {

@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v1.2.4";
+const char* PROG_VERSION = "v1.3.0";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -14,6 +14,8 @@ const char* PROG_VERSION = "v1.2.4";
 #include <FSmanager.h>
 #include <string>
 #include "SPAmanager.h"
+#include "readLdrClass.h"
+
 #include "SettingsClass.h"
 #include "LocalMessagesClass.h"
 #include "WeerliveClass.h"
@@ -58,6 +60,7 @@ SPAmanager spa(80);
 //-- we need to use the server from the SPAmanager!!
 FSmanager fsManager(spa.server);
 
+ReadLdrClass readLdr;
 
 uint32_t systemUpTime = 0;
 uint32_t lastCounterUpdate = 0;
@@ -76,6 +79,15 @@ char localMessage[LOCAL_MESSAGES_RECORD_SIZE +2] = {};
 std::string currentActivePage = "";
 
 
+
+/**
+ * @brief Get the current message from the Weerlive data.
+ *
+ * This is a convenience function to get the current Weerlive message.
+ * It returns the current value of `weerliveText`.
+ *
+ * @return The current message from Weerlive
+ */
 String getWeerliveMessage()
 {
     return weerliveText;
@@ -83,6 +95,16 @@ String getWeerliveMessage()
 } // getWeerliveMessage()
 
 
+/**
+ * @brief Get the current message from the RSS feeds.
+ *
+ * This function retrieves the next feed item from the RSS feeds and returns its content.
+ * If the retrieved message is empty, it will try again with the next feed item indices.
+ *
+ * The returned string will contain the feed index, item index, and the RSS feed content.
+ *
+ * @return The current message from the RSS feeds
+ */
 String getRSSfeedMessage()
 {
   uint8_t feedIndex = 0;
@@ -125,6 +147,14 @@ String getRSSfeedMessage()
 } // getRSSfeedMessage()
 
 
+/**
+ * @brief Get a local message from the flash memory.
+ * 
+ * Loops through the flash memory records, checks if the key is enabled and if the message is valid.
+ * If a valid message is found, it is returned. If no valid message is found, a default message is returned.
+ * 
+ * @return The local message from the flash memory.
+ */
 String getLocalMessage()
 {
   static uint8_t msgNr = 0;
@@ -281,13 +311,22 @@ String getLocalMessage()
 } // getLocalMessage()
 
 
+/**
+ * @brief Gets the next message from the local message array, or a special message type.
+ *
+ * This function will get the next message from the local message array and return it.
+ * It will also handle special message types, such as "<weerlive>", "<rssfeed>", "<date>", "<time>", "<datetime>", "<spaces>", "<feedInfo>", "<feedInfoReset>", "<clear>", and "<pixeltest>".
+ * These special message types will return a different message than what is stored in the local message array.
+ * 
+ * @return The next message from the local message array, or a special message type.
+ */
 std::string nextMessage()
 {
     std::string tmpMessage = "";
     std::string newMessage = getLocalMessage().c_str();
     static uint8_t feedNr = 0;
 
-    ticker.setColor(255, 255, 255); // white
+    ticker.setColor(200, 200, 200); // white
 
     if (strcasecmp(newMessage.c_str(), "<weerlive>") == 0) 
     {
@@ -306,7 +345,7 @@ std::string nextMessage()
     {
         if (debug && doDebug) if (debug && doDebug) debug->println("nextMessage(): The Date");
         newMessage = network->ntpGetDateDMY();
-        ticker.setColor(100, 0 , 100); // purple
+        ticker.setColor(150, 0 , 150); // purple
     }
     else if (strcasecmp(newMessage.c_str(), "<time>") == 0) 
     {
@@ -318,7 +357,7 @@ std::string nextMessage()
     {
         if (debug && doDebug) debug->println("nextMessage(): The Date & Time");
         newMessage = network->ntpGetDateTimeDMY();
-        ticker.setColor(255, 0 , 255); // Magenta
+        ticker.setColor(235, 0 , 235); // Magenta
     }
     else if (strcasecmp(newMessage.c_str(), "<spaces>") == 0) 
     {
@@ -384,7 +423,21 @@ std::string nextMessage()
 } // nextMessage()
 
 
-// Function to build a JSON string with input field data
+
+/**
+ * @brief Builds a JSON string with the local messages, including key and content.
+ * 
+ * This function will read all local messages from the LocalMessagesClass and build a JSON string with the format:
+ * [
+ *   {"key":"<key>","content":"<escaped content>"},
+ *   {"key":"<key>","content":"<escaped content>"},
+ *   ...
+ * ]
+ * 
+ * The function will escape any quotes inside the content of the messages.
+ * 
+ * @return The JSON string with all local messages.
+ */
 std::string buildLocalMessagesJson()
 {
   uint8_t recNr = 0;
@@ -425,7 +478,21 @@ std::string buildLocalMessagesJson()
 
 
 
-// Function to send the JSON string to the client when localMessages page is activated
+
+/**
+ * @brief Sends the local messages to the client via WebSocket.
+ * 
+ * This function builds a JSON string with all local messages, including key and content.
+ * The function will escape any quotes inside the content of the messages.
+ * 
+ * The function will send the JSON string to the client via WebSocket, using the
+ * "update" message type, targeting the "inputTableBody" element, and including the
+ * raw JSON data in the "content" field.
+ * 
+ * Additionally, the function will send the raw JSON data in a format that SPAmanager
+ * can understand, using the "custom" message type, with the action set to "LocalMessagesData"
+ * and the data set to the JSON string.
+ */
 void sendLocalMessagesToClient()
 {
   std::string jsonData = buildLocalMessagesJson();
@@ -483,7 +550,26 @@ void sendLocalMessagesToClient()
 } // sendLocalMessagesToClient()
 
 
-// Function to process the received input fields from the client
+
+/**
+ * @brief Process the input fields from a JSON string.
+ * 
+ * This function takes a JSON string, parses it, and writes the input fields to the LocalMessagesClass.
+ * 
+ * The JSON string should be an array of objects, each with a key and a content.
+ * The key is a single character string, and the content is a string.
+ * 
+ * The function will write each input field to the LocalMessagesClass, with the key as the first character
+ * and the content as the rest of the string.
+ * 
+ * The function will also send the input fields back to the client via WebSocket, using the "update" message type,
+ * targeting the "inputTableBody" element, and including the raw JSON data in the "content" field.
+ * 
+ * Additionally, the function will send the raw JSON data in a format that SPAmanager can understand,
+ * using the "custom" message type, with the action set to "LocalMessagesData" and the data set to the JSON string.
+ * 
+ * @param jsonString The JSON string to process.
+ */
 void processLocalMessages(const std::string& jsonString)
 {
   uint8_t recNr = 0; // record number
@@ -547,7 +633,22 @@ void processLocalMessages(const std::string& jsonString)
 
 
 
-// Generic function to send settings fields to the client
+
+/**
+ * @brief Send the settings fields to the client.
+ * 
+ * This function takes a settings type string, builds a JSON string for the settings fields,
+ * and sends the JSON data to the client via WebSocket, using the "custom" message type,
+ * with the action set to the settings type with "Data" appended to the end.
+ * 
+ * The function will also send the HTML content for the settings fields to the client via WebSocket,
+ * using the "update" message type, targeting the "settingsTableBody" element, and including the raw JSON data in the "content" field.
+ * 
+ * Additionally, the function will send the raw JSON data in a format that SPAmanager can understand,
+ * using the "custom" message type, with the action set to the settings type with "Data" appended to the end.
+ * 
+ * @param settingsType The settings type string.
+ */
 void sendSettingFieldToClient(const std::string& settingsType)
 {
   std::string jsonData = settings.buildJsonFieldsString(settingsType);
@@ -701,13 +802,30 @@ void sendSettingFieldToClient(const std::string& settingsType)
 } // sendSettingFieldToClient()
 
 
-// Function to send the JSON string to the client when deviceSettingsPage is activated
+
+// Send the device settings fields to the client.
+//
+// This function is a thin wrapper around sendSettingFieldToClient(), which
+// does the actual work of sending the settings fields to the client.
+//
+// The device settings fields are loaded from the settings file and sent to
+// the client in a structured format. The client can then use this data to
+// populate the settings page.
 void sendDeviceFieldsToClient()
 {
   sendSettingFieldToClient("deviceSettings");
 }
 
-// Function to send the JSON string to the client when weerliveSettingsPage is activated
+
+// Send the Weerlive settings fields to the client.
+//
+// This function is a thin wrapper around sendSettingFieldToClient(), which
+// does the actual work of sending the settings fields to the client.
+//
+// The Weerlive settings fields are loaded from the settings file and sent to
+// the client in a structured format. The client can then use this data to
+// populate the Weerlive settings page.
+
 void sendWeerliveFieldsToClient()
 {
   sendSettingFieldToClient("weerliveSettings");
@@ -715,7 +833,15 @@ void sendWeerliveFieldsToClient()
 
 
 
-// Function to send the JSON string to the client when rssfeedSettingsPage is activated
+
+// Send the RSS feed settings fields to the client.
+//
+// This function is a thin wrapper around sendSettingFieldToClient(), which
+// does the actual work of sending the settings fields to the client.
+//
+// The RSS feed settings fields are loaded from the settings file and sent to
+// the client in a structured format. The client can then use this data to
+// populate the RSS feed settings page.
 void sendRssfeedFieldsToClient()
 {
   sendSettingFieldToClient("rssfeedSettings");
@@ -740,7 +866,18 @@ void sendRssfeedFieldsToClient()
 //=============================================================================
 
 
-// Generic function to process settings from the client
+
+/**
+ * Process a JSON string containing updated settings values for the specified
+ * settings type (e.g. "deviceSettings", "parolaSettings", etc.).
+ *
+ * This function parses the JSON string and updates the corresponding settings
+ * values using the pointers stored in the SettingsContainer. It also saves
+ * the settings to the settings file using the generic method.
+ *
+ * @param jsonString the JSON string containing the updated settings values
+ * @param settingsType the type of settings (e.g. "deviceSettings", "parolaSettings", etc.)
+ */
 void processSettings(const std::string& jsonString, const std::string& settingsType)
 {
   if (debug && doDebug) debug->printf("processSettings(): Processing %s settings from JSON:\n", settingsType.c_str());
@@ -864,7 +1001,22 @@ void processSettings(const std::string& jsonString, const std::string& settingsT
 } // processSettings()
 
 
-// WebSocket event handler to receive messages from the client
+
+/**
+ * @brief Handle WebSocket events when no other event handlers match
+ * 
+ * This function is called when a WebSocket event is received and no other event
+ * handlers match the event type. It handles a variety of events, including
+ * jsFunctionResult, requestLocalMessages, requestDeviceSettings, requestParolaSettings,
+ * requestNeopixelsSettings, requestWeerliveSettings, requestRssfeedSettings, process,
+ * saveLocalMessages, saveDeviceSettings, saveParolaSettings, saveNeopixelsSettings,
+ * saveWeerliveSettings, and saveRssfeedSettings messages.
+ * 
+ * @param num The WebSocket client number
+ * @param type The WebSocket event type
+ * @param payload The WebSocket event payload
+ * @param length The length of the WebSocket event payload
+ */
 void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
   // This function will be called when no other event handlers match
   if (debug) if (debug && doDebug) debug->printf("handleLocalWebSocketEvent(): WebSocket event type: %d\n", type);
@@ -1105,6 +1257,13 @@ void handleLocalWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, si
   
 } // handleLocalWebSocketEvent()
 
+/**
+ * @brief Callback function for the pageIsLoaded event in the SPAmanager
+ * 
+ * This function is called when the pageIsLoaded event is fired by the SPAmanager.
+ * It is used to update the currentActivePage variable with the name of the currently
+ * active page.
+ */
 void pageIsLoadedCallback()
 {
   // Get the current active page
@@ -1116,6 +1275,18 @@ void pageIsLoadedCallback()
 
 } // pageIsLoadedCallback()
 
+
+/**
+ * @brief Callback function for handling actions related to the Local Messages menu.
+ *
+ * This function is triggered when a menu item associated with Local Messages is clicked.
+ * Depending on the provided item name, it activates the corresponding page and sets a message.
+ *
+ * @param itemName The name of the menu item clicked. Expected values are:
+ *                 - "LM-START": Activates the "localMessagesPage" and calls a JavaScript function
+ *                               to set up event handlers.
+ *                 - "LM-EXIT": Activates the "mainPage" and sets an exit message.
+ */
 
 void localMessagesCallback(std::string itemName)
 {
@@ -1135,6 +1306,14 @@ void localMessagesCallback(std::string itemName)
 } // localMessagesCallback()
 
     
+/**
+ * @brief Callback function for the Device Settings menu item in the main menu.
+ *
+ * This function is called when the Device Settings menu item is clicked in the main menu.
+ * It activates the "deviceSettingsPage" page, calls the JavaScript function "isEspTicker32Loaded"
+ * to set up event handlers, and sends the device settings to the client using the
+ * sendDeviceFieldsToClient() function.
+ */
 void mainCallbackDeviceSettings()
 {
   spa.setMessage("Main Menu [Dev Settings] clicked!", 0);
@@ -1164,6 +1343,15 @@ void mainCallbackParolaSettings()
 #endif
 
 #ifdef USE_NEOPIXELS
+/**
+ * @brief Callback function for the Neopixels Settings menu item in the main menu.
+ *
+ * This function is called when the Neopixels Settings menu item is clicked in the main menu.
+ * It activates the "neopixelsSettingsPage" page, calls the JavaScript function "isEspTicker32Loaded"
+ * to set up event handlers, and sends the neopixels settings to the client using the
+ * sendNeopixelsFieldsToClient() function.
+ */
+
 void mainCallbackNeopixelsSettings()
 {
   spa.setMessage("Main Menu Neopixels Settings] clicked!", 0);
@@ -1177,6 +1365,15 @@ void mainCallbackNeopixelsSettings()
 
 } // mainCallbackNeopixelsSettings()
 #endif
+
+/**
+ * @brief Callback function for the Weerlive Settings menu item in the main menu.
+ *
+ * This function is called when the Weerlive Settings menu item is clicked in the main menu.
+ * It activates the "weerliveSettingsPage" page, calls the JavaScript function "isEspTicker32Loaded"
+ * to set up event handlers, and sends the weerlive settings to the client using the
+ * sendWeerliveFieldsToClient() function.
+ */
 
 void mainCallbackWeerliveSettings()
 {
@@ -1193,6 +1390,15 @@ void mainCallbackWeerliveSettings()
 
 
 
+/**
+ * @brief Callback function for the RSSfeed Settings menu item in the main menu.
+ *
+ * This function is called when the RSSfeed Settings menu item is clicked in the main menu.
+ * It activates the "rssfeedSettingsPage" page, calls the JavaScript function "isEspTicker32Loaded"
+ * to set up event handlers, and sends the RSS feed settings to the client using the
+ * sendRssfeedFieldsToClient() function.
+ */
+
 void mainCallbackRssfeedSettings()
 {
   spa.setMessage("Main Menu [RSSfeed Settings] clicked!", 5);
@@ -1207,6 +1413,12 @@ void mainCallbackRssfeedSettings()
 } // mainCallbackRssfeedettings()
 
     
+/**
+ * @brief Callback function for the Settings menu item in the main menu.
+ *
+ * This function is called when the Settings menu item is clicked in the main menu.
+ * It sets a message in the status bar and activates the "mainSettingsPage" page.
+ */
 void mainCallbackSettings()
 {
   if (debug && doDebug) debug->println("\nmainCallbackSettings(): Settings menu item clicked");
@@ -1216,6 +1428,13 @@ void mainCallbackSettings()
 } // mainCallbackSettings()    
 
 
+/**
+ * @brief Callback function for the "FSmanager" menu item in the main menu.
+ *
+ * This function is called when the "FSmanager" menu item is clicked in the main menu.
+ * It sets a message in the status bar, activates the "FSmanagerPage" page, and calls the
+ * JavaScript function "loadFileList" to load the list of files in LittleFS.
+ */
 void mainCallbackFSmanager()
 {
     spa.setMessage("Main Menu \"FSmanager\" clicked!", 5);
@@ -1225,6 +1444,12 @@ void mainCallbackFSmanager()
 } // mainCallbackFSmanager()
 
 
+/**
+ * @brief Callback function for the "Process" button in the file upload form.
+ *
+ * This function is called when the "Process" button is clicked in the file upload form.
+ * It currently does nothing but logs a message to the console.
+ */
 void processUploadFileCallback()
 {
   if (debug && doDebug) debug->println("Process processUploadFileCallback(): proceed action received");
@@ -1232,6 +1457,15 @@ void processUploadFileCallback()
 } // processUploadFileCallback()
 
 
+/**
+ * @brief Call a JavaScript function with the given name.
+ *
+ * This function is called with the name of a JavaScript function as a parameter.
+ * It logs a message to the console with the name of the function, and then calls
+ * the JavaScript function using the @ref SPAmanager::callJsFunction() method.
+ *
+ * @param[in] functionName The name of the JavaScript function to call.
+ */
 void doJsFunction(std::string functionName)
 {
     if (debug && doDebug) debug->printf("doJsFunction(): JavaScript function called with: [%s]\n", functionName.c_str());
@@ -1248,6 +1482,14 @@ void doJsFunction(std::string functionName)
 } // doJsFunction()
 
 
+/**
+ * @brief Callback function for the input fields.
+ *
+ * This function is called when the "Process" button is clicked in the input fields form.
+ * It processes the input fields data and updates the local messages.
+ *
+ * @param[in] inputValues A map of input values, with the key being the field name and the value being the field value.
+ */
 void processInputCallback(const std::map<std::string, std::string>& inputValues)
 {
   if (debug && doDebug) debug->println("Process callback: proceed action received");
@@ -1267,6 +1509,15 @@ void processInputCallback(const std::map<std::string, std::string>& inputValues)
 }
 
 
+/**
+ * @brief Handle a menu item click event.
+ *
+ * This function is called when a menu item is clicked.
+ * It handles the menu item click event by activating the corresponding page
+ * and calling the corresponding JavaScript function.
+ * 
+ * @param[in] itemName The menu item name that was clicked.
+ */
 void handleMenuItem(std::string itemName)
 {
     if (debug && doDebug) debug->printf("handleMenuItem(): Menu item clicked: %s\n", itemName.c_str());
@@ -1296,6 +1547,21 @@ void handleMenuItem(std::string itemName)
 
 } // handleMenuItem()
 
+/**
+ * @brief Set up the main page.
+ *
+ * This function sets up the main page, which shows the ticker monitor.
+ * It adds a page with the name "Main" and sets the page title.
+ * It also adds two menus: "File" and "Edit".
+ * Under the "File" menu, it adds two menu items: "FSmanager", which
+ * calls the callback function mainCallbackFSmanager(), and "Restart
+ * espTicker32", which calls the callback function handleMenuItem() with
+ * the argument "SET-RESTART".
+ * Under the "Edit" menu, it adds two menu items: "LocalMessages", which
+ * calls the callback function localMessagesCallback() with the argument
+ * "LM-START", and "Settings", which calls the callback function
+ * mainCallbackSettings().
+ */
 void setupMainPage()
 {
     const char *mainPage = R"HTML(
@@ -1332,6 +1598,20 @@ void setupMainPage()
     
 } // setupMainPage()
 
+/**
+ * @brief Set up the local messages page.
+ *
+ * This function sets up the local messages page, which shows the local messages.
+ * It adds a page with the name "localMessagesPage" and sets the page title.
+ * It also adds two menus: "File" and "Local Messages".
+ * Under the "File" menu, it adds two menu items: "FSmanager", which
+ * calls the callback function mainCallbackFSmanager(), and "Restart
+ * espTicker32", which calls the callback function handleMenuItem() with
+ * the argument "SET-RESTART".
+ * Under the "Local Messages" menu, it adds one menu item: "Help", which
+ * calls the callback function popupHelpLocalMessages(), and one menu item: "Exit",
+ * which calls the callback function handleMenuItem() with the argument "LM-EXIT".
+ */
 void setupLocalMessagesPage()
 {
     const char *localMessagesPage = R"HTML(
@@ -1415,6 +1695,16 @@ const char *popupHelpLocalMessages = R"HTML(
 } // setupLocalMessagesPage()
 
 
+/**
+ * @brief Set up the filesystem manager page.
+ *
+ * This function sets up the FSmanagerPage, which provides an interface for managing files 
+ * and folders in the file system. It adds the page to the SPA manager and sets the page title.
+ * It also adds a "File" menu with a "Restart espTicker32" option and a "FS Manager" menu 
+ * with options to upload files, create folders, and exit the page. Additionally, popups for 
+ * uploading files and creating folders are defined and linked to the menu items.
+ */
+
 void setupFSmanagerPage()
 {
     if (debug && doDebug) debug->printf("setupFSmanagerPage(): Available heap memory: %u bytes\n", ESP.getFreeHeap());
@@ -1463,13 +1753,27 @@ void setupFSmanagerPage()
   
 } // setupFSmanagerPage()
 
-// Add this function to handle the disabled FSmanager case
+
+/**
+ * @brief Shows an error message explaining that the FSmanager is disabled due to memory constraints.
+ *
+ * This function is called when the FSmanager is disabled because there is not enough memory.
+ * It shows an error message to the user explaining the situation and asking them to restart the device.
+ */
 void mainCallbackDisabledMessage()
 {
   spa.setErrorMessage("FSmanager is disabled due to memory constraints. Please restart the device.", 0);
 } // mainCallbackDisabledMessage()
 
 
+/**
+ * @brief Sets up the settings page for the device.
+ *
+ * This function sets up the device settings page, which provides an interface for changing settings
+ * related to the device. It adds the page to the SPA manager and sets the page title.
+ * It also adds a "File" menu with options to open the FSmanager and restart the device.
+ * Additionally, it adds a "Device Settings" menu with an option to exit the page.
+ */
 void setupMySettingsPage()
 {
   const char *settingsPage = R"HTML(
@@ -1550,6 +1854,24 @@ void setupMySettingsPage()
 
 
 
+/**
+ * @brief Setup the main settings page.
+ *
+ * This function creates a page with all the various settings pages.
+ * The page is added to the SPA manager and the title is set.
+ * The page is filled with a list of settings that can be modified.
+ * The page also has a menu with the following options:
+ *   - File menu:
+ *     - FSmanager
+ *     - Restart espTicker32
+ *   - Settings menu:
+ *     - Device settings
+ *     - Parola settings (if USE_PAROLA is defined)
+ *     - Neopixels settings (if USE_NEOPIXELS is defined)
+ *     - Weerlive settings
+ *     - RSS feed settings
+ *     - Exit
+ */
 void setupMainSettingsPage()
 {
 #ifdef USE_PAROLA
@@ -1576,18 +1898,6 @@ void setupMainSettingsPage()
   </ul> 
   )HTML";
 #endif
-/**
-  const char *settingsPage = R"HTML(
-    <div style="font-size: 48px; text-align: center; font-weight: bold;">Settings</div>
-    <br>You can modify system settings here that influence the operation of the device.
-    <ul>
-    <li>Device settings</li>
-    <li>Parola settings</li>
-    <li>Weerlive settings</li>
-    <li>RSS feed settings</li>
-    </ul> 
-    )HTML";  
-***/
 
   if (debug && doDebug) debug->println("\nsetupMainSettingsPage(): Adding main settings page");
   spa.addPage("mainSettingsPage", settingsPage);
@@ -1613,6 +1923,18 @@ void setupMainSettingsPage()
 } //  setupMainSettingsPage()
 
 
+/**
+ * @brief List all files in a directory tree.
+ * 
+ * This function is used by the FSmanager to list the contents of the LittleFS
+ * file system.  It lists the name of each file and its size, indented by
+ * numTabs tabs.  If the file is a directory, listFiles is called recursively
+ * to list the contents of the directory.
+ * 
+ * @param dirname The name of the directory to list.  If dirname does not start
+ * with '/', it is treated as a relative path and the leading '/' is added.
+ * @param numTabs The number of tabs to indent the output with.
+ */
 void listFiles(const char * dirname, int numTabs) 
 {
   // Ensure that dirname starts with '/'
@@ -1654,6 +1976,14 @@ void listFiles(const char * dirname, int numTabs)
 } // listFiles()  
 
 #ifdef USE_PAROLA
+  /**
+   * @brief Sets up the Parola display according to settings.
+   *
+   * This function sets up the Parola display according to the settings in the
+   * settings struct. It checks for invalid pin settings and sets default values
+   * if necessary. It also sets up the ticker object with the correct pin
+   * settings and callbacks. The ticker object is then started.
+   */
 void setupParolaDisplay()
 {
 
@@ -1740,7 +2070,9 @@ void setupParolaDisplay()
     if (debug && doDebug) debug->print("[FINISHED] ");
     if (debug && doDebug) debug->println(finishedText.c_str());
     ticker.setScrollSpeed(settings.devTickerSpeed);
+    readLdr.loop(true); // Force read LDR value to update intensity
     ticker.setIntensity(settings.devMaxIntensiteitLeds);
+    debug->printf("callback finished: scrollSpeed[%d], ledIntensity[%d]\n", settings.devTickerSpeed, settings.devMaxIntensiteitLeds);
     actMessage = nextMessage();
   });
 
@@ -1750,6 +2082,14 @@ void setupParolaDisplay()
 #endif // USE_PAROLA
 
 #ifdef USE_NEOPIXELS
+/**
+ * @brief Setup the Neopixels display
+ *
+ * This function sets up the Neopixels display for the device. It configures the display
+ * with the correct pin, matrix size, pixel type, and other display properties. It also
+ * sets up the callback function for when the display is finished scrolling the current
+ * message.
+ */
 void setupNeopixelsDisplay()
 {
   int pin    =  5; // Pin connected to the NeoPixel strip
@@ -1819,19 +2159,20 @@ void setupNeopixelsDisplay()
   
   // Set display properties
   ticker.setColor(255, 0, 0); // Red text
-  //ticker.setIntensity(20);    // Medium brightness
-  //ticker.setScrollSpeed(1);   // Medium-high speed
+  ticker.setIntensity(30);    // Medium brightness at startup
+  ticker.setScrollSpeed(100);   // Medium-high speed
 
-  ticker.setScrollSpeed(settings.devTickerSpeed);
-  ticker.setIntensity(settings.devMaxIntensiteitLeds);
+  //ticker.setScrollSpeed(settings.devTickerSpeed);
+  //ticker.setIntensity(settings.devMaxIntensiteitLeds);
 
   ticker.setCallback([](const std::string& finishedText) 
   {
     if (debug && doDebug) debug->print("[FINISHED] ");
     if (debug && doDebug) debug->println(finishedText.c_str());
     ticker.setScrollSpeed(settings.devTickerSpeed);
+    readLdr.loop(true); // Force read LDR value to update intensity
     ticker.setIntensity(settings.devMaxIntensiteitLeds);
-    //-- ticker.setIntensity(40);
+    debug->printf("callback finished: scrollSpeed[%d], ledIntensity[%d]\n", settings.devTickerSpeed, settings.devMaxIntensiteitLeds);
     actMessage = nextMessage(); 
   });
 
@@ -1840,6 +2181,13 @@ void setupNeopixelsDisplay()
 } // setupNeopixelsDisplay()
 #endif // USE_NEOPIXELS
 
+/**
+ * @brief Callback function for when the WiFi portal is triggered
+ *
+ * This function is called when the WiFi portal is triggered. It displays a message
+ * on the ticker display instructing the user to connect to the espTicker32 portal
+ * and go to 192.168.4.1.
+ */
 void callbackWiFiPortal()
 {
     if (debug) debug->println("callbackWiFiPortal(): WiFi portal callback triggered");
@@ -1851,6 +2199,7 @@ void callbackWiFiPortal()
     ticker.animateBlocking(" .. go to 192.168.4.1 ");
 
 } // callbackWiFiPortal()
+
 
 void setup()
 {
@@ -2029,6 +2378,9 @@ void setup()
     spa.activatePage("Main");
 
     ticker.setScrollSpeed(settings.devTickerSpeed);
+    
+    //LDRsetup();
+    readLdr.setup(&settings, &Serial);
 
     actMessage = nextMessage();
 
@@ -2061,12 +2413,7 @@ void loop()
     else if (debug) debug->println("espTicker32: loop(): NTP is not valid");
     lastPrint = millis();
   }
-  
-  static uint32_t lastDisplay = 0;
-  //if (millis() - lastDisplay >= 3000)
-  {
-    ticker.loop();
-    lastDisplay = millis();
-  }
+  ticker.loop();
+  readLdr.loop();
 
 } // loop()
