@@ -31,10 +31,13 @@ private:
   neoPixelType pixelType;
   int red, green, blue;
   std::string text;
+  std::string currentMessage;     // Current message being displayed
+  std::string nextMessage;        // Next message to be displayed
+  int currentMessageWidth;        // Width of current message in pixels
   int pixelPerChar;
   int scrollDelay;
   int brightness;
-  int x;
+  int scrollPosition;
   int pass;
   bool textComplete;
   unsigned long lastUpdateTime;
