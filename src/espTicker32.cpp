@@ -1,7 +1,7 @@
 /*
 **  espTicker32.cpp
 */
-const char* PROG_VERSION = "v1.3.0";
+const char* PROG_VERSION = "v1.3.1";
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -2378,6 +2378,7 @@ void setup()
     spa.activatePage("Main");
 
     ticker.setScrollSpeed(settings.devTickerSpeed);
+    ticker.tickerClear();
     
     //LDRsetup();
     readLdr.setup(&settings, &Serial);

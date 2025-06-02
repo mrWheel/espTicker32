@@ -34,7 +34,7 @@ private:
   int pixelPerChar;
   int scrollDelay;
   int brightness;
-  int x;
+  int textScrollPosition;
   int pass;
   bool textComplete;
   unsigned long lastUpdateTime;
@@ -54,7 +54,8 @@ private:
   // Private helper methods
   int16_t scaleValue(int16_t input, int16_t minInValue, int16_t maxInValue, int16_t minOutValue, int16_t maxOutValue);
   void cleanup();
-  
+  void trimTextAndRecalculate();
+
 public:
   // Constructor and destructor
   NeopixelsClass();
