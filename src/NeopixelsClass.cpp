@@ -526,19 +526,28 @@ bool NeopixelsClass::animateNeopixels(bool triggerCallback) {
     }
 
     matrix->show();
-    scrollOffset++;
 
-    // Check if last column of *new* message has reached right edge
-    if ((scrollOffset + matrix->width() - 1) == messageEndOffset) {
-      if (!textComplete && triggerCallback) {
+    // Check if the LAST column of the message is now at the RIGHT edge
+    if (scrollOffset == messageEndOffset - (matrix->width() - 1))
+    //-???- if ((scrollOffset + matrix->width() - 1) == messageEndOffset) 
+    {
+      if (!textComplete) {
         textComplete = true;
         scrollingActive = false;
-        if (onFinished) onFinished(currentMessage);
+
+        if (triggerCallback && onFinished) {
+          onFinished(currentMessage);  // Tell user we’re ready for next message
+        }
+        debugPrint("animateNeopixels(): Stopping scroll at offset %d\n", scrollOffset);
         return true;
       }
+      return false;  // Already complete, do nothing more
     }
 
+    scrollOffset++;  // Only increment if still scrolling
+
     return false;
+
   } catch (...) {
     debugPrint("animateNeopixels(): Exception occurred\n");
     return false;
