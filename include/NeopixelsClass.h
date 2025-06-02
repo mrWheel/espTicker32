@@ -21,9 +21,6 @@ class NeopixelsClass
 private:
   // Private member variables
   Adafruit_NeoMatrix* matrix;
-  std::vector<uint8_t> columnData;       // All pixel columns of the full message
-  int scrollOffset = 0;                  // How far left we’ve scrolled
-  bool scrollingActive = false;          // Is scrolling currently active
   int neopixelPin;
   int width;
   int height;
@@ -34,20 +31,12 @@ private:
   neoPixelType pixelType;
   int red, green, blue;
   std::string text;
-  std::string currentMessage;     // Current message being displayed
-  std::string nextMessage;        // Next message to be displayed
-  std::string combinedMessage;    // Combination of previous and newmessage
-  std::string scrollBuffer;
-  int currentMessageWidth;        // Width of current message in pixels
-  int messageStartOffset = 0;
-  int messageEndOffset = 0;
   int pixelPerChar;
   int scrollDelay;
   int brightness;
-  int scrollPosition;
+  int textScrollPosition;
   int pass;
   bool textComplete;
-  bool scrollStarted = false;
   unsigned long lastUpdateTime;
   bool initialized = false;
   bool matrixInitialized = false;
@@ -65,9 +54,8 @@ private:
   // Private helper methods
   int16_t scaleValue(int16_t input, int16_t minInValue, int16_t maxInValue, int16_t minOutValue, int16_t maxOutValue);
   void cleanup();
-  std::string makeCombinedMessage(const std::string& oldText, const std::string& newText);
-  void debugPrintBuffer();
-  
+  void trimTextAndRecalculate();
+
 public:
   // Constructor and destructor
   NeopixelsClass();

@@ -17,11 +17,7 @@ NeopixelsClass::NeopixelsClass()
   pixelPerChar = 6;
   scrollDelay = 1;
   brightness = 30;
-  scrollPosition = 0;
-  currentMessage = "";
-  nextMessage = "";
-  currentMessageWidth = 0;
-
+  textScrollPosition = 0;
   pass = 0;
   textComplete = false;
   lastUpdateTime = 0;
@@ -194,10 +190,10 @@ void NeopixelsClass::begin(uint8_t pin)
     matrix->setRotation(0);
   
     
-    scrollPosition = matrix->width(); // Initialize x position
+    textScrollPosition = matrix->width(); // Initialize x position
     if (debug)
     {
-      debugPrint("NeopixelsClass: Initial x position set to: %d", scrollPosition);
+      debugPrint("NeopixelsClass: Initial x position set to: %d", textScrollPosition);
       debugPrint("NeopixelsClass: Initialization complete");
     }
     
@@ -353,85 +349,88 @@ void NeopixelsClass::setScrollSpeed(int newSpeed)
 } // setScrollSpeed()
 
 
-
-/**
- * @brief Sets the text to be displayed on the Neopixels matrix.
- * 
- * This function updates the text to be displayed based on the current
- * state of the display. If the display is ready for the next message 
- * and there is a current message, the new text is concatenated with 
- * the current message, and the scroll position is adjusted accordingly.
- * If the animation is still running, the new text is appended for the 
- * next round. Otherwise, it sets the text as the current message and 
- * initializes the scroll position. It also updates the internal state 
- * variables, including resetting the pass and marking the text as not 
- * complete.
- * 
- * @param text The string of text to be displayed.
- */
-std::string NeopixelsClass::makeCombinedMessage(const std::string& oldText, const std::string& newText) 
+// Set the text to be displayed
+void NeopixelsClass::sendNextText(const std::string& text)
 {
-    return oldText + "|" + newText;  // 1-space gap between messages
-}
-
-void NeopixelsClass::sendNextText(const std::string& text) {
-  try {
-    if (!matrixInitialized || text.empty()) return;
-
-    int charW = 6; // 5+1 spacing
-    int textW = text.length() * charW;
-    int textH = matrix->height();
-
-    // Render new text into canvas
-    GFXcanvas1 canvas(textW, textH);
-    canvas.setTextWrap(false);
-    canvas.setTextColor(1);
-    canvas.setCursor(0, 0);
-    canvas.print(text.c_str());
-
-    std::vector<uint8_t> newColumns;
-    for (int x = 0; x < textW; x++) {
-      uint8_t col = 0;
-      for (int y = 0; y < textH; y++) {
-        if (canvas.getPixel(x, y)) {
-          col |= (1 << y);
-        }
-      }
-      newColumns.push_back(col);
-    }
-
-    // Add right-side padding (space after text)
-    for (int i = 0; i < matrix->width(); ++i)
-      newColumns.push_back(0);
-
-    // Combine old tail + new message
-    std::vector<uint8_t> combined;
-    int visibleTail = matrix->width();
-    if ((int)columnData.size() >= visibleTail) {
-      combined.insert(combined.end(),
-        columnData.end() - visibleTail,
-        columnData.end());
-    } else {
-      combined.insert(combined.end(),
-        columnData.begin(),
-        columnData.end());
-    }
-
-    combined.insert(combined.end(), newColumns.begin(), newColumns.end());
-    columnData = combined;
-
-    scrollOffset = 0;
-    scrollingActive = true;
-    textComplete = false;
-    currentMessage = text;
-
-    // Mark when to trigger callback
-    messageStartOffset = combined.size() - newColumns.size();
-    messageEndOffset = combined.size() - 1;
-
-  } catch (...) {
-    debugPrint("sendNextText(): Exception occurred\n");
+  if (!initialized || matrix == nullptr)
+  {
+    if (debug) debugPrint("NeopixelsClass: sendNextText - not initialized, returning");
+    return;
   }
+  
+  if (debug)
+  {
+    debugPrint("NeopixelsClass: Setting text to display: '%s'", text.c_str());
+  }
+  
+  // If we're ready for the next message (previous message has completed but is still on screen)
+  if (readyForNextMessage)
+  {
+    int matrixWidth = matrix->width();
+    
+    // Calculate the position for the new text (at the right edge of the matrix)
+    int newTextX = matrixWidth;
+    
+    // Create a combined text with the new text starting at the right edge
+    // We keep the current text and position, and append the new text
+    this->text = this->text + "*" + text;
+    
+    // Check if text needs trimming and recalculate variables
+    trimTextAndRecalculate();
+    
+    // Keep the current position (don't reset it)
+    // The textScrollPosition is already set correctly from the previous animation
+    
+    if (debug)
+    {
+      debugPrint("NeopixelsClass: Adding new text at right edge, combined text is: '%s'", this->text.c_str());
+      debugPrint("NeopixelsClass: Keeping x position at %d", this->textScrollPosition);
+    }
+    
+    // Reset the flag
+    readyForNextMessage = false;
+  }
+  // If there's already text being displayed and animation is in progress
+  else if (!previousText.empty() && !textComplete)
+  {
+    // Append the new text to the previous text with a space
+    this->text = previousText + "*" + text;
+    
+    // Check if text needs trimming and recalculate variables
+    trimTextAndRecalculate();
+    
+    if (debug)
+    {
+      debugPrint("NeopixelsClass: Appending to previous text, new text is: '%s'", this->text.c_str());
+    }
+  }
+  else
+  {
+    // First message or previous message completed, set the text directly
+    this->text = text;
+    
+    try
+    {
+      this->textScrollPosition = matrix->width(); // Reset position only for new text
+      if (debug)
+      {
+        debugPrint("NeopixelsClass: Reset x position to %d", textScrollPosition);
+      }
+    }
+    catch (...)
+    {
+      if (debug) debugPrint("NeopixelsClass: Exception while resetting position");
+      this->textScrollPosition = width; // Use the stored width if matrix access fails
+    }
+  }
+  
+  // Store this text as the previous text for next time
+  previousText = text;
+  
+  this->pass = 0;
+  this->textComplete = false;
+  
+  if (debug) debugPrint("NeopixelsClass: Text set successfully");
 
 } // sendNextText()
 
@@ -454,18 +453,15 @@ void NeopixelsClass::tickerClear()
     readyForNextMessage = false;
     previousText = "";
     textComplete = false;
-    currentMessage = "";
-    nextMessage = "";
-    currentMessageWidth = 0;
     
     // Reset position
     try
     {
-      this->scrollPosition = matrix->width();
+      this->textScrollPosition = matrix->width();
     }
     catch (...)
     {
-      this->scrollPosition = width;
+      this->textScrollPosition = width;
     }
     
     if (debug) debugPrint("NeopixelsClass: Display cleared and scrolling state reset");
@@ -503,64 +499,96 @@ void NeopixelsClass::show()
    * @param triggerCallback If true, the callback function will be called when the animation is complete.
    * @return true if the animation is complete, false otherwise.
    */
-bool NeopixelsClass::animateNeopixels(bool triggerCallback) {
-  try {
-    if (!matrixInitialized || !scrollingActive) return false;
-
-    unsigned long now = millis();
-    if (now - lastUpdateTime < scrollDelay) return false;
-    lastUpdateTime = now;
-
-    matrix->clear();
-
-    for (int x = 0; x < matrix->width(); ++x) {
-      int srcIndex = scrollOffset + x;
-      if (srcIndex >= 0 && srcIndex < (int)columnData.size()) {
-        uint8_t colBits = columnData[srcIndex];
-        for (int y = 0; y < matrix->height(); ++y) {
-          if (colBits & (1 << y)) {
-            matrix->drawPixel(x, y, matrix->Color(red, green, blue));
-          }
-        }
-      }
-    }
-
-    matrix->show();
-
-    // Check if the LAST column of the message is now at the RIGHT edge
-    if (scrollOffset == messageEndOffset - (matrix->width() - 1))
-    //-???- if ((scrollOffset + matrix->width() - 1) == messageEndOffset) 
-    {
-      if (!textComplete) {
-        textComplete = true;
-        scrollingActive = false;
-
-        if (triggerCallback && onFinished) {
-          onFinished(currentMessage);  // Tell user we’re ready for next message
-        }
-        debugPrint("animateNeopixels(): Stopping scroll at offset %d\n", scrollOffset);
-        return true;
-      }
-      return false;  // Already complete, do nothing more
-    }
-
-    scrollOffset++;  // Only increment if still scrolling
-
-    return false;
-
-  } catch (...) {
-    debugPrint("animateNeopixels(): Exception occurred\n");
-    return false;
+bool NeopixelsClass::animateNeopixels(bool triggerCallback)
+{
+  if (!initialized || matrix == nullptr)
+  {
+    if (debug) debugPrint("NeopixelsClass::animateNeopixels - matrix is null, returning");
+    return true;
   }
+ 
+  textComplete = false;
+
+  // Calculate the text width in pixels
+  int textWidth = text.length() * pixelPerChar;
+  
+  // Calculate the stopping position:
+  // We want to stop when the last character is at the right edge of the display
+  // This means the position should be: matrixWidth - textWidth
+  int matrixWidth = matrix->width();
+  int stopPosition = matrixWidth - textWidth;
+  
+  // If the text is shorter than the display width, don't scroll past the left edge
+  if (stopPosition > 0)
+  {
+    stopPosition = 0;
+  }
+  
+  try
+  {
+    // Clear the display before drawing new content
+    matrix->fillScreen(0);
+    
+    // Set the cursor position and print the text
+    matrix->setCursor(textScrollPosition, 0);
+    matrix->print(text.c_str());
+    
+    // Update the display
+    matrix->show();
+    
+    // Move the text position for the next frame
+    textScrollPosition--;
+    
+    // Check if we've reached the stopping position
+    if (textScrollPosition <= stopPosition)
+    {
+      if (debug) debugPrint("NeopixelsClass::animateNeopixels Reached end of text");
+      
+      // Text has completed its animation
+      textComplete = true;
+      
+      // Set the flag to indicate we're ready for the next message
+      readyForNextMessage = true;
+      
+      // Store the last stop position
+      lastStopPosition = stopPosition;
+      
+      // DO NOT reset position for next text
+      // textScrollPosition = matrix->width(); 
+      
+      if (debug) debugPrint("NeopixelsClass::animateNeopixels complete, triggering callback");
+      else Serial.println("NeopixelsClass::animateNeopixels complete, triggering callback");
+      
+      // Only call the callback if triggerCallback is true
+      if (textComplete && onFinished && triggerCallback)
+      {
+        if (debug) debugPrint("NeopixelsClass::animateNeopixels Triggering callback with text: [%s]", text.c_str());
+        onFinished(text);
+      }
+      
+      return true;
+    }
+    
+    // Yield to prevent watchdog timer issues
+    yield();
+  }
+  catch (...)
+  {
+    if (debug) debugPrint("NeopixelsClass::animateNeopixels Exception during animation");
+    return true; // Return true to prevent infinite loop on error
+  }
+  
+  return textComplete;
 
 } // animateNeopixels()
 
 
 // Block until the entire text is displayed
+// Block until the entire text is displayed
 void NeopixelsClass::animateBlocking(const String &text)
 {
   // Animation delay - faster scrolling
-  int animationDelay = 1;
+  int animationDelay = 0;
   
   if (!initialized || matrix == nullptr)
   {
@@ -572,67 +600,16 @@ void NeopixelsClass::animateBlocking(const String &text)
   if (debug) debugPrint("NeopixelsClass: Starting animationBlocking for text: %s", text.c_str());
   else    Serial.printf("NeopixelsClass[S]: Starting animationBlocking for text: %s\n", text.c_str()); 
   
+  // Clear the display first
+  matrix->fillScreen(0);
+  matrix->show();
+  
+  // Set the text directly (no concatenation)
+  this->text = text.c_str();
+  
+  // Always start from the right edge for new text
   int matrixWidth = matrix->width();
-  
-  // If we're ready for the next message (previous message has completed but is still on screen)
-  if (readyForNextMessage && !this->text.empty())
-  {
-    // Remove the previous message from the concatenated text
-    size_t separatorPos = this->text.find(" ");
-    if (separatorPos != std::string::npos)
-    {
-      // Calculate how much text we're removing
-      std::string removedText = this->text.substr(0, separatorPos + 1); // Include separator
-      int removedWidth = removedText.length() * pixelPerChar;
-      
-      // Remove the old message from the concatenated text
-      this->text = this->text.substr(separatorPos + 1);
-      
-      // Adjust scroll position to account for removed text
-      scrollPosition += removedWidth;
-      
-      if (debug)
-      {
-        debugPrint("NeopixelsClass: Removed text: '%s' (width: %d)", removedText.c_str(), removedWidth);
-        debugPrint("NeopixelsClass: Adjusted scroll position to: %d", scrollPosition);
-      }
-    }
-    
-    // Now append the new message
-    this->text = this->text + " " + text.c_str();
-    
-    if (debug)
-    {
-      debugPrint("NeopixelsClass: Adding new text at right edge, combined text is: '%s'", this->text.c_str());
-      debugPrint("NeopixelsClass: Keeping scroll position at %d", this->scrollPosition);
-    }
-    
-    // Reset the flag
-    readyForNextMessage = false;
-  }
-  // If there's already text being displayed and animation is in progress
-  else if (!this->text.empty() && this->scrollPosition <= 0) 
-  {
-    this->text = this->text + " " + text.c_str();
-    if (debug)
-    {
-      debugPrint("NeopixelsClass: Appending to existing text, new text is: '%s'", this->text.c_str());
-    }
-  } 
-  else 
-  {
-    this->text = text.c_str();
-  }
-  
-  // Set the starting position
-  int textPosition;
-  if (this->scrollPosition <= 0) {
-    // Continue from current position if text is already scrolling
-    textPosition = this->scrollPosition;
-  } else {
-    // Start from right edge for new text
-    textPosition = matrixWidth;
-  }
+  int textPosition = matrixWidth;
   
   // Calculate the width of the text in pixels
   int textWidth = this->text.length() * pixelPerChar;
@@ -643,11 +620,13 @@ void NeopixelsClass::animateBlocking(const String &text)
   int stopPosition = matrixWidth - textWidth;
   
   // If the text is shorter than the display width, don't scroll past the left edge
-  if (stopPosition > 0) {
+  if (stopPosition > 0) 
+  {
     stopPosition = 0;
   }
   
-  if (debug && doDebug) {
+  if (debug && doDebug) 
+  {
     debugPrint("NeopixelsClass: Animation parameters:");
     debugPrint("  Text: '%s'", this->text.c_str());
     debugPrint("  Text width: %d", textWidth);
@@ -655,6 +634,10 @@ void NeopixelsClass::animateBlocking(const String &text)
     debugPrint("  Starting position: %d", textPosition);
     debugPrint("  Stop position: %d", stopPosition);
   }
+  
+  // Reset scrolling state variables
+  readyForNextMessage = false;
+  textComplete = false;
   
   // Now animate until we reach the stopping position
   int animationStep = 0;
@@ -672,14 +655,17 @@ void NeopixelsClass::animateBlocking(const String &text)
     
     // Move the text position for the next frame
     textPosition--;
-    this->scrollPosition = textPosition;
     
     delay(animationDelay);
     animationStep++;
     yield();
   }
   
-  // Set the flag to indicate we're ready for the next message
+  // Update the class position variable to final position
+  this->textScrollPosition = textPosition;
+  
+  // Mark animation as complete
+  textComplete = true;
   readyForNextMessage = true;
   
   // Store the last stop position
@@ -734,7 +720,7 @@ void NeopixelsClass::loop()
   {
     try
     {
-      animateNeopixels(true);
+      animateNeopixels();
       lastUpdateTime = currentTime;
     }
     catch (...)
@@ -745,15 +731,52 @@ void NeopixelsClass::loop()
 } // loop()
 
 
-void NeopixelsClass::debugPrintBuffer() 
+// Helper function to trim text and recalculate scrolling variables
+void NeopixelsClass::trimTextAndRecalculate()
 {
-  for (int y = 0; y < matrix->height(); y++) {
-    for (int x = 0; x < columnData.size(); x++) {
-      Serial.print((columnData[x] >> y) & 1 ? "#" : ".");
+  if (this->text.length() > 1024)
+  {
+    if (debug)
+    {
+      debugPrint("NeopixelsClass: Text length (%d) exceeds 1024 chars, trimming to 100", this->text.length());
     }
-    Serial.println();
+    
+    // Keep the last 100 characters (most recent content)
+    std::string oldText = this->text;
+    this->text = this->text.substr(this->text.length() - 100);
+    
+    // Calculate how much text was removed
+    int removedLength = oldText.length() - this->text.length();
+    int removedPixels = removedLength * pixelPerChar;
+    
+    // Adjust the x position to maintain visual continuity
+    // Since we removed text from the beginning, we need to move x to the right
+    this->textScrollPosition += removedPixels;
+    
+    // Recalculate text width and stop position
+    int textWidth = this->text.length() * pixelPerChar;
+    int matrixWidth = matrix->width();
+    int newStopPosition = matrixWidth - textWidth;
+    
+    // If the text is shorter than the display width, don't scroll past the left edge
+    if (newStopPosition > 0)
+    {
+      newStopPosition = 0;
+    }
+    
+    // Update the last stop position
+    lastStopPosition = newStopPosition;
+    
+    if (debug)
+    {
+      debugPrint("NeopixelsClass: Text trimmed from %d to %d chars", oldText.length(), this->text.length());
+      debugPrint("NeopixelsClass: Adjusted x position by +%d pixels to %d", removedPixels, this->textScrollPosition);
+      debugPrint("NeopixelsClass: New stop position: %d", newStopPosition);
+      debugPrint("NeopixelsClass: Trimmed text: '%s'", this->text.c_str());
+    }
   }
-} // debugPrintBuffer()
+} // trimTextAndRecalculate()
+
 
 int16_t NeopixelsClass::scaleValue(int16_t input
                                      , int16_t minInValue, int16_t maxInValue
@@ -815,4 +838,3 @@ void NeopixelsClass::debugPrint(const char* format, ...)
     }
   }
 } // debugPrint()
-

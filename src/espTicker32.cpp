@@ -2378,6 +2378,7 @@ void setup()
     spa.activatePage("Main");
 
     ticker.setScrollSpeed(settings.devTickerSpeed);
+    ticker.tickerClear();
     
     //LDRsetup();
     readLdr.setup(&settings, &Serial);
