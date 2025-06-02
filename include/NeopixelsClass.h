@@ -33,6 +33,11 @@ private:
   std::string text;
   std::string currentMessage;     // Current message being displayed
   std::string nextMessage;        // Next message to be displayed
+  std::string combinedMessage;    // Combination of previous and newmessage
+  std::string prevText1;
+  std::string prevText2;
+  std::string prevText3;
+  std::string prevText4;
   int currentMessageWidth;        // Width of current message in pixels
   int pixelPerChar;
   int scrollDelay;
@@ -40,6 +45,7 @@ private:
   int scrollPosition;
   int pass;
   bool textComplete;
+  bool scrollStarted = false;
   unsigned long lastUpdateTime;
   bool initialized = false;
   bool matrixInitialized = false;
@@ -57,6 +63,8 @@ private:
   // Private helper methods
   int16_t scaleValue(int16_t input, int16_t minInValue, int16_t maxInValue, int16_t minOutValue, int16_t maxOutValue);
   void cleanup();
+  std::string makeCombinedMessage(const std::string& oldText, const std::string& newText);
+
   
 public:
   // Constructor and destructor
