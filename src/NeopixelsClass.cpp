@@ -371,18 +371,48 @@ void NeopixelsClass::setScrollSpeed(int newSpeed)
  */
 std::string NeopixelsClass::makeCombinedMessage(const std::string& oldText, const std::string& newText) 
 {
-    return oldText + "#" + newText;  // 1-space gap between messages
+    return oldText + "|" + newText;  // 1-space gap between messages
 }
 
 void NeopixelsClass::sendNextText(const std::string& text) {
-    if (!matrixInitialized) return;
+  try {
+    if (!matrixInitialized || text.empty()) return;
 
-    previousText = currentMessage;
+    // Render the full text into a 1-bit off-screen canvas
+    int charW = 6; // Width incl. 1 pixel spacing (5x7 font)
+    int textW = text.length() * charW;
+    int textH = matrix->height();
+
+    GFXcanvas1 canvas(textW, textH); // 1-bit monochrome canvas
+    canvas.setTextWrap(false);
+    canvas.setTextColor(1);          // 1-bit: use 1
+    canvas.setCursor(0, 0);
+    canvas.print(text.c_str());
+
+    // Build columnData from the canvas bitmap
+    columnData.clear();
+    for (int x = 0; x < textW; x++) {
+      uint8_t col = 0;
+      for (int y = 0; y < textH; y++) {
+        if (canvas.getPixel(x, y)) {
+          col |= (1 << y);
+        }
+      }
+      columnData.push_back(col);
+    }
+
+    // Add padding after text (optional)
+    for (int i = 0; i < matrix->width(); ++i)
+      columnData.push_back(0);
+
+    scrollOffset = 0;
+    scrollingActive = true;
+    textComplete = false;
     currentMessage = text;
-    combinedMessage = makeCombinedMessage(previousText, currentMessage);
-    scrollPosition = matrix->width();
-    scrollStarted = true;
-    readyForNextMessage = false;
+
+  } catch (...) {
+    debugPrint("sendNextText(): Exception occurred\n");
+  }
 
 } // sendNextText()
 
@@ -455,34 +485,47 @@ void NeopixelsClass::show()
    * @return true if the animation is complete, false otherwise.
    */
 bool NeopixelsClass::animateNeopixels(bool triggerCallback) {
-    if (!matrixInitialized || !scrollStarted) return false;
+  try {
+    if (!matrixInitialized || !scrollingActive) return false;
 
     unsigned long now = millis();
     if (now - lastUpdateTime < scrollDelay) return false;
     lastUpdateTime = now;
 
-    matrix->fillScreen(0); // okay now, since we're redrawing everything every frame
+    matrix->clear();
 
-    matrix->setTextColor(matrix->Color(red, green, blue));
-    matrix->setCursor(scrollPosition, 0);
-    matrix->print(combinedMessage.c_str());
+    // Draw each column onto the matrix
+    for (int x = 0; x < matrix->width(); ++x) {
+      int srcIndex = scrollOffset + x;
+      if (srcIndex >= 0 && srcIndex < (int)columnData.size()) {
+        uint8_t colBits = columnData[srcIndex];
+        for (int y = 0; y < matrix->height(); ++y) {
+          if (colBits & (1 << y)) {
+            matrix->drawPixel(x, y, matrix->Color(red, green, blue));
+          }
+        }
+      }
+    }
 
     matrix->show();
-    scrollPosition--;
+    scrollOffset++;
 
-    // Entire combined message has scrolled off to the left
-    int textPixelWidth = combinedMessage.length() * pixelPerChar;
-    if (scrollPosition + textPixelWidth <= 0) {
-        scrollStarted = false;
-        previousText = currentMessage;
-        currentMessage = ""; // display is empty now
-        if (triggerCallback && onFinished) {
-            onFinished(previousText);  // previous text is now fully shown
-        }
+    // End condition: last column reached rightmost position
+    if ((scrollOffset + matrix->width()) >= (int)columnData.size()) {
+      if (!textComplete && triggerCallback) {
+        textComplete = true;
+        scrollingActive = false;
+
+        if (onFinished) onFinished(currentMessage);
         return true;
+      }
     }
 
     return false;
+  } catch (...) {
+    debugPrint("animateNeopixels(): Exception occurred\n");
+    return false;
+  }
 
 } // animateNeopixels()
 
@@ -665,7 +708,7 @@ void NeopixelsClass::loop()
   {
     try
     {
-      animateNeopixels();
+      animateNeopixels(true);
       lastUpdateTime = currentTime;
     }
     catch (...)
