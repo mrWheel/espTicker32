@@ -378,19 +378,18 @@ void NeopixelsClass::sendNextText(const std::string& text) {
   try {
     if (!matrixInitialized || text.empty()) return;
 
-    // Render the full text into a 1-bit off-screen canvas
-    int charW = 6; // Width incl. 1 pixel spacing (5x7 font)
+    int charW = 6; // 5+1 spacing
     int textW = text.length() * charW;
     int textH = matrix->height();
 
-    GFXcanvas1 canvas(textW, textH); // 1-bit monochrome canvas
+    // Render new text into canvas
+    GFXcanvas1 canvas(textW, textH);
     canvas.setTextWrap(false);
-    canvas.setTextColor(1);          // 1-bit: use 1
+    canvas.setTextColor(1);
     canvas.setCursor(0, 0);
     canvas.print(text.c_str());
 
-    // Build columnData from the canvas bitmap
-    columnData.clear();
+    std::vector<uint8_t> newColumns;
     for (int x = 0; x < textW; x++) {
       uint8_t col = 0;
       for (int y = 0; y < textH; y++) {
@@ -398,17 +397,37 @@ void NeopixelsClass::sendNextText(const std::string& text) {
           col |= (1 << y);
         }
       }
-      columnData.push_back(col);
+      newColumns.push_back(col);
     }
 
-    // Add padding after text (optional)
+    // Add right-side padding (space after text)
     for (int i = 0; i < matrix->width(); ++i)
-      columnData.push_back(0);
+      newColumns.push_back(0);
+
+    // Combine old tail + new message
+    std::vector<uint8_t> combined;
+    int visibleTail = matrix->width();
+    if ((int)columnData.size() >= visibleTail) {
+      combined.insert(combined.end(),
+        columnData.end() - visibleTail,
+        columnData.end());
+    } else {
+      combined.insert(combined.end(),
+        columnData.begin(),
+        columnData.end());
+    }
+
+    combined.insert(combined.end(), newColumns.begin(), newColumns.end());
+    columnData = combined;
 
     scrollOffset = 0;
     scrollingActive = true;
     textComplete = false;
     currentMessage = text;
+
+    // Mark when to trigger callback
+    messageStartOffset = combined.size() - newColumns.size();
+    messageEndOffset = combined.size() - 1;
 
   } catch (...) {
     debugPrint("sendNextText(): Exception occurred\n");
@@ -494,7 +513,6 @@ bool NeopixelsClass::animateNeopixels(bool triggerCallback) {
 
     matrix->clear();
 
-    // Draw each column onto the matrix
     for (int x = 0; x < matrix->width(); ++x) {
       int srcIndex = scrollOffset + x;
       if (srcIndex >= 0 && srcIndex < (int)columnData.size()) {
@@ -510,12 +528,11 @@ bool NeopixelsClass::animateNeopixels(bool triggerCallback) {
     matrix->show();
     scrollOffset++;
 
-    // End condition: last column reached rightmost position
-    if ((scrollOffset + matrix->width()) >= (int)columnData.size()) {
+    // Check if last column of *new* message has reached right edge
+    if ((scrollOffset + matrix->width() - 1) == messageEndOffset) {
       if (!textComplete && triggerCallback) {
         textComplete = true;
         scrollingActive = false;
-
         if (onFinished) onFinished(currentMessage);
         return true;
       }
@@ -717,6 +734,17 @@ void NeopixelsClass::loop()
     }
   }
 } // loop()
+
+
+void NeopixelsClass::debugPrintBuffer() 
+{
+  for (int y = 0; y < matrix->height(); y++) {
+    for (int x = 0; x < columnData.size(); x++) {
+      Serial.print((columnData[x] >> y) & 1 ? "#" : ".");
+    }
+    Serial.println();
+  }
+} // debugPrintBuffer()
 
 int16_t NeopixelsClass::scaleValue(int16_t input
                                      , int16_t minInValue, int16_t maxInValue

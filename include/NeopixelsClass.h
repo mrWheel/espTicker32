@@ -39,6 +39,8 @@ private:
   std::string combinedMessage;    // Combination of previous and newmessage
   std::string scrollBuffer;
   int currentMessageWidth;        // Width of current message in pixels
+  int messageStartOffset = 0;
+  int messageEndOffset = 0;
   int pixelPerChar;
   int scrollDelay;
   int brightness;
@@ -64,7 +66,7 @@ private:
   int16_t scaleValue(int16_t input, int16_t minInValue, int16_t maxInValue, int16_t minOutValue, int16_t maxOutValue);
   void cleanup();
   std::string makeCombinedMessage(const std::string& oldText, const std::string& newText);
-
+  void debugPrintBuffer();
   
 public:
   // Constructor and destructor
