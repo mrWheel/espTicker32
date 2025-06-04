@@ -350,7 +350,7 @@ void NeopixelsClass::setScrollSpeed(int newSpeed)
 
 
 // Set the text to be displayed
-void NeopixelsClass::sendNextText(const std::string& text)
+void NeopixelsClass::sendNextText(const std::string& newText)
 {
   if (!initialized || matrix == nullptr)
   {
@@ -360,7 +360,7 @@ void NeopixelsClass::sendNextText(const std::string& text)
   
   if (debug)
   {
-    debugPrint("NeopixelsClass: Setting text to display: '%s'", text.c_str());
+    debugPrint("NeopixelsClass: Setting text to display: '%s'", newText.c_str());
   }
   
   // If we're ready for the next message (previous message has completed but is still on screen)
@@ -371,12 +371,9 @@ void NeopixelsClass::sendNextText(const std::string& text)
     // Calculate the position for the new text (at the right edge of the matrix)
     int newTextX = matrixWidth;
     
-    // Create a combined text with the new text starting at the right edge
-    // We keep the current text and position, and append the new text
-    this->text = this->text + "*" + text;
-    
-    // Check if text needs trimming and recalculate variables
+    // OPTIMIZATION: First trim the existing text, then concatenate
     trimTextAndRecalculate();
+    this->text = this->text + "*" + newText;
     
     // Keep the current position (don't reset it)
     // The textScrollPosition is already set correctly from the previous animation
@@ -393,11 +390,17 @@ void NeopixelsClass::sendNextText(const std::string& text)
   // If there's already text being displayed and animation is in progress
   else if (!previousText.empty() && !textComplete)
   {
-    // Append the new text to the previous text with a space
-    this->text = previousText + "*" + text;
-    
-    // Check if text needs trimming and recalculate variables
+    // OPTIMIZATION: First trim the previous text, then concatenate
+    std::string tempText = previousText;
+    // We need to temporarily set this->text to previousText to trim it
+    std::string originalText = this->text;
+    this->text = previousText;
     trimTextAndRecalculate();
+    std::string trimmedPreviousText = this->text;
+    this->text = originalText; // Restore original
+    
+    // Now append the new text to the trimmed previous text
+    this->text = trimmedPreviousText + "*" + newText;
     
     if (debug)
     {
@@ -407,7 +410,7 @@ void NeopixelsClass::sendNextText(const std::string& text)
   else
   {
     // First message or previous message completed, set the text directly
-    this->text = text;
+    this->text = newText;
     
     try
     {
@@ -425,7 +428,7 @@ void NeopixelsClass::sendNextText(const std::string& text)
   }
   
   // Store this text as the previous text for next time
-  previousText = text;
+  previousText = newText;
   
   this->pass = 0;
   this->textComplete = false;
@@ -734,7 +737,7 @@ void NeopixelsClass::loop()
 // Helper function to trim text and recalculate scrolling variables
 void NeopixelsClass::trimTextAndRecalculate()
 {
-  if (this->text.length() > 1024)
+  if (this->text.length() > 256)
   {
     if (debug)
     {
