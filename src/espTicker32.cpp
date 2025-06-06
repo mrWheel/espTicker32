@@ -361,12 +361,12 @@ std::string nextMessage()
     }
     else if (strcasecmp(newMessage.c_str(), "<spaces>") == 0) 
     {
-        if (debug && doDebug) debug->println("nextMessage(): spaces");
+        if (debug) debug->println("nextMessage(): <spaces>");
         newMessage = "                                                                                     ";
     }
     else if (strcasecmp(newMessage.c_str(), "<feedInfo>") == 0) 
     {
-        if (debug && doDebug) debug->println("nextMessage(): feedInfo");
+        if (debug) debug->println("nextMessage(): <feedInfo>");
         newMessage = rssReader.checkFeedHealth(feedNr).c_str();
         feedNr++;
         if (feedNr >= rssReader.getActiveFeedCount()) 
@@ -377,14 +377,14 @@ std::string nextMessage()
     }
     else if (strcasecmp(newMessage.c_str(), "<feedInfoReset>") == 0) 
     {
-        if (debug && doDebug) debug->println("nextMessage(): feedInfoReset");
+        if (debug) debug->println("nextMessage(): <feedInfoReset>");
         newMessage = "feedInfo reset";
         ticker.setColor(255, 255 , 0); // Yellow
         feedNr = 0;
     }
     else if (strcasecmp(newMessage.c_str(), "<clear>") == 0) 
     {
-        if (debug && doDebug) debug->println("nextMessage(): clear");
+        if (debug) debug->println("nextMessage(): <clear>");
         ticker.tickerClear();
         tmpMessage = {0};
 #ifdef USE_PAROLA
@@ -397,7 +397,7 @@ std::string nextMessage()
     }
     else if (strcasecmp(newMessage.c_str(), "<pixeltest>") == 0) 
     {
-        if (debug && doDebug) debug->println("nextMessage(): pixelTest");
+        if (debug) debug->println("nextMessage(): <pixelTest>");
         tmpMessage = {0};
 #ifdef USE_PAROLA
         for (int i=0; i<MAX_ZONES; i++)
