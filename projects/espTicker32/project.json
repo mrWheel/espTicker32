@@ -1,0 +1,10 @@
+{
+  "name": "DONT FLASH THIS PROJECT",
+  "long_name_nl": "Don't flash this project",
+  "long_name_en": "Don't flash this project",
+  "description_en": "Flashing this project will brick your esp32!!",
+  "description_nl": "Als je dit project flashed zal je esp32 kapot zijn!!",
+  "github_url": "",
+  "post_url": "",
+  "image": "thisProject.png"
+}

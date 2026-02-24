@@ -1,0 +1,22 @@
+{
+  "board": "espTicker32ParolaS3",
+  "version": "v1.3.2",
+  "flash_files": [
+    {
+      "offset": "0x1000",
+      "file": "bootloader.bin"
+    },
+    {
+      "offset": "0x8000",
+      "file": "partitions.bin"
+    },
+    {
+      "offset": "0x10000",
+      "file": "firmware.bin"
+    },
+    {
+      "offset": "0x310000",
+      "file": "LittleFS.bin"
+    }
+  ]
+}
